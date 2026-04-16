@@ -15,4 +15,8 @@
     <ProjectReference Include="..\FakturowanieKSeF.Models\FakturowanieKSeF.Models.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="test\" />
+  </ItemGroup>
+
 </Project>
