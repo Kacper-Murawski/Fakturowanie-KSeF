@@ -76,6 +76,7 @@ public sealed class ReceivedInvoiceSync(
                             SellerNip = Truncate(meta.SellerNip, 10),
                             SellerName = Truncate(meta.SellerName, 250),
                             IssueDate = meta.IssueDate,
+                            DueDate = ReadDueDate(xml),
                             Currency = Truncate(meta.Currency, 3),
                             TotalNet = meta.NetAmount,
                             TotalVat = meta.VatAmount,
@@ -118,6 +119,19 @@ public sealed class ReceivedInvoiceSync(
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Synchronizacja faktur otrzymanych firmy {CompanyId}: pobrano {Count}, kompletna: {Complete}", company.Id, downloaded, complete);
         return new SyncResultDto(downloaded, complete);
+    }
+
+    /// <summary>Termin płatności z XML faktury (do list i filtrów); faktura bez terminu lub nieczytelna - brak.</summary>
+    private static DateOnly? ReadDueDate(string xml)
+    {
+        try
+        {
+            return FakturowanieKSeF.Ksef.Fa3.Fa3InvoiceReader.Read(xml).DueDate;
+        }
+        catch (Exception ex) when (ex is FormatException or System.Xml.XmlException)
+        {
+            return null;
+        }
     }
 
     private static string Truncate(string value, int max) => value.Length <= max ? value : value[..max];

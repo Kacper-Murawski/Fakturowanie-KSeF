@@ -37,6 +37,42 @@ else
         }
     </div>
 
+    @if (payments is { } s)
+    {
+        <div class="row g-3 mb-4" data-testid="payments-summary">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h6 text-muted">Należności (do zapłaty przez nabywców)</h2>
+                        <a class="fs-4 fw-semibold text-decoration-none" href="faktury?payment=Unpaid" data-testid="receivables">@Format.Money(s.ReceivablesTotal)</a>
+                        <div class="small text-muted">@s.ReceivablesCount @Faktur(s.ReceivablesCount)</div>
+                        @if (s.ReceivablesOverdueCount > 0)
+                        {
+                            <a class="d-block mt-2 text-danger fw-semibold" href="faktury?payment=Overdue">
+                                Po terminie: @Format.Money(s.ReceivablesOverdue) (@s.ReceivablesOverdueCount @Faktur(s.ReceivablesOverdueCount))
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h6 text-muted">Zobowiązania (faktury otrzymane do zapłaty)</h2>
+                        <a class="fs-4 fw-semibold text-decoration-none" href="faktury-otrzymane?payment=Unpaid" data-testid="payables">@Format.Money(s.PayablesTotal)</a>
+                        <div class="small text-muted">@s.PayablesCount @Faktur(s.PayablesCount)</div>
+                        @if (s.PayablesOverdueCount > 0)
+                        {
+                            <a class="d-block mt-2 text-danger fw-semibold" href="faktury-otrzymane?payment=Overdue">
+                                Po terminie: @Format.Money(s.PayablesOverdue) (@s.PayablesOverdueCount @Faktur(s.PayablesOverdueCount))
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <div class="d-flex gap-2">
         <a class="btn btn-primary" href="faktury/nowa">Wystaw fakturę</a>
         <a class="btn btn-outline-secondary" href="kontrahenci/nowy">Dodaj kontrahenta</a>
@@ -46,6 +82,7 @@ else
 @code {
     private bool loading = true;
     private CompanyDto? company;
+    private PaymentsSummaryDto? payments;
     private List<(string label, InvoiceStatus status, int count)> counters = [];
 
     protected override async Task OnInitializedAsync()
@@ -67,8 +104,13 @@ else
                 var page = await Api.GetAsync<PagedResult<InvoiceListItemDto>>($"api/invoices?status={status}&pageSize=1");
                 counters.Add((label, status, page.Value?.TotalCount ?? 0));
             }
+            payments = (await Api.GetAsync<PaymentsSummaryDto>("api/payments/summary")).Value;
         }
 
         loading = false;
     }
+
+    /// <summary>Polska odmiana: 1 faktura, 2-4 faktury, 5+ faktur (12-14 faktur).</summary>
+    private static string Faktur(int n) =>
+        n == 1 ? "faktura" : n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14 ? "faktury" : "faktur";
 }

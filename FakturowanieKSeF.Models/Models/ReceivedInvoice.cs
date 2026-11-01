@@ -31,6 +31,9 @@ public class ReceivedInvoice
 
     public DateOnly IssueDate { get; set; }
 
+    /// <summary>Termin płatności z XML faktury (TerminPlatnosci) - do wyszukiwania faktur po terminie.</summary>
+    public DateOnly? DueDate { get; set; }
+
     [Required, MaxLength(3)]
     public string Currency { get; set; } = "PLN";
 
@@ -69,4 +72,7 @@ public class ReceivedInvoice
     /// <summary>Identyfikator zapytania nadany przez MF - potwierdzenie dokonania sprawdzenia.</summary>
     [MaxLength(64)]
     public string? BankAccountCheckRequestId { get; set; }
+
+    /// <summary>Zapłaty zarejestrowane przez użytkownika.</summary>
+    public List<Payment> Payments { get; set; } = [];
 }

@@ -12,11 +12,11 @@
 <ProblemAlert Problem="problem" />
 
 <div class="row g-2 mb-3 align-items-end">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label small" for="q">Szukaj</label>
         <input id="q" class="form-control" placeholder="Numer, nabywca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label class="form-label small" for="status">Status</label>
         <select id="status" class="form-select" @bind="Status" @bind:after="ApplyFiltersAsync">
             <option value="">Wszystkie</option>
@@ -24,6 +24,15 @@
             {
                 <option value="@s">@Format.Status(s)</option>
             }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small" for="payment">Płatność</label>
+        <select id="payment" class="form-select" @bind="Payment" @bind:after="ApplyFiltersAsync">
+            <option value="">Wszystkie</option>
+            <option value="@PaymentFilter.Unpaid">Nieopłacone</option>
+            <option value="@PaymentFilter.Overdue">Po terminie</option>
+            <option value="@PaymentFilter.Paid">Opłacone</option>
         </select>
     </div>
     <div class="col-md-2">
@@ -51,7 +60,7 @@ else
             <thead>
                 <tr>
                     <th>Numer</th><th>Data wystawienia</th><th>Nabywca</th>
-                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Status</th><th>Numer KSeF</th>
+                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Status</th><th>Płatność</th><th>Numer KSeF</th>
                 </tr>
             </thead>
             <tbody>
@@ -64,6 +73,13 @@ else
                         <td class="text-end text-nowrap">@Format.Money(i.TotalNet, i.Currency)</td>
                         <td class="text-end text-nowrap">@Format.Money(i.TotalGross, i.Currency)</td>
                         <td><StatusBadge Status="i.Status" /></td>
+                        <td>
+                            <PaymentBadge Status="i.PaymentStatus" IsOverdue="i.IsOverdue" />
+                            @if (i.PaymentStatus is not null && i.DueDate is not null && i.PaymentStatus != PaymentStatus.Paid)
+                            {
+                                <div class="small text-muted">termin @Format.Date(i.DueDate)</div>
+                            }
+                        </td>
                         <td class="small">@(i.KsefNumber ?? "—")</td>
                     </tr>
                 }
@@ -84,6 +100,7 @@ else
     // Filtry w adresie strony - można je zapisać w zakładkach i wracać przyciskiem „wstecz”
     [SupplyParameterFromQuery(Name = "status")] public string? Status { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "payment")] public string? Payment { get; set; }
     [SupplyParameterFromQuery(Name = "from")] public DateOnly? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public DateOnly? To { get; set; }
     [SupplyParameterFromQuery(Name = "page")] public int? PageNumber { get; set; }
@@ -98,6 +115,7 @@ else
     {
         var query = new List<string> { $"page={PageNumber ?? 1}", "pageSize=20" };
         if (!string.IsNullOrEmpty(Status)) query.Add($"status={Status}");
+        if (!string.IsNullOrEmpty(Payment)) query.Add($"payment={Payment}");
         if (!string.IsNullOrWhiteSpace(Q)) query.Add($"q={Uri.EscapeDataString(Q)}");
         if (From is not null) query.Add($"from={From:yyyy-MM-dd}");
         if (To is not null) query.Add($"to={To:yyyy-MM-dd}");
@@ -136,6 +154,7 @@ else
         var url = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
         {
             ["status"] = string.IsNullOrEmpty(Status) ? null : Status,
+            ["payment"] = string.IsNullOrEmpty(Payment) ? null : Payment,
             ["q"] = string.IsNullOrWhiteSpace(Q) ? null : Q,
             ["from"] = From?.ToString("yyyy-MM-dd"),
             ["to"] = To?.ToString("yyyy-MM-dd"),

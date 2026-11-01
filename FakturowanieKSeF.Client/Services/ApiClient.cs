@@ -42,6 +42,9 @@ public sealed class ApiClient(HttpClient http, NavigationManager navigation)
 
     public Task<ApiResult<bool>> DeleteAsync(string url) => SendAsync<bool>(() => http.DeleteAsync(url));
 
+    /// <summary>DELETE zwracające stan po zmianie (np. rozliczenie faktury po usunięciu płatności).</summary>
+    public Task<ApiResult<T>> DeleteAsync<T>(string url) => SendAsync<T>(() => http.DeleteAsync(url));
+
     private async Task<ApiResult<T>> SendAsync<T>(Func<Task<HttpResponseMessage>> send)
     {
         HttpResponseMessage response;

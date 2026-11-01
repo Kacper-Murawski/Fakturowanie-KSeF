@@ -21,6 +21,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<KsefSubmission> KsefSubmissions => Set<KsefSubmission>();
     public DbSet<ReceivedInvoice> ReceivedInvoices => Set<ReceivedInvoice>();
+    public DbSet<Payment> Payments => Set<Payment>();
 
     /// <summary>Klucze ASP.NET Core Data Protection (szyfrowanie tokenów KSeF, ciasteczka sesji) - D23.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -135,6 +136,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
                 .OnDelete(DeleteBehavior.Restrict);
 
             e.HasQueryFilter(r => !r.Company.IsDeleted);
+        });
+
+        // ---------------- Payment ----------------
+        builder.Entity<Payment>(e =>
+        {
+            // Płatność dotyczy dokładnie jednej faktury: wystawionej albo otrzymanej
+            e.ToTable(t => t.HasCheckConstraint("CK_Payments_OneInvoice",
+                "(\"InvoiceId\" IS NULL) <> (\"ReceivedInvoiceId\" IS NULL)"));
+            e.HasIndex(p => p.CompanyId);
+
+            e.HasOne(p => p.Company).WithMany().HasForeignKey(p => p.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(p => p.Invoice).WithMany(i => i.Payments).HasForeignKey(p => p.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(p => p.ReceivedInvoice).WithMany(r => r.Payments).HasForeignKey(p => p.ReceivedInvoiceId).OnDelete(DeleteBehavior.Restrict);
+
+            e.HasQueryFilter(p => !p.Company.IsDeleted);
         });
     }
 

@@ -29,7 +29,12 @@ public sealed record InvoiceListItemDto(
     decimal TotalGross,
     string Currency,
     InvoiceStatus Status,
-    string? KsefNumber);
+    string? KsefNumber,
+    DateOnly? DueDate = null,
+    /// <summary>Stan rozliczenia (null dla szkiców i faktur odrzuconych - nie są należnością).</summary>
+    PaymentStatus? PaymentStatus = null,
+    decimal PaidAmount = 0,
+    bool IsOverdue = false);
 
 /// <summary>Pełne dane faktury.</summary>
 public sealed record InvoiceDto(
@@ -57,7 +62,9 @@ public sealed record InvoiceDto(
     /// <summary>Ostatnia próba wysyłki do KSeF (null, jeśli faktury nie wysyłano).</summary>
     KsefSubmissionDto? LastSubmission,
     /// <summary>Wersja rekordu - przy zapisie zmian należy ją odesłać (kontrola współbieżności).</summary>
-    uint Version);
+    uint Version,
+    /// <summary>Rozliczenie (null dla szkiców i faktur odrzuconych).</summary>
+    PaymentInfoDto? Payment = null);
 
 public sealed class SaveInvoiceItemRequest
 {

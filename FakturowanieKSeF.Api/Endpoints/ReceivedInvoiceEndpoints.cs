@@ -22,14 +22,24 @@ public static class ReceivedInvoiceEndpoints
     {
         var group = api.MapGroup("/received-invoices").WithTags("Faktury otrzymane").RequireAuthorization();
 
-        group.MapGet("/", async (string? q, DateOnly? from, DateOnly? to, int? page, int? pageSize,
-                CurrentCompany current, AppDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (string? q, PaymentFilter? payment, DateOnly? from, DateOnly? to, int? page, int? pageSize,
+                CurrentCompany current, AppDbContext db, TimeProvider time, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
                 var query = db.ReceivedInvoices.AsNoTracking().Where(r => r.CompanyId == company.Id);
                 if (from is not null) query = query.Where(r => r.IssueDate >= from);
                 if (to is not null) query = query.Where(r => r.IssueDate <= to);
+                var today = PolishDate.Today(time);
+                if (payment is not null)
+                {
+                    query = payment switch
+                    {
+                        PaymentFilter.Paid => query.Where(r => r.Payments.Sum(p => p.Amount) >= r.TotalGross),
+                        PaymentFilter.Unpaid => query.Where(r => r.Payments.Sum(p => p.Amount) < r.TotalGross),
+                        _ => query.Where(r => r.Payments.Sum(p => p.Amount) < r.TotalGross && r.DueDate < today)
+                    };
+                }
                 if (!string.IsNullOrWhiteSpace(q))
                 {
                     var pattern = $"%{q.Trim()}%";
@@ -40,22 +50,31 @@ public static class ReceivedInvoiceEndpoints
                 var p = Math.Max(page ?? 1, 1);
                 var size = Math.Clamp(pageSize ?? 20, 1, 100);
                 var total = await query.CountAsync(ct);
-                var items = await query
+                var rows = await query
                     .OrderByDescending(r => r.KsefAcceptedAt).ThenByDescending(r => r.Id)
                     .Skip((p - 1) * size).Take(size)
-                    .Select(r => new ReceivedInvoiceListItemDto(r.Id, r.KsefNumber, r.InvoiceNumber, r.IssueDate, r.SellerNip,
-                        r.SellerName, r.TotalNet, r.TotalVat, r.TotalGross, r.Currency, r.KsefAcceptedAt, r.BankAccountOnWhiteList))
+                    .Select(r => new
+                    {
+                        r.Id, r.KsefNumber, r.InvoiceNumber, r.IssueDate, r.SellerNip, r.SellerName, r.TotalNet, r.TotalVat,
+                        r.TotalGross, r.Currency, r.KsefAcceptedAt, r.BankAccountOnWhiteList, r.DueDate,
+                        Paid = r.Payments.Sum(x => x.Amount)
+                    })
                     .ToListAsync(ct);
+                var items = rows.Select(r => new ReceivedInvoiceListItemDto(r.Id, r.KsefNumber, r.InvoiceNumber, r.IssueDate,
+                    r.SellerNip, r.SellerName, r.TotalNet, r.TotalVat, r.TotalGross, r.Currency, r.KsefAcceptedAt,
+                    r.BankAccountOnWhiteList, r.DueDate, PaymentRules.Status(r.TotalGross, r.Paid), r.Paid,
+                    PaymentRules.IsOverdue(r.DueDate, r.TotalGross, r.Paid, today))).ToList();
 
                 return Results.Ok(new PagedResult<ReceivedInvoiceListItemDto>(items, total, p, size));
             })
             .WithSummary("Lista faktur otrzymanych (z lokalnej bazy)");
 
-        group.MapGet("/{id:int}", async (int id, CurrentCompany current, AppDbContext db, CancellationToken ct) =>
+        group.MapGet("/{id:int}", async (int id, CurrentCompany current, AppDbContext db, TimeProvider time, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var r = await db.ReceivedInvoices.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.CompanyId == company.Id, ct);
+                var r = await db.ReceivedInvoices.AsNoTracking().Include(x => x.Payments)
+                    .SingleOrDefaultAsync(x => x.Id == id && x.CompanyId == company.Id, ct);
                 if (r is null) return ApiErrors.NotFound("faktura otrzymana");
 
                 InvoiceDocumentDto? document = null;
@@ -72,7 +91,8 @@ public static class ReceivedInvoiceEndpoints
                 var check = document?.BankAccount is { } account && r is { BankAccountOnWhiteList: { } onList, BankAccountCheckedOn: { } on }
                     ? new BankAccountCheckDto(VatRegistryLookup.ToNrb(account) ?? account, onList, on, r.BankAccountCheckRequestId)
                     : null;
-                return Results.Ok(new ReceivedInvoiceDto(r.Id, r.KsefNumber, r.KsefAcceptedAt, r.DownloadedAt, document, error, check));
+                return Results.Ok(new ReceivedInvoiceDto(r.Id, r.KsefNumber, r.KsefAcceptedAt, r.DownloadedAt, document, error, check,
+                    Mapping.ToPaymentInfo(r.TotalGross, r.DueDate, r.Payments, PolishDate.Today(time))));
             })
             .WithSummary("Szczegóły faktury otrzymanej (treść odczytana z XML)");
 

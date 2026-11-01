@@ -93,4 +93,7 @@ public class Invoice : BaseEntity
 
     /// <summary>Historia prób wysyłki do KSeF (np. odrzucenie, poprawka, ponowna wysyłka).</summary>
     public List<KsefSubmission> KsefSubmissions { get; set; } = [];
+
+    /// <summary>Wpłaty nabywcy zarejestrowane przez użytkownika.</summary>
+    public List<Payment> Payments { get; set; } = [];
 }

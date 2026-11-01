@@ -24,7 +24,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 |---|---|---|---|
 | 1 | Dane kontrahenta z wykazu podatników VAT po NIP (D28) | wysoki | ✅ |
 | 2 | Weryfikacja rachunku na białej liście (faktury otrzymane) (D29) | wysoki | ✅ |
-| 3 | Status płatności faktur wystawionych i otrzymanych | wysoki | planowana |
+| 3 | Status płatności faktur wystawionych i otrzymanych (D30) | wysoki | ✅ |
 | 4 | „Wystaw podobną” - kopia faktury jako nowy szkic | wysoki | planowana |
 | 5 | Faktury korygujące | wysoki | planowana |
 | 6 | Wysyłka faktury e-mailem | średni | do decyzji |
@@ -74,6 +74,13 @@ ustawy o PIT) i grozi solidarną odpowiedzialnością za VAT sprzedawcy (art. 11
 W podglądzie faktury otrzymanej przycisk **Sprawdź rachunek na białej liście** wywołuje metodę `check` API MF
 dla NIP sprzedawcy i rachunku z XML faktury. Wynik z datą i identyfikatorem zapytania MF jest zapisywany przy
 fakturze (potwierdzenie sprawdzenia), a faktury z rachunkiem spoza wykazu są oznaczone na liście. Szczegóły: D29.
+
+## 3. Status płatności (rozliczenia)
+
+Użytkownik rejestruje wpłaty za faktury wystawione i zapłaty za faktury otrzymane (także częściowe). Stan
+rozliczenia (*nieopłacona*, *częściowo opłacona*, *opłacona*, *po terminie*) jest wyliczany z sumy płatności
+i terminu z faktury. Listy faktur mają filtr rozliczenia, a pulpit pokazuje należności i zobowiązania, w tym kwoty
+po terminie. Szczegóły: D30.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).

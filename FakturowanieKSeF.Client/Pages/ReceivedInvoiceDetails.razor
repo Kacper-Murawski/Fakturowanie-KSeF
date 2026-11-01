@@ -33,6 +33,13 @@ else
         <div class="alert alert-warning">@invoice.DocumentError Pełna treść faktury jest dostępna w pliku XML.</div>
     }
 
+    @if (invoice.Payment is { } payment)
+    {
+        <PaymentPanel InvoiceUrl="@($"api/received-invoices/{invoice.Id}")" Info="payment" Received="true"
+                      TotalGross="doc?.TotalGross ?? payment.PaidAmount + payment.Remaining" Currency="@(doc?.Currency ?? "PLN")"
+                      DueDate="doc?.DueDate" InfoChanged="info => invoice = invoice with { Payment = info }" />
+    }
+
     @if (doc is not null)
     {
         <div class="invoice-sheet card">

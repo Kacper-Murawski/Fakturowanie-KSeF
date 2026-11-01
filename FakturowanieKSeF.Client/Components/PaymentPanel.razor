@@ -1,0 +1,137 @@
+@* Rozliczenie faktury: stan, historia płatności, rejestracja wpłaty/zapłaty. Wspólny dla faktur wystawionych
+   (wpłaty nabywcy) i otrzymanych (zapłaty sprzedawcy) - różni się adresem API i opisami. *@
+@inject ApiClient Api
+@inject IJSRuntime JS
+
+<section class="card mb-3" data-testid="payment-panel">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="h5 mb-0">Rozliczenie</h2>
+            <PaymentBadge Status="Info.Status" IsOverdue="Info.IsOverdue" />
+        </div>
+
+        <p class="mb-2">
+            Zapłacono <strong data-testid="paid-amount">@Format.Money(Info.PaidAmount, Currency)</strong>
+            z @Format.Money(TotalGross, Currency)
+            @if (Info.Remaining > 0)
+            {
+                <span>, pozostało <strong data-testid="remaining">@Format.Money(Info.Remaining, Currency)</strong></span>
+            }
+            @if (DueDate is not null)
+            {
+                <span class="@(Info.IsOverdue ? "text-danger fw-semibold" : "text-muted")"> · termin @Format.Date(DueDate)</span>
+            }
+        </p>
+
+        @if (Info.Payments.Count > 0)
+        {
+            <table class="table table-sm mb-3">
+                <thead><tr><th>Data</th><th class="text-end">Kwota</th><th>Uwagi</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var p in Info.Payments)
+                    {
+                        <tr>
+                            <td>@Format.Date(p.PaidOn)</td>
+                            <td class="text-end">@Format.Money(p.Amount, Currency)</td>
+                            <td>@p.Note</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń płatność" disabled="@busy"
+                                        @onclick="() => DeleteAsync(p)">✕</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (Info.Remaining > 0)
+        {
+            <EditForm Model="model" OnValidSubmit="AddAsync" FormName="payment">
+                <DeepValidator @ref="validator" />
+                <div class="row g-2 align-items-end">
+                    <div class="col-sm-3">
+                        <label class="form-label small" for="paid-on">Data @(Received ? "zapłaty" : "wpłaty")</label>
+                        <InputDate id="paid-on" class="form-control" @bind-Value="model.PaidOn" />
+                        <ValidationMessage For="() => model.PaidOn" />
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="form-label small" for="paid-amount">Kwota</label>
+                        <InputNumber id="paid-amount" class="form-control" @bind-Value="model.Amount" step="0.01" />
+                        <ValidationMessage For="() => model.Amount" />
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="form-label small" for="paid-note">Uwagi</label>
+                        <InputTextLive id="paid-note" class="form-control" @bind-Value="model.Note" placeholder="np. przelew, gotówka" />
+                    </div>
+                    <div class="col-sm-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-outline-primary" disabled="@busy">Zarejestruj</button>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-success btn-sm mt-2" disabled="@busy" @onclick="MarkPaidAsync">
+                    Oznacz jako opłaconą (@Format.Money(Info.Remaining, Currency) dziś)
+                </button>
+            </EditForm>
+        }
+        <ProblemAlert Problem="problem" />
+    </div>
+</section>
+
+@code {
+    /// <summary>Adres faktury w API, np. „api/invoices/5” albo „api/received-invoices/3”.</summary>
+    [Parameter, EditorRequired] public string InvoiceUrl { get; set; } = "";
+    [Parameter, EditorRequired] public PaymentInfoDto Info { get; set; } = null!;
+    [Parameter, EditorRequired] public decimal TotalGross { get; set; }
+    [Parameter] public string Currency { get; set; } = "PLN";
+    [Parameter] public DateOnly? DueDate { get; set; }
+    /// <summary>Faktura otrzymana (zapłata sprzedawcy) - wpływa tylko na opisy.</summary>
+    [Parameter] public bool Received { get; set; }
+    [Parameter] public EventCallback<PaymentInfoDto> InfoChanged { get; set; }
+
+    private AddPaymentRequest model = new();
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override void OnParametersSet()
+    {
+        if (model.PaidOn is null) Reset();
+    }
+
+    private void Reset() => model = new AddPaymentRequest { PaidOn = DateOnly.FromDateTime(DateTime.Today), Amount = Info.Remaining };
+
+    private Task AddAsync() => SendAsync(model);
+
+    private Task MarkPaidAsync() =>
+        SendAsync(new AddPaymentRequest { PaidOn = DateOnly.FromDateTime(DateTime.Today), Amount = Info.Remaining, Note = model.Note });
+
+    private async Task SendAsync(AddPaymentRequest request)
+    {
+        busy = true;
+        var result = await Api.PostAsync<PaymentInfoDto>($"{InvoiceUrl}/payments", request);
+        busy = false;
+        problem = result.Problem;
+        if (result.Value is { } info)
+        {
+            await InfoChanged.InvokeAsync(info);
+            Info = info;
+            Reset();
+        }
+        else if (problem is not null) validator?.ShowServerErrors(problem);
+    }
+
+    private async Task DeleteAsync(PaymentDto payment)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Usunąć płatność {Format.Money(payment.Amount, Currency)} z dnia {Format.Date(payment.PaidOn)}?")) return;
+
+        busy = true;
+        var result = await Api.DeleteAsync<PaymentInfoDto>($"{InvoiceUrl}/payments/{payment.Id}");
+        busy = false;
+        problem = result.Problem;
+        if (result.Value is { } info)
+        {
+            await InfoChanged.InvokeAsync(info);
+            Info = info;
+            Reset();
+        }
+    }
+}

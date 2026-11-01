@@ -47,9 +47,18 @@ else if (status is not null)
 <ProblemAlert Problem="problem" />
 
 <div class="row g-2 mb-3 align-items-end">
-    <div class="col-md-5">
+    <div class="col-md-4">
         <label class="form-label small" for="q">Szukaj</label>
         <input id="q" class="form-control" placeholder="Numer faktury, sprzedawca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small" for="payment">Płatność</label>
+        <select id="payment" class="form-select" @bind="Payment" @bind:after="ApplyFilters">
+            <option value="">Wszystkie</option>
+            <option value="@PaymentFilter.Unpaid">Do zapłaty</option>
+            <option value="@PaymentFilter.Overdue">Po terminie</option>
+            <option value="@PaymentFilter.Paid">Zapłacone</option>
+        </select>
     </div>
     <div class="col-md-2">
         <label class="form-label small" for="from">Wystawione od</label>
@@ -67,7 +76,7 @@ else if (status is not null)
 }
 else if (data.TotalCount == 0)
 {
-    <p class="text-muted">Brak faktur otrzymanych@(string.IsNullOrWhiteSpace(Q) && From is null && To is null ? "" : " spełniających kryteria").</p>
+    <p class="text-muted">Brak faktur otrzymanych@(string.IsNullOrWhiteSpace(Q) && string.IsNullOrEmpty(Payment) && From is null && To is null ? "" : " spełniających kryteria").</p>
 }
 else
 {
@@ -76,7 +85,7 @@ else
             <thead>
                 <tr>
                     <th>Numer faktury</th><th>Sprzedawca</th><th>Data wystawienia</th><th>Otrzymana (KSeF)</th>
-                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Numer KSeF</th>
+                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Płatność</th><th>Numer KSeF</th>
                 </tr>
             </thead>
             <tbody>
@@ -95,6 +104,13 @@ else
                         <td>@Format.DateTime(r.KsefAcceptedAt)</td>
                         <td class="text-end text-nowrap">@Format.Money(r.TotalNet, r.Currency)</td>
                         <td class="text-end text-nowrap">@Format.Money(r.TotalGross, r.Currency)</td>
+                        <td>
+                            <PaymentBadge Status="r.PaymentStatus" IsOverdue="r.IsOverdue" />
+                            @if (r.DueDate is not null && r.PaymentStatus != PaymentStatus.Paid)
+                            {
+                                <div class="small text-muted">termin @Format.Date(r.DueDate)</div>
+                            }
+                        </td>
                         <td class="small">@r.KsefNumber</td>
                     </tr>
                 }
@@ -113,6 +129,7 @@ else
 
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "payment")] public string? Payment { get; set; }
     [SupplyParameterFromQuery(Name = "from")] public DateOnly? From { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public DateOnly? To { get; set; }
     [SupplyParameterFromQuery(Name = "page")] public int? PageNumber { get; set; }
@@ -134,6 +151,7 @@ else
     {
         var query = new List<string> { $"page={PageNumber ?? 1}", "pageSize=20" };
         if (!string.IsNullOrWhiteSpace(Q)) query.Add($"q={Uri.EscapeDataString(Q)}");
+        if (!string.IsNullOrEmpty(Payment)) query.Add($"payment={Payment}");
         if (From is not null) query.Add($"from={From:yyyy-MM-dd}");
         if (To is not null) query.Add($"to={To:yyyy-MM-dd}");
 
@@ -176,6 +194,7 @@ else
     private void UpdateUrl() => Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
     {
         ["q"] = string.IsNullOrWhiteSpace(Q) ? null : Q,
+        ["payment"] = string.IsNullOrEmpty(Payment) ? null : Payment,
         ["from"] = From?.ToString("yyyy-MM-dd"),
         ["to"] = To?.ToString("yyyy-MM-dd"),
         ["page"] = PageNumber is > 1 ? PageNumber : null

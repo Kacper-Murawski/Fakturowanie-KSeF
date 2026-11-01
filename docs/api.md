@@ -27,7 +27,7 @@ po polsku.
 | POST | `/api/customers` | Dodanie kontrahenta |
 | PUT | `/api/customers/{id}` | Edycja kontrahenta |
 | DELETE | `/api/customers/{id}` | Usunięcie kontrahenta (miękkie) |
-| GET | `/api/invoices?status=&from=&to=&q=&page=&pageSize=` | Lista faktur z filtrami i stronicowaniem |
+| GET | `/api/invoices?status=&payment=&from=&to=&q=&page=&pageSize=` | Lista faktur z filtrami i stronicowaniem; `payment`: `Unpaid`, `Paid`, `Overdue` (D30) |
 | GET | `/api/invoices/{id}` | Szczegóły faktury z pozycjami i podsumowaniem VAT |
 | GET | `/api/invoices/next-number?issueDate=` | Propozycja kolejnego numeru |
 | GET | `/api/invoices/{id}/pdf` | Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych) |
@@ -41,7 +41,7 @@ po polsku.
 | PUT | `/api/company/ksef/token` | Zapis tokenu KSeF po weryfikacji w KSeF (400, jeśli KSeF go odrzuci) |
 | POST | `/api/company/ksef/test-token` | Wygenerowanie tokenu w testowym KSeF dla NIP firmy (502 przy błędzie KSeF) |
 | DELETE | `/api/company/ksef/token` | Usunięcie tokenu |
-| GET | `/api/received-invoices?q=&from=&to=&page=&pageSize=` | Lista faktur otrzymanych (z lokalnej bazy) |
+| GET | `/api/received-invoices?q=&payment=&from=&to=&page=&pageSize=` | Lista faktur otrzymanych (z lokalnej bazy), filtr rozliczenia jak wyżej |
 | GET | `/api/received-invoices/{id}` | Faktura otrzymana z treścią odczytaną z XML |
 | GET | `/api/received-invoices/{id}/xml` | XML faktury otrzymanej (w postaci pobranej z KSeF) |
 | GET | `/api/received-invoices/{id}/pdf` | Wizualizacja faktury otrzymanej w PDF z kodem QR weryfikacji |
@@ -49,6 +49,11 @@ po polsku.
 | GET | `/api/received-invoices/sync-status` | Stan synchronizacji (ostatnia synchronizacja, punkt kontrolny, błąd) |
 | POST | `/api/received-invoices/sync` | Ręczna synchronizacja z KSeF (409 bez tokenu, 429 częściej niż raz na minutę, 502 przy błędzie KSeF) |
 | GET | `/api/vat-registry/{nip}` | Dane podmiotu z wykazu podatników VAT (Biała lista MF): nazwa, adres rozbity na pola, status VAT, rachunki. 404 - brak w wykazie, 429 - dzienny limit zapytań, 502 - błąd API MF (D28) |
+| POST | `/api/invoices/{id}/payments` | Rejestracja wpłaty (`paidOn`, `amount`, `note`); zwraca rozliczenie. 400 - nadpłata, data z przyszłości; 409 - szkic, faktura odrzucona lub opłacona (D30) |
+| DELETE | `/api/invoices/{id}/payments/{paymentId}` | Usunięcie błędnej wpłaty; zwraca rozliczenie |
+| POST | `/api/received-invoices/{id}/payments` | Rejestracja zapłaty za fakturę otrzymaną (jak wyżej) |
+| DELETE | `/api/received-invoices/{id}/payments/{paymentId}` | Usunięcie błędnej zapłaty |
+| GET | `/api/payments/summary` | Należności i zobowiązania: pozostało do zapłaty, w tym po terminie (kwoty w PLN) |
 | GET | `/api/health` | Stan aplikacji i bazy danych (bez uwierzytelniania) |
 
 ## Kody odpowiedzi

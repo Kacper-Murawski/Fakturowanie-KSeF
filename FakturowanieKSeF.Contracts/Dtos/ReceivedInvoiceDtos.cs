@@ -13,7 +13,11 @@ public sealed record ReceivedInvoiceListItemDto(
     decimal TotalGross,
     string Currency,
     DateTime KsefAcceptedAt,
-    bool? BankAccountOnWhiteList = null);
+    bool? BankAccountOnWhiteList = null,
+    DateOnly? DueDate = null,
+    PaymentStatus PaymentStatus = PaymentStatus.Unpaid,
+    decimal PaidAmount = 0,
+    bool IsOverdue = false);
 
 /// <summary>Faktura otrzymana: dane z KSeF i treść odczytana z XML.</summary>
 public sealed record ReceivedInvoiceDto(
@@ -23,7 +27,8 @@ public sealed record ReceivedInvoiceDto(
     DateTime DownloadedAt,
     InvoiceDocumentDto? Document,
     string? DocumentError,
-    BankAccountCheckDto? BankAccountCheck = null);
+    BankAccountCheckDto? BankAccountCheck = null,
+    PaymentInfoDto? Payment = null);
 
 /// <summary>Wynik sprawdzenia rachunku z faktury w wykazie podatników VAT (Biała lista MF).</summary>
 /// <param name="OnWhiteList">Czy rachunek jest przypisany do sprzedawcy w wykazie na dzień <paramref name="CheckedOn"/>.</param>
