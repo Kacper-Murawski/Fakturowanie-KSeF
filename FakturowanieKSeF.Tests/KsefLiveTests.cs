@@ -141,6 +141,71 @@ public class KsefLiveTests
         Assert.Equal(nipB, document.Buyer.Nip);
     }
 
+    [LiveKsefFact]
+    public async Task FakturaKorygujaca_JestPrzyjmowanaPrzezTestowyKsef()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddKsefTestClient();
+        await using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var gateway = scope.ServiceProvider.GetRequiredService<IKsefGateway>();
+
+        var nip = RandomNip();
+        var token = await gateway.GenerateTestTokenAsync(nip);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        async Task<string> SendAsync(Invoice invoice)
+        {
+            var xml = new Fa3XmlGenerator().GenerateBytes(invoice);
+            var validation = new Fa3SchemaValidator().Validate(xml);
+            Assert.True(validation.IsValid, string.Join("\n", validation.Errors));
+
+            var sent = await gateway.SendInvoiceAsync(nip, token, xml);
+            KsefInvoiceStatus status;
+            var attempts = 0;
+            do
+            {
+                await Task.Delay(1000);
+                status = await gateway.GetInvoiceStatusAsync(nip, token, sent.SessionReferenceNumber, sent.InvoiceReferenceNumber);
+            } while (status.IsProcessing && ++attempts < 60);
+            await gateway.CloseSessionAsync(nip, token, sent.SessionReferenceNumber);
+
+            Assert.True(status.IsAccepted, $"KSeF nie przyjął dokumentu: {status.Code} {status.Description} {string.Join("; ", status.Details)}");
+            return status.KsefNumber!;
+        }
+
+        Invoice New(string number, List<InvoiceItem> items) => new()
+        {
+            Number = number, IssueDate = today, Currency = "PLN", PaymentMethod = PaymentMethod.Transfer, DueDate = today.AddDays(7),
+            BankAccountNumber = "61109010140000071219812874",
+            Seller = new InvoiceParty { Name = "Firma Testowa (test automatyczny)", Nip = nip, Address = Addr() },
+            Buyer = new InvoiceParty { Name = "Odbiorca Testowy sp. z o.o.", Nip = "1234563218", Address = Addr() },
+            Items = items
+        };
+
+        // Faktura pierwotna
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var original = New($"FV/LIVE/{suffix}", [Line(1, "Usługa programistyczna", 10, 150m, VatRate.Rate23), Line(2, "Książka", 1, 50m, VatRate.Rate5)]);
+        var originalKsef = await SendAsync(original);
+
+        // Korekta: obniżka ceny usługi (stan przed i po) - kwoty ujemne, wiersze StanPrzed
+        var before1 = Line(1, "Usługa programistyczna", 10, 150m, VatRate.Rate23);
+        var before2 = Line(2, "Książka", 1, 50m, VatRate.Rate5);
+        before1.BeforeCorrection = before2.BeforeCorrection = true;
+        var correction = New($"KOR/LIVE/{suffix}",
+            [before1, before2, Line(3, "Usługa programistyczna", 10, 120m, VatRate.Rate23), Line(4, "Książka", 1, 50m, VatRate.Rate5)]);
+        correction.Kind = InvoiceKind.Correction;
+        correction.CorrectedInvoiceNumber = original.Number;
+        correction.CorrectedInvoiceIssueDate = original.IssueDate;
+        correction.CorrectedInvoiceKsefNumber = originalKsef;
+        correction.CorrectionReason = "Rabat (test automatyczny)";
+        correction.CorrectionType = CorrectionType.CorrectionDate;
+
+        var correctionKsef = await SendAsync(correction);
+        Assert.StartsWith(nip + "-", correctionKsef);
+    }
+
     private static Address Addr() => new() { Street = "ul. Testowa 1", PostalCode = "00-001", City = "Warszawa", CountryCode = "PL" };
 
     private static InvoiceItem Line(int pos, string name, decimal qty, decimal price, VatRate rate)

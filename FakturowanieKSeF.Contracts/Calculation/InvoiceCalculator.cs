@@ -16,6 +16,18 @@ public sealed record InvoiceTotals(
     decimal TotalGross);
 
 /// <summary>
+/// Kwoty faktury korygującej: stan przed i po korekcie oraz różnica per stawka (ujemna przy obniżce).
+/// Różnica trafia do pól P_13_x / P_14_x / P_15 faktury korygującej.
+/// </summary>
+public sealed record CorrectionTotals(
+    InvoiceTotals Before,
+    InvoiceTotals After,
+    IReadOnlyList<VatRateSummary> Difference,
+    decimal TotalNet,
+    decimal TotalVat,
+    decimal TotalGross);
+
+/// <summary>
 /// Obliczanie kwot faktury metodą „od netto”. Ten sam kod liczy sumy w API i na żywo w formularzu Blazor,
 /// więc użytkownik widzi dokładnie te kwoty, które zostaną zapisane i wysłane do KSeF.
 /// <para>Zasady:</para>
@@ -60,5 +72,30 @@ public static class InvoiceCalculator
         var totalVat = byRate.Sum(s => s.Vat);
 
         return new InvoiceTotals(results, byRate, totalNet, totalVat, totalNet + totalVat);
+    }
+
+    /// <summary>
+    /// Korekta metodą „przed i po”: kwoty obu stanów liczone są tak samo jak na fakturze (podatek od sumy netto
+    /// w stawce), a różnica per stawka to po - przed. Stawki występujące tylko w jednym ze stanów też są wykazywane.
+    /// </summary>
+    public static CorrectionTotals CalculateCorrection(IEnumerable<LineInput> before, IEnumerable<LineInput> after)
+    {
+        var b = Calculate(before);
+        var a = Calculate(after);
+
+        var difference = b.ByVatRate.Select(s => s.VatRate).Union(a.ByVatRate.Select(s => s.VatRate))
+            .Order()
+            .Select(rate =>
+            {
+                var x = b.ByVatRate.FirstOrDefault(s => s.VatRate == rate);
+                var y = a.ByVatRate.FirstOrDefault(s => s.VatRate == rate);
+                var net = (y?.Net ?? 0) - (x?.Net ?? 0);
+                var vat = (y?.Vat ?? 0) - (x?.Vat ?? 0);
+                return new VatRateSummary(rate, net, vat, net + vat);
+            })
+            .ToList();
+
+        return new CorrectionTotals(b, a, difference,
+            a.TotalNet - b.TotalNet, a.TotalVat - b.TotalVat, a.TotalGross - b.TotalGross);
     }
 }

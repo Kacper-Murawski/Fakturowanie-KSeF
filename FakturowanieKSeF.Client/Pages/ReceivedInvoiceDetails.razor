@@ -44,6 +44,20 @@ else
     {
         <div class="invoice-sheet card">
             <div class="card-body">
+                @if (doc.IsCorrection)
+                {
+                    <div class="alert alert-secondary small" data-testid="received-correction">
+                        @foreach (var k in doc.CorrectedInvoices ?? [])
+                        {
+                            <div>Korekta faktury <strong>@k.Number</strong>@(k.IssueDate is { } d ? $" z dnia {Format.Date(d)}" : "")@(k.KsefNumber is null ? "" : $", numer KSeF {k.KsefNumber}")</div>
+                        }
+                        @if (doc.CorrectionReason is not null)
+                        {
+                            <div>Przyczyna: <strong>@doc.CorrectionReason</strong></div>
+                        }
+                        <div>Wiersze oznaczone „przed” to stan przed korektą; kwoty podsumowania to różnica.</div>
+                    </div>
+                }
                 <div class="small mb-4">
                     Data wystawienia: <strong>@Format.Date(doc.IssueDate)</strong><br />
                     Data sprzedaży: <strong>@Format.Date(doc.SaleDate ?? doc.IssueDate)</strong>
@@ -70,7 +84,13 @@ else
                             {
                                 <tr>
                                     <td>@l.Number</td>
-                                    <td>@l.Name</td>
+                                    <td>
+                                        @l.Name
+                                        @if (l.BeforeCorrection)
+                                        {
+                                            <span class="badge bg-secondary ms-1">przed</span>
+                                        }
+                                    </td>
                                     <td>@l.Unit</td>
                                     <td class="text-end">@(l.Quantity is { } q ? Format.Quantity(q) : "")</td>
                                     <td class="text-end">@(l.UnitNetPrice is { } p ? Format.Amount(p) : "")</td>

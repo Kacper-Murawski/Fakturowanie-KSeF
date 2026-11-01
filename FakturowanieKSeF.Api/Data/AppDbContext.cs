@@ -73,6 +73,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
 
             e.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(i => i.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+            e.Property(i => i.Kind).HasConversion<string>().HasMaxLength(20);
+            e.Property(i => i.CorrectionType).HasConversion<string>().HasMaxLength(20);
+
+            // Korekta wskazuje fakturę korygowaną; faktury z korektami nie wolno usunąć
+            e.HasOne(i => i.CorrectedInvoice)
+                .WithMany(i => i.Corrections)
+                .HasForeignKey(i => i.CorrectedInvoiceId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // Kopie danych stron - kolumny Seller_* i Buyer_* w tabeli Invoices
             e.OwnsOne(i => i.Seller, s => s.OwnsOne(p => p.Address));

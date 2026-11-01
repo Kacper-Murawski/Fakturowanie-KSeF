@@ -17,6 +17,7 @@ erDiagram
     Customers |o--o{ Invoices : "źródło danych nabywcy"
     Invoices ||--|{ InvoiceItems : "pozycje"
     Invoices ||--o{ KsefSubmissions : "próby wysyłki"
+    Invoices |o--o{ Invoices : "korekty (CorrectedInvoiceId)"
     Invoices |o--o{ Payments : "wpłaty nabywcy"
     ReceivedInvoices |o--o{ Payments : "zapłaty sprzedawcy"
     Companies ||--o{ Payments : "rozliczenia"
@@ -91,6 +92,13 @@ erDiagram
         numeric TotalVat "18,2"
         numeric TotalGross "18,2 - P_15"
         string Status "Draft/Pending/Accepted/Rejected"
+        string Kind "Vat/Correction - RodzajFaktury"
+        int CorrectedInvoiceId FK "faktura korygowana"
+        string CorrectedInvoiceNumber "kopia - NrFaKorygowanej"
+        date CorrectedInvoiceIssueDate "kopia"
+        string CorrectedInvoiceKsefNumber "kopia - NrKSeFFaKorygowanej"
+        string CorrectionReason "PrzyczynaKorekty"
+        string CorrectionType "TypKorekty"
         string KsefNumber "unikalny"
         timestamptz KsefAcceptedAt
         xid xmin "współbieżność"
@@ -111,6 +119,7 @@ erDiagram
         numeric NetAmount "18,2 - P_11"
         numeric VatAmount "18,2"
         numeric GrossAmount "18,2"
+        bool BeforeCorrection "StanPrzed - wiersz stanu przed korektą"
     }
 
     KsefSubmissions {
@@ -193,6 +202,11 @@ erDiagram
 **Historia wysyłek.** Faktura może być wysyłana kilka razy (np. odrzucenie z powodu błędu walidacji, poprawka,
 ponowna wysyłka). Każda próba jest osobnym wierszem `KsefSubmissions`. Udana próba kopiuje numer KSeF
 i datę przyjęcia do `Invoices`, żeby listy i wyszukiwanie nie wymagały złączeń.
+
+**Faktury korygujące (D32).** Korekta to wiersz `Invoices` z `Kind = Correction`, kopią danych faktury
+korygowanej i nabywcy oraz pozycjami w dwóch grupach: stan przed korektą (`BeforeCorrection = true`, pozycje 1..n)
+i stan po korekcie (kolejne pozycje). Kwoty korekty (`TotalNet/TotalVat/TotalGross`) to różnica po - przed,
+więc mogą być ujemne. Kwota należna faktury korygowanej = jej brutto + różnice z korekt przekazanych do KSeF.
 
 **Cykl życia faktury.** `Draft` (edycja możliwa) → `Pending` (wysłana, KSeF przetwarza asynchronicznie)
 → `Accepted` (numer KSeF, dokument ostateczny) lub `Rejected` (po poprawie można wysłać ponownie).

@@ -44,6 +44,12 @@ public class InvoiceItem
     [Column(TypeName = "numeric(18,2)")]
     public decimal GrossAmount { get; set; }
 
+    /// <summary>
+    /// Wiersz stanu PRZED korektą (StanPrzed w FA(3)) - tylko na fakturze korygującej. Wiersze „przed” mają
+    /// pozycje 1..n, a wiersze stanu po korekcie kolejne numery (osobna numeracja wierszy, jak wymaga FA(3)).
+    /// </summary>
+    public bool BeforeCorrection { get; set; }
+
     public int InvoiceId { get; set; }
     public Invoice Invoice { get; set; } = null!;
 }

@@ -13,7 +13,7 @@ public sealed class Fa3GenerationException(string message) : Exception(message);
 /// <summary>
 /// Generuje XML faktury w strukturze logicznej FA(3) (schemat_FA(3)_v1-0E.xsd) - postaci, w jakiej faktura
 /// jest przesyłana do KSeF. Kolejność elementów odpowiada dokładnie sekwencjom ze schematu XSD.
-/// <para>Zakres MVP: faktura VAT podstawowa (RodzajFaktury = VAT) w PLN. Wymagania techniczne KSeF:
+/// <para>Zakres: faktura VAT podstawowa (RodzajFaktury = VAT) i faktura korygująca (KOR) w PLN. Wymagania techniczne KSeF:
 /// kodowanie UTF-8 bez znacznika BOM, brak instrukcji przetwarzania poza deklaracją XML.</para>
 /// </summary>
 public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
@@ -64,6 +64,11 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
 
         if (invoice.Items.Count == 0)
             throw new Fa3GenerationException("Faktura nie ma pozycji.");
+
+        if (invoice.Kind == InvoiceKind.Correction
+            && (invoice.CorrectedInvoiceNumber is null || invoice.CorrectedInvoiceIssueDate is null || invoice.CorrectedInvoiceKsefNumber is null
+                || string.IsNullOrWhiteSpace(invoice.CorrectionReason)))
+            throw new Fa3GenerationException("Brak danych faktury korygowanej (numer, data, numer KSeF) lub przyczyny korekty.");
 
         if (invoice.Items.Any(i => i.VatRate is VatRate.Rate4 or VatRate.Rate3))
             throw new Fa3GenerationException("Stawki 4% i 3% (ryczałt dla taksówek osobowych) nie są obsługiwane.");
@@ -144,7 +149,26 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
     private static void WriteFa(XmlWriter w, Invoice invoice)
     {
         var items = invoice.Items.OrderBy(i => i.Position).ToList();
-        var totals = InvoiceCalculator.Calculate(items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)));
+        var correction = invoice.Kind == InvoiceKind.Correction;
+        LineInput Input(InvoiceItem i) => new(i.Quantity, i.UnitNetPrice, i.VatRate);
+
+        // Faktura korygująca metodą „przed i po”: kwoty P_13_x / P_14_x / P_15 to różnica (po - przed),
+        // a wiersze stanu przed korektą oznaczone są znacznikiem StanPrzed
+        IReadOnlyList<VatRateSummary> summary;
+        decimal totalGross;
+        if (correction)
+        {
+            var c = InvoiceCalculator.CalculateCorrection(
+                items.Where(i => i.BeforeCorrection).Select(Input), items.Where(i => !i.BeforeCorrection).Select(Input));
+            summary = c.Difference;
+            totalGross = c.TotalGross;
+        }
+        else
+        {
+            var t = InvoiceCalculator.Calculate(items.Select(Input));
+            summary = t.ByVatRate;
+            totalGross = t.TotalGross;
+        }
 
         w.WriteStartElement("Fa", Namespace);
 
@@ -154,17 +178,33 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
         Element(w, "P_2", invoice.Number);
         if (invoice.SaleDate is { } saleDate && saleDate != invoice.IssueDate) Element(w, "P_6", Date(saleDate));
 
-        WriteVatSummary(w, totals);
-        Element(w, "P_15", Money(totals.TotalGross));
+        WriteVatSummary(w, summary);
+        Element(w, "P_15", Money(totalGross));
 
         WriteAnnotations(w, invoice, items);
-        Element(w, "RodzajFaktury", "VAT");
+        Element(w, "RodzajFaktury", correction ? "KOR" : "VAT");
+        if (correction) WriteCorrectedInvoice(w, invoice);
 
         for (var n = 0; n < items.Count; n++)
-            WriteLine(w, n + 1, items[n], totals.Lines[n]);
+            WriteLine(w, n + 1, items[n], InvoiceCalculator.CalculateLine(Input(items[n])));
 
-        WritePayment(w, invoice);
+        // Płatność na korekcie tylko przy dopłacie; zwrot nadpłaty nie ma terminu płatności dla nabywcy
+        if (!correction || totalGross > 0) WritePayment(w, invoice);
 
+        w.WriteEndElement();
+    }
+
+    /// <summary>Dane faktury korygowanej (sekwencja dla RodzajFaktury = KOR).</summary>
+    private static void WriteCorrectedInvoice(XmlWriter w, Invoice invoice)
+    {
+        Element(w, "PrzyczynaKorekty", invoice.CorrectionReason!.Trim());
+        if (invoice.CorrectionType is { } type) Element(w, "TypKorekty", ((int)type).ToString(CultureInfo.InvariantCulture));
+
+        w.WriteStartElement("DaneFaKorygowanej", Namespace);
+        Element(w, "DataWystFaKorygowanej", Date(invoice.CorrectedInvoiceIssueDate!.Value));
+        Element(w, "NrFaKorygowanej", invoice.CorrectedInvoiceNumber!);
+        Element(w, "NrKSeF", "1"); // faktura korygowana wystawiona w KSeF
+        Element(w, "NrKSeFFaKorygowanej", invoice.CorrectedInvoiceKsefNumber!);
         w.WriteEndElement();
     }
 
@@ -172,11 +212,11 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
     /// Podsumowanie per stawka (P_13_x - netto, P_14_x - podatek). Pary pól występują wyłącznie dla stawek
     /// użytych na fakturze, w kolejności wymaganej przez schemat.
     /// </summary>
-    private static void WriteVatSummary(XmlWriter w, InvoiceTotals totals)
+    private static void WriteVatSummary(XmlWriter w, IReadOnlyList<VatRateSummary> byVatRate)
     {
-        decimal Net(params VatRate[] rates) => totals.ByVatRate.Where(s => rates.Contains(s.VatRate)).Sum(s => s.Net);
-        decimal Vat(params VatRate[] rates) => totals.ByVatRate.Where(s => rates.Contains(s.VatRate)).Sum(s => s.Vat);
-        bool Used(params VatRate[] rates) => totals.ByVatRate.Any(s => rates.Contains(s.VatRate));
+        decimal Net(params VatRate[] rates) => byVatRate.Where(s => rates.Contains(s.VatRate)).Sum(s => s.Net);
+        decimal Vat(params VatRate[] rates) => byVatRate.Where(s => rates.Contains(s.VatRate)).Sum(s => s.Vat);
+        bool Used(params VatRate[] rates) => byVatRate.Any(s => rates.Contains(s.VatRate));
 
         void Pair(string suffix, params VatRate[] rates)
         {
@@ -248,6 +288,7 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
         Element(w, "P_9A", Decimal(item.UnitNetPrice, 8));
         Element(w, "P_11", Money(line.NetAmount));
         Element(w, "P_12", item.VatRate.ToFaCode());
+        if (item.BeforeCorrection) Element(w, "StanPrzed", "1"); // wiersz stanu przed korektą
 
         w.WriteEndElement();
     }

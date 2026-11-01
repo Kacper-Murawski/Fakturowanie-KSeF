@@ -12,7 +12,7 @@
 
         <p class="mb-2">
             Zapłacono <strong data-testid="paid-amount">@Format.Money(Info.PaidAmount, Currency)</strong>
-            z @Format.Money(TotalGross, Currency)
+            z @Format.Money(Info.TotalDue, Currency)@(Info.TotalDue != TotalGross ? " (po korektach)" : "")
             @if (Info.Remaining > 0)
             {
                 <span>, pozostało <strong data-testid="remaining">@Format.Money(Info.Remaining, Currency)</strong></span>
@@ -22,6 +22,13 @@
                 <span class="@(Info.IsOverdue ? "text-danger fw-semibold" : "text-muted")"> · termin @Format.Date(DueDate)</span>
             }
         </p>
+
+        @if (Info.Overpaid > 0)
+        {
+            <div class="alert alert-warning py-2" data-testid="overpaid">
+                Nadpłata do zwrotu nabywcy: <strong>@Format.Money(Info.Overpaid, Currency)</strong> (np. po korekcie zmniejszającej kwotę faktury).
+            </div>
+        }
 
         @if (Info.Payments.Count > 0)
         {

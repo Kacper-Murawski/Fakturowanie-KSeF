@@ -67,7 +67,13 @@ else
                 @foreach (var i in data.Items)
                 {
                     <tr role="button" @onclick="() => Open(i.Id)">
-                        <td><a href="faktury/@i.Id">@i.Number</a></td>
+                        <td>
+                            <a href="faktury/@i.Id">@i.Number</a>
+                            @if (i.Kind == InvoiceKind.Correction)
+                            {
+                                <span class="badge bg-warning text-dark ms-1" title="Faktura korygująca">KOR</span>
+                            }
+                        </td>
                         <td>@Format.Date(i.IssueDate)</td>
                         <td>@i.BuyerName<div class="small text-muted">@(i.BuyerNip is null ? "" : "NIP " + Format.Nip(i.BuyerNip))</div></td>
                         <td class="text-end text-nowrap">@Format.Money(i.TotalNet, i.Currency)</td>

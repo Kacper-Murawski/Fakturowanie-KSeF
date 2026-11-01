@@ -81,6 +81,18 @@ faktura jest dokumentem ostatecznym i nie można jej zmienić. Dostępne są prz
 
 Jeśli KSeF **odrzuci** fakturę, zobaczysz kod błędu i jego opis. Popraw fakturę („Edytuj”) i wyślij ją ponownie.
 
+**Faktura korygująca.** Jeśli faktura przyjęta w KSeF zawiera błąd albo udzielasz rabatu lub przyjmujesz zwrot,
+wybierz w jej podglądzie **Wystaw korektę**. Formularz pokazuje stan przed korektą i pozycje do zmiany: popraw
+cenę, ilość lub stawkę, dodaj albo usuń pozycje (usunięcie wszystkich oznacza korektę do zera). Podaj przyczynę
+korekty. Na bieżąco widać różnicę. Korekta dostaje numer z serii `KOR/…` i wysyłasz ją do KSeF jak zwykłą
+fakturę. Na fakturze korygowanej pojawia się lista korekt, a kwota do zapłaty w rozliczeniu uwzględnia korekty
+(po obniżce kwoty już opłaconej faktury aplikacja pokaże nadpłatę do zwrotu). Kolejną korektę tej samej faktury
+wystawisz po przyjęciu poprzedniej przez KSeF.
+
+![Formularz korekty](zrzuty/19-korekta-formularz.png)
+
+![Faktura korygująca przyjęta w KSeF](zrzuty/20-korekta-przyjeta.png)
+
 ## 6. Wydruk (PDF) i kod QR
 
 PDF zawiera kod QR weryfikacji z numerem KSeF pod spodem. Odbiorca, który dostał fakturę poza KSeF

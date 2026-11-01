@@ -39,7 +39,8 @@ public static class Fa3InvoiceReader
             Dec(w, "P_8B"),
             Dec(w, "P_9A"),
             Dec(w, "P_11"),
-            Text(w, "P_12"))).ToList();
+            Text(w, "P_12"),
+            Text(w, "StanPrzed") == "1")).ToList();
 
         var vat = new List<DocumentVatSummaryDto>();
         foreach (var (suffix, label, hasVat) in VatGroups)
@@ -62,7 +63,10 @@ public static class Fa3InvoiceReader
             Dec(fa, "P_15") ?? 0,
             payment is null ? null : Date(One(payment, "TerminPlatnosci") ?? payment, "Termin"),
             payment is null ? null : Text(payment, "FormaPlatnosci") is { } f ? PaymentMethods.GetValueOrDefault(f, f) : null,
-            payment is null ? null : Text(One(payment, "RachunekBankowy") ?? payment, "NrRB"));
+            payment is null ? null : Text(One(payment, "RachunekBankowy") ?? payment, "NrRB"),
+            Text(fa, "PrzyczynaKorekty"),
+            Many(fa, "DaneFaKorygowanej").Select(d => new DocumentCorrectedInvoiceDto(
+                Text(d, "NrFaKorygowanej") ?? "", Date(d, "DataWystFaKorygowanej"), Text(d, "NrKSeFFaKorygowanej"))).ToList());
     }
 
     private static DocumentPartyDto Party(XElement? podmiot)

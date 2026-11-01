@@ -64,4 +64,11 @@ public static class Format
         }
         else yield return account;
     }
+
+    public static string CorrectionType(CorrectionType type) => type switch
+    {
+        Contracts.CorrectionType.OriginalDate => "Skutek korekty w dacie ujęcia faktury pierwotnej",
+        Contracts.CorrectionType.CorrectionDate => "Skutek korekty w dacie wystawienia faktury korygującej",
+        _ => "Skutek korekty w innej dacie"
+    };
 }

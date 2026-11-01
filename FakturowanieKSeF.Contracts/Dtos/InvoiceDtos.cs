@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using FakturowanieKSeF.Contracts.Calculation;
 using FakturowanieKSeF.Contracts.Validation;
 
@@ -34,7 +35,8 @@ public sealed record InvoiceListItemDto(
     /// <summary>Stan rozliczenia (null dla szkiców i faktur odrzuconych - nie są należnością).</summary>
     PaymentStatus? PaymentStatus = null,
     decimal PaidAmount = 0,
-    bool IsOverdue = false);
+    bool IsOverdue = false,
+    InvoiceKind Kind = InvoiceKind.Vat);
 
 /// <summary>Pełne dane faktury.</summary>
 public sealed record InvoiceDto(
@@ -63,8 +65,28 @@ public sealed record InvoiceDto(
     KsefSubmissionDto? LastSubmission,
     /// <summary>Wersja rekordu - przy zapisie zmian należy ją odesłać (kontrola współbieżności).</summary>
     uint Version,
-    /// <summary>Rozliczenie (null dla szkiców i faktur odrzuconych).</summary>
-    PaymentInfoDto? Payment = null);
+    /// <summary>Rozliczenie (null dla szkiców, faktur odrzuconych i korygujących).</summary>
+    PaymentInfoDto? Payment = null,
+    InvoiceKind Kind = InvoiceKind.Vat,
+    /// <summary>Dane korekty - tylko dla faktury korygującej (Items to wtedy stan po korekcie, sumy to różnica).</summary>
+    CorrectionInfoDto? Correction = null,
+    /// <summary>Faktury korygujące wystawione do tej faktury.</summary>
+    IReadOnlyList<CorrectionSummaryDto>? Corrections = null);
+
+/// <summary>Faktura korygująca: dane faktury korygowanej, przyczyna, stan przed korektą i różnica per stawka.</summary>
+public sealed record CorrectionInfoDto(
+    int CorrectedInvoiceId,
+    string CorrectedInvoiceNumber,
+    DateOnly CorrectedInvoiceIssueDate,
+    string? CorrectedInvoiceKsefNumber,
+    string Reason,
+    CorrectionType? Type,
+    IReadOnlyList<InvoiceItemDto> ItemsBefore,
+    decimal BeforeGross,
+    decimal AfterGross);
+
+/// <summary>Korekta widoczna przy fakturze korygowanej.</summary>
+public sealed record CorrectionSummaryDto(int Id, string Number, DateOnly IssueDate, InvoiceStatus Status, decimal TotalGross);
 
 public sealed class SaveInvoiceItemRequest
 {
@@ -139,23 +161,47 @@ public sealed class SaveInvoiceRequest : IValidatableObject
 
     public SaveInvoiceBuyerRequest? Buyer { get; set; }
 
+    /// <summary>Pozycje faktury; dla faktury korygującej - stan PO korekcie (pusta lista = korekta do zera).</summary>
     [Required]
-    [MinLength(1, ErrorMessage = "Faktura musi mieć co najmniej jedną pozycję.")]
     [MaxLength(1000)]
     public List<SaveInvoiceItemRequest> Items { get; set; } = [];
+
+    /// <summary>Faktura korygowana - ustawione oznacza fakturę korygującą (KOR). Nabywca i waluta pochodzą z niej.</summary>
+    public int? CorrectedInvoiceId { get; set; }
+
+    /// <summary>Przyczyna korekty (PrzyczynaKorekty), wymagana dla faktury korygującej.</summary>
+    [MaxLength(256)]
+    public string? CorrectionReason { get; set; }
+
+    [EnumDataType(typeof(CorrectionType), ErrorMessage = "Nieznany typ korekty.")]
+    public CorrectionType? CorrectionType { get; set; }
+
+    [JsonIgnore]
+    public bool IsCorrection => CorrectedInvoiceId is not null;
 
     /// <summary>Wersja rekordu z ostatniego odczytu (wymagana przy edycji).</summary>
     public uint? Version { get; set; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (CustomerId is null && Buyer is null)
-            yield return new ValidationResult("Wybierz kontrahenta lub podaj dane nabywcy.", [nameof(Buyer)]);
+        // Faktura korygująca: nabywca z faktury korygowanej; pozycje mogą zniknąć (korekta do zera)
+        if (IsCorrection)
+        {
+            if (string.IsNullOrWhiteSpace(CorrectionReason))
+                yield return new ValidationResult("Podaj przyczynę korekty.", [nameof(CorrectionReason)]);
+        }
+        else
+        {
+            if (CustomerId is null && Buyer is null)
+                yield return new ValidationResult("Wybierz kontrahenta lub podaj dane nabywcy.", [nameof(Buyer)]);
+            if (Items.Count == 0)
+                yield return new ValidationResult("Faktura musi mieć co najmniej jedną pozycję.", [nameof(Items)]);
+        }
 
         if (DueDate is { } due && due < IssueDate)
             yield return new ValidationResult("Termin płatności nie może być wcześniejszy niż data wystawienia.", [nameof(DueDate)]);
 
-        if (PaymentMethod == PaymentMethod.Transfer && DueDate is null)
+        if (PaymentMethod == PaymentMethod.Transfer && DueDate is null && !IsCorrection)
             yield return new ValidationResult("Dla płatności przelewem podaj termin płatności.", [nameof(DueDate)]);
 
         // Ograniczenia zakresu MVP wynikające ze struktury FA(3) (decyzja D21)

@@ -37,13 +37,17 @@ Pliki: [`spike-ksef/faktura-z-generatora.xml`](spike-ksef/faktura-z-generatora.x
 | `Fa/P_13_7` | sprzedaż zwolniona (zw) | j.w. |
 | `Fa/P_13_8` / `P_13_9` | niepodlegające opodatkowaniu (np I / np II) | j.w. |
 | `Fa/P_13_10` | odwrotne obciążenie (oo) | j.w. |
-| `Fa/P_15` | kwota należności ogółem (brutto) | `TotalGross` |
+| `Fa/P_15` | kwota należności ogółem (brutto); na korekcie różnica (może być ujemna) | `TotalGross` |
 | `Fa/Adnotacje/P_16`, `P_17`, `P_23` | metoda kasowa, samofakturowanie, procedura uproszczona - `2` (nie) | stała |
 | `Fa/Adnotacje/P_18` | `1` gdy występuje odwrotne obciążenie, inaczej `2` | pozycje faktury |
 | `Fa/Adnotacje/P_18A` | mechanizm podzielonej płatności - `2` | ograniczenie MVP |
 | `Fa/Adnotacje/Zwolnienie` | `P_19=1` + `P_19A` (podstawa prawna) albo `P_19N=1` | `ExemptionBasis`, pozycje „zw” |
 | `Fa/Adnotacje/NoweSrodkiTransportu`, `PMarzy` | `P_22N=1`, `P_PMarzyN=1` (nie dotyczy) | stała |
-| `Fa/RodzajFaktury` | `VAT` - faktura podstawowa | stała (MVP) |
+| `Fa/RodzajFaktury` | `VAT` - faktura podstawowa, `KOR` - faktura korygująca | `Kind` |
+| `Fa/PrzyczynaKorekty` | przyczyna korekty (KOR) | `CorrectionReason` |
+| `Fa/TypKorekty` | skutek w ewidencji VAT: 1 - data faktury pierwotnej, 2 - data korekty, 3 - inna (opcjonalnie) | `CorrectionType` |
+| `Fa/DaneFaKorygowanej` | `DataWystFaKorygowanej`, `NrFaKorygowanej`, `NrKSeF=1`, `NrKSeFFaKorygowanej` | kopia danych faktury korygowanej |
+| `Fa/FaWiersz/StanPrzed` | `1` - wiersz stanu przed korektą (metoda „przed i po”, osobna numeracja wierszy) | `InvoiceItem.BeforeCorrection` |
 | `Fa/FaWiersz` | `NrWierszaFa`, `P_7` nazwa, `P_8A` j.m., `P_8B` ilość, `P_9A` cena netto, `P_11` wartość netto, `P_12` stawka | `Invoice.Items` |
 | `Fa/Platnosc/TerminPlatnosci/Termin` | termin płatności | `DueDate` |
 | `Fa/Platnosc/FormaPlatnosci` | 1-7 (np. 6 = przelew) | `PaymentMethod` |
@@ -52,6 +56,15 @@ Pliki: [`spike-ksef/faktura-z-generatora.xml`](spike-ksef/faktura-z-generatora.x
 Pary P_13_x / P_14_x występują tylko dla stawek użytych na fakturze. Kwoty liczone są tym samym kalkulatorem
 co w API i formularzu (VAT od sumy netto w stawce, D16), więc kwoty w XML są identyczne z prezentowanymi
 użytkownikowi.
+
+## Faktura korygująca (KOR)
+
+Korekta jest zapisywana metodą „przed i po”: w `FaWiersz` najpierw wiersze stanu przed korektą ze znacznikiem
+`StanPrzed=1`, potem wiersze stanu po korekcie (numeracja wierszy ciągła). Pola `P_13_x`, `P_14_x` i `P_15` zawierają
+różnicę po - przed, liczoną per stawka tym samym kalkulatorem co faktura (ujemną przy obniżce). Stawka obecna
+w obu stanach bez zmiany kwot daje różnicę `0.00`. Element `Platnosc` jest wykazywany tylko przy dopłacie
+(różnica dodatnia). Faktura korygowana jest wskazywana numerem KSeF (`NrKSeF=1`). Korekta wygenerowana przez
+aplikację została przyjęta przez testowy KSeF (test `KsefLiveTests.FakturaKorygujaca_JestPrzyjmowanaPrzezTestowyKsef`).
 
 ## Formatowanie i wymagania techniczne
 
