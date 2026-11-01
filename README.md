@@ -34,6 +34,9 @@ dotnet run --project FakturowanieKSeF.Api                  # aplikacja + API
 
 Aplikacja: http://localhost:5085, dokumentacja API (Swagger): http://localhost:5085/swagger.
 
+Jeśli `dotnet ef database update` zgłasza `relation "..." already exists`, baza zawiera tabele ze starszej wersji
+projektu. Wyczyść ją (usuwa dane testowe): `docker compose down -v`, `docker compose up -d`, ponownie `dotnet ef database update`.
+
 ## Testy
 
 ```bash
