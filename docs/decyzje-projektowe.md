@@ -211,3 +211,63 @@ Pełny opis i diagram ERD: [`docs/model-danych.md`](model-danych.md).
    wcześniejszą migrację zastąpiono jedną migracją `InitialCreate` z nowym modelem. Automatycznie wygenerowana
    migracja przyrostowa zawierała błędne „zmiany nazw” kolumn (np. stary `NetPrice` → `VatAmount`), które
    zaciemniałyby historię schematu. Od chwili pierwszego wdrożenia każda zmiana modelu będzie osobną migracją.
+
+---
+
+## D13. Projekt `Contracts` współdzielony przez API i klienta Blazor
+
+**Decyzja:** DTO, enumy (stawka VAT, forma płatności, status), reguły walidacji i kalkulator kwot faktury
+wydzielono do projektu `FakturowanieKSeF.Contracts` bez zależności od EF Core. Klient Blazor referencjonuje
+tylko ten projekt, a encje bazodanowe (`Models`) są dostępne wyłącznie po stronie serwera.
+
+**Uzasadnienie:**
+- encje nie są wysyłane do przeglądarki (mniejszy rozmiar aplikacji WebAssembly, brak EF Core i Identity w kliencie),
+- kontrakt API jest jawny i niezależny od schematu bazy,
+- ten sam kalkulator liczy kwoty w API i na żywo w formularzu, więc użytkownik widzi dokładnie te kwoty,
+  które zostaną zapisane i wysłane do KSeF.
+
+## D14. Walidacja: DataAnnotations z wbudowaną walidacją minimal API (.NET 10)
+
+**Decyzja:** reguły zapisane atrybutami i `IValidatableObject` w DTO; API waliduje żądania automatycznie
+(`AddValidation()`, nowość .NET 10), także obiekty zagnieżdżone i elementy list (np. `Items[1].Quantity`).
+Własne atrybuty: `[Nip]` (suma kontrolna), `[BankAccount]` (format TNrRB).
+
+**Alternatywa:** FluentValidation - popularna, ale to dodatkowa zależność, a reguł nie da się bezpośrednio użyć
+w standardowym walidatorze formularzy Blazor.
+
+**Uzasadnienie:** jedno źródło reguł dla API i formularzy, brak zewnętrznych bibliotek, standardowy format
+błędów (ValidationProblemDetails).
+
+## D15. Izolacja danych przez firmę ustalaną z tożsamości użytkownika
+
+**Decyzja:** usługa `CurrentCompany` ustala firmę na podstawie zalogowanego użytkownika; każde zapytanie
+zawiera warunek `CompanyId == firma użytkownika`. Cudze rekordy są traktowane jak nieistniejące (404).
+
+**Alternatywa:** globalny filtr zapytań EF Core oparty o firmę z kontekstu żądania - działa automatycznie,
+ale komplikuje usługi działające w tle (wysyłka do KSeF dla wielu firm) i ukrywa warunek bezpieczeństwa
+w konfiguracji. Wybrano jawne warunki w każdym zapytaniu.
+
+**Uzasadnienie i weryfikacja:** warunek jest widoczny w kodzie każdego endpointu; test `DataIsolationTests`
+sprawdza odczyt, listy, edycję, usuwanie i użycie cudzego kontrahenta. Odpowiedź 404 zamiast 403 nie ujawnia
+nawet istnienia cudzych danych.
+
+## D16. Metoda obliczania kwot faktury
+
+**Decyzja:** metoda „od netto”: netto pozycji = ilość × cena (zaokrąglenie do groszy); VAT liczony od sumy netto
+w ramach każdej stawki i zaokrąglany raz; zaokrąglenie połówkowe od zera. VAT i brutto pozycji mają charakter
+informacyjny. Kwoty liczy wyłącznie serwer - klient ich nie przesyła.
+
+**Uzasadnienie:** struktura FA(3) raportuje podatek per stawka (P_13_x, P_14_x), więc liczenie od sumy netto
+w stawce zapewnia zgodność kwot z XML; liczenie per pozycja mogłoby dawać różnice groszowe (przykład w teście
+`VatFaktury_LiczonyOdSumyNettoWStawce_NieSumaVatPozycji`). Zaufanie wyłącznie obliczeniom serwera chroni
+przed zmanipulowanymi kwotami z przeglądarki.
+
+## D17. Numeracja faktur i kontrola współbieżności w API
+
+**Decyzja:**
+- numer automatyczny `FV/{n}/{MM}/{RRRR}`, narastający w miesiącu; użytkownik może podać własny,
+  a unikalność w ramach firmy gwarantuje indeks bazy. Przy kolizji równoczesnych zapisów numer jest nadawany
+  ponownie (do 3 prób),
+- edycja faktury wymaga przesłania wersji z ostatniego odczytu (`xmin`). Nieaktualna wersja daje 409
+  (optymistyczna kontrola współbieżności - bez blokad w bazie),
+- faktury w statusie `Pending` i `Accepted` nie mogą być edytowane ani usuwane.

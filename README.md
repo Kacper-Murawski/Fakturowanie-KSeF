@@ -9,6 +9,7 @@ Projekt inżynierski.
 |---|---|
 | `FakturowanieKSeF.Api` | ASP.NET Core (.NET 10): REST API pod `/api` + serwowanie aplikacji klienckiej |
 | `FakturowanieKSeF.Client` | Blazor WebAssembly: interfejs użytkownika w przeglądarce |
+| `FakturowanieKSeF.Contracts` | DTO, enumy, walidacja i kalkulator kwot - współdzielone przez API i klienta |
 | `FakturowanieKSeF.Models` | Encje domenowe (EF Core) |
 | `FakturowanieKSeF.Ksef` | Integracja z KSeF (wyłącznie środowisko testowe), na bazie oficjalnego klienta MF |
 | `external/ksef-client-csharp` | Oficjalny klient KSeF Ministerstwa Finansów (submoduł git, licencja MIT) |

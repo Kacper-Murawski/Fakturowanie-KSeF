@@ -24,4 +24,8 @@
     <ProjectReference Include="..\FakturowanieKSeF.Ksef\FakturowanieKSeF.Ksef.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="FakturowanieKSeF.Contracts" />
+  </ItemGroup>
+
 </Project>

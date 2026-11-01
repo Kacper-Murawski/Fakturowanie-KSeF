@@ -21,7 +21,12 @@
   `KsefEnvironment` celowo nie ma wartości produkcyjnej. Nie zmieniaj tego bez wyraźnej decyzji autora.
 - **Izolacja danych między użytkownikami (multi-tenancy):** dane biznesowe należą do firmy (`CompanyId`),
   firma do konta (`Company.OwnerId`). Każde zapytanie musi być filtrowane po firmie zalogowanego użytkownika,
-  żaden endpoint nie może zwrócić cudzych danych.
+  żaden endpoint nie może zwrócić cudzych danych. `CompanyId` bierz WYŁĄCZNIE z `CurrentCompany`
+  (tożsamość zalogowanego użytkownika), nigdy z żądania; cudzy rekord = 404. Nowy endpoint = nowy przypadek
+  w `DataIsolationTests`.
+- DTO, enumy, walidacja i kalkulator kwot są w `FakturowanieKSeF.Contracts` (bez zależności od EF) - współdzielone
+  przez API i klienta Blazor. Klient NIE może referencjonować `FakturowanieKSeF.Models`.
+- Opis API: `docs/api.md` - aktualizuj przy każdej zmianie endpointów.
 - Model danych opisany w `docs/model-danych.md` (diagram ERD) - aktualizuj go przy każdej zmianie modelu.
 - Sekrety (hasło do bazy, tokeny i certyfikaty KSeF) nie mogą trafiać do repozytorium w konfiguracji produkcyjnej:
   używaj zmiennych środowiskowych lub user-secrets.

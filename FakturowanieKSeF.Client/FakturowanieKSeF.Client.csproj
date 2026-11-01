@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FakturowanieKSeF.Models\FakturowanieKSeF.Models.csproj" />
+    <ProjectReference Include="..\FakturowanieKSeF.Contracts\FakturowanieKSeF.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

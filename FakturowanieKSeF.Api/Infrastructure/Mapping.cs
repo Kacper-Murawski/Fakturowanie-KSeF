@@ -1,0 +1,58 @@
+using FakturowanieKSeF.Contracts.Calculation;
+using FakturowanieKSeF.Contracts.Dtos;
+using FakturowanieKSeF.Contracts.Validation;
+using FakturowanieKSeF.Models;
+
+namespace FakturowanieKSeF.Api.Infrastructure;
+
+/// <summary>Mapowanie encji na DTO i odwrotnie (ręczne - jawne i łatwe do prześledzenia).</summary>
+public static class Mapping
+{
+    public static AddressDto ToDto(this Address a) => new()
+    {
+        Street = a.Street, PostalCode = a.PostalCode, City = a.City, CountryCode = a.CountryCode
+    };
+
+    public static Address ToEntity(this AddressDto a) => new()
+    {
+        Street = a.Street.Trim(), PostalCode = a.PostalCode.Trim(), City = a.City.Trim(), CountryCode = a.CountryCode
+    };
+
+    public static Address Copy(this Address a) => new()
+    {
+        Street = a.Street, PostalCode = a.PostalCode, City = a.City, CountryCode = a.CountryCode
+    };
+
+    public static string? NormalizeNip(string? nip) =>
+        string.IsNullOrWhiteSpace(nip) ? null : NipValidator.Normalize(nip);
+
+    public static string? NormalizeBankAccount(string? account) =>
+        string.IsNullOrWhiteSpace(account) ? null : BankAccountAttribute.Normalize(account);
+
+    public static string? EmptyToNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    public static CompanyDto ToDto(this Company c) =>
+        new(c.Name, c.Nip, c.Address.ToDto(), c.Email, c.Phone, c.BankAccountNumber, c.KsefTokenEncrypted is not null);
+
+    public static CustomerDto ToDto(this Customer c) =>
+        new(c.Id, c.Name, c.Nip, c.IsCompany, c.Address.ToDto(), c.Email);
+
+    public static InvoicePartyDto ToDto(this InvoiceParty p) => new(p.Name, p.Nip, p.Address.ToDto());
+
+    public static InvoiceListItemDto ToListItemDto(this Invoice i) =>
+        new(i.Id, i.Number, i.IssueDate, i.Buyer.Name, i.Buyer.Nip, i.TotalNet, i.TotalGross, i.Currency, i.Status, i.KsefNumber);
+
+    public static InvoiceDto ToDto(this Invoice i)
+    {
+        var items = i.Items.OrderBy(x => x.Position).ToList();
+        var totals = InvoiceCalculator.Calculate(items.Select(x => new LineInput(x.Quantity, x.UnitNetPrice, x.VatRate)));
+
+        return new InvoiceDto(
+            i.Id, i.Number, i.IssueDate, i.IssuePlace, i.SaleDate, i.Currency, i.PaymentMethod, i.DueDate,
+            i.BankAccountNumber, i.Seller.ToDto(), i.Buyer.ToDto(), i.CustomerId,
+            items.Select(x => new InvoiceItemDto(x.Position, x.Name, x.Unit, x.Quantity, x.UnitNetPrice, x.VatRate,
+                x.NetAmount, x.VatAmount, x.GrossAmount)).ToList(),
+            totals.ByVatRate, i.TotalNet, i.TotalVat, i.TotalGross,
+            i.Status, i.KsefNumber, i.KsefAcceptedAt, i.Version);
+    }
+}

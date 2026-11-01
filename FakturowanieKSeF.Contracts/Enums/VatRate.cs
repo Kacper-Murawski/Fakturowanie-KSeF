@@ -1,4 +1,4 @@
-namespace FakturowanieKSeF.Models;
+namespace FakturowanieKSeF.Contracts;
 
 /// <summary>
 /// Stawka VAT pozycji - pełny zbiór wartości typu TStawkaPodatku schemy FA(3).
