@@ -22,6 +22,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public FakeKsefGateway Ksef { get; } = new();
 
+    public FakeVatWhiteList VatWhiteList { get; } = new();
+
     /// <summary>Dodatkowa konfiguracja w klasach pochodnych (np. testy E2E z włączoną usługą w tle).</summary>
     protected virtual IEnumerable<KeyValuePair<string, string?>> AdditionalSettings() => [];
 
@@ -59,7 +61,12 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(settings));
 
         // Atrapa KSeF zamiast prawdziwego połączenia - testy nie wymagają sieci
-        builder.ConfigureTestServices(services => services.AddSingleton<FakturowanieKSeF.Ksef.IKsefGateway>(Ksef));
+        // (także wykazu podatników VAT)
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<FakturowanieKSeF.Ksef.IKsefGateway>(Ksef);
+            services.AddSingleton<FakturowanieKSeF.Api.Integrations.VatWhiteList.IVatWhiteListClient>(VatWhiteList);
+        });
     }
 
     public async Task InitializeAsync()

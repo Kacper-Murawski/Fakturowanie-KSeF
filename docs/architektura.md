@@ -28,10 +28,12 @@ flowchart LR
         FA3["Generator / walidator / czytnik FA(3)<br/>+ PDF z kodem QR"]
         GW["Bramka KSeF (IKsefGateway)<br/>+ blokada produkcji"]
         MF["Oficjalny klient KSeF MF<br/>(submoduł, MIT)"]
+        WL["Wyszukiwanie w wykazie VAT<br/>(VatRegistryLookup: pamięć podręczna + limity)"]
     end
 
     DB[("PostgreSQL 16")]
     KSEF["KSeF 2.0 - środowisko TESTOWE<br/>api-test.ksef.mf.gov.pl"]
+    BL["Wykaz podatników VAT (Biała lista MF)<br/>wl-api.mf.gov.pl - dane publiczne"]
 
     UI -- "HTTPS, JSON<br/>ciasteczko HttpOnly" --> API
     API --> ID
@@ -44,6 +46,8 @@ flowchart LR
     API --> GW
     GW --> MF
     MF -- "HTTPS (tylko host testowy)" --> KSEF
+    API --> WL
+    WL -- "HTTPS, tylko odczyt" --> BL
 ```
 
 ## Projekty (warstwy)
@@ -117,6 +121,7 @@ sequenceDiagram
 | KSeF | Oficjalny klient MF (`CIRFMF/ksef-client-csharp` 2.9.0) | D10 |
 | XML FA(3) | `XmlWriter` + walidacja XSD (oficjalne schematy MF) | D21 |
 | PDF / QR | QuestPDF, QRCoder | D27 |
+| Dane kontrahentów | API wykazu podatników VAT MF (Biała lista), `IMemoryCache` | D28 |
 | Testy | xUnit, WebApplicationFactory, Playwright, PdfPig | D7, etap 10 |
 | CI | GitHub Actions (build, testy, E2E w Chromium) | D7 |
 | Środowisko uruchomieniowe | Docker (PostgreSQL), docelowo kontener aplikacji + reverse proxy z HTTPS | etap 9 |

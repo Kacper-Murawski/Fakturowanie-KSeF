@@ -9,9 +9,9 @@ Strategię uzasadnia decyzja D7.
 ```mermaid
 flowchart TB
     L["Testy na żywo z testowym KSeF (2)<br/>prawdziwa bramka: token, wysyłka, numer KSeF, UPO, odbiór A→B"]
-    E["Testy E2E w przeglądarce (6)<br/>Playwright + Chromium pl-PL, cały stos, atrapa KSeF"]
-    I["Testy integracyjne (ok. 70)<br/>API + PostgreSQL + Identity + usługi w tle, atrapa KSeF"]
-    U["Testy jednostkowe (ok. 50)<br/>NIP, kalkulator, stawki VAT, XML FA(3) + XSD, QR, blokada produkcji"]
+    E["Testy E2E w przeglądarce (7)<br/>Playwright + Chromium pl-PL, cały stos, atrapa KSeF"]
+    I["Testy integracyjne (ok. 75)<br/>API + PostgreSQL + Identity + usługi w tle, atrapa KSeF"]
+    U["Testy jednostkowe (ok. 65)<br/>NIP, kalkulator, stawki VAT, XML FA(3) + XSD, QR, blokada produkcji, wykaz VAT"]
     L --> E --> I --> U
 ```
 
@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **128 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **150 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -36,6 +36,7 @@ jednostkowe, integracyjne i E2E.
 | XML FA(3) | `Fa3XmlGeneratorTests`, `Fa3SchemaValidatorTests`, `InvoiceXmlApiTests`, `Fa3InvoiceReaderTests` | każdy wariant faktury zgodny z oficjalnym XSD; UTF-8 bez BOM; znaki specjalne; ochrona przed XXE; odczyt faktur MF |
 | Integracja z KSeF | `KsefSettingsTests`, `KsefSendingTests`, `ReceivedInvoicesTests`, `KsefEnvironmentGuardTests`, `KsefClientRegistrationTests` | szyfrowanie tokenu; pełny przepływ wysyłki; odrzucenie i ponowna wysyłka; awarie przed i po wysyłce; podwójna wysyłka; synchronizacja do HWM, limity, deduplikacja; blokada produkcji |
 | PDF i QR | `InvoicePdfTests`, `KsefQrTests` | treść PDF odczytana z pliku (PdfPig); zgodność linku QR z klientem MF |
+| Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF; pamięć podręczna; limity dzienne; awaria MF |
 | Interfejs (E2E) | `UserScenariosE2ETests` | główne scenariusze użytkownika i regresje błędów interfejsu |
 | Na żywo | `KsefLiveTests` | prawdziwy testowy KSeF: wysyłka, numer KSeF, UPO; faktura firmy A odebrana przez firmę B |
 
@@ -44,6 +45,11 @@ jednostkowe, integracyjne i E2E.
 `FakeKsefGateway` implementuje `IKsefGateway` bez sieci. Pozwala symulować przyjęcie, przetwarzanie i odrzucenie
 faktury, awarie komunikacji, faktury otrzymane i HWM. Dzięki temu CI sprawdza wszystkie ścieżki, w tym te,
 których nie da się łatwo wywołać na prawdziwym KSeF, np. awarię sieci dokładnie po przyjęciu faktury.
+
+Analogicznie `FakeVatWhiteList` zastępuje API wykazu podatników VAT (podmioty, awaria, licznik zapytań do MF).
+
+**Zrzuty ekranu do dokumentacji** powstają w testach E2E: `E2E_SCREENSHOTS_DIR=docs/zrzuty` zapisuje je
+w trakcie scenariuszy (bez tej zmiennej testy nie robią zrzutów).
 
 ## Błędy wykryte przez testy
 

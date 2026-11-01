@@ -27,7 +27,9 @@ else
         </div>
         <div class="mb-3">
             <label class="form-label" for="nip">NIP</label>
-            <InputTextLive id="nip" class="form-control" @bind-Value="model.Nip" placeholder="1234567890" />
+            <VatRegistryLookup Nip="@model.Nip" OnFound="FillFromRegistry" Revalidate="[model, model.Address]">
+                <InputTextLive id="nip" class="form-control" @bind-Value="model.Nip" placeholder="1234567890" />
+            </VatRegistryLookup>
             <ValidationMessage For="() => model.Nip" />
         </div>
 
@@ -80,6 +82,15 @@ else
                 Address = new AddressDto { Street = c.Address.Street, PostalCode = c.Address.PostalCode, City = c.Address.City, CountryCode = c.Address.CountryCode }
             }
             : new SaveCompanyRequest();
+    }
+
+    private void FillFromRegistry(VatRegistryEntryDto entry)
+    {
+        model!.Name = entry.Name;
+        VatRegistryLookup.CopyAddress(entry, model.Address);
+        // Rachunek z wykazu tylko jako podpowiedź, gdy użytkownik nie wpisał własnego
+        if (string.IsNullOrWhiteSpace(model.BankAccountNumber) && entry.BankAccounts.Count > 0)
+            model.BankAccountNumber = Format.BankAccount(entry.BankAccounts[0]);
     }
 
     private async Task SaveAsync()

@@ -47,6 +47,7 @@ po polsku.
 | GET | `/api/received-invoices/{id}/pdf` | Wizualizacja faktury otrzymanej w PDF z kodem QR weryfikacji |
 | GET | `/api/received-invoices/sync-status` | Stan synchronizacji (ostatnia synchronizacja, punkt kontrolny, błąd) |
 | POST | `/api/received-invoices/sync` | Ręczna synchronizacja z KSeF (409 bez tokenu, 429 częściej niż raz na minutę, 502 przy błędzie KSeF) |
+| GET | `/api/vat-registry/{nip}` | Dane podmiotu z wykazu podatników VAT (Biała lista MF): nazwa, adres rozbity na pola, status VAT, rachunki. 404 - brak w wykazie, 429 - dzienny limit zapytań, 502 - błąd API MF (D28) |
 | GET | `/api/health` | Stan aplikacji i bazy danych (bez uwierzytelniania) |
 
 ## Kody odpowiedzi
@@ -58,6 +59,8 @@ po polsku.
 | 401 | Brak lub nieważny token |
 | 404 | Rekord nie istnieje **lub należy do innego użytkownika** (celowo nierozróżniane) |
 | 422 | Faktury nie da się przedstawić w strukturze FA(3) (np. dane sprzed wprowadzenia ograniczeń) |
+| 429 | Przekroczony limit (synchronizacja z KSeF częściej niż raz na minutę, dzienny limit zapytań do wykazu VAT) |
+| 502 | Błąd usługi zewnętrznej (KSeF, wykaz podatników VAT) - komunikat z jej odpowiedzi |
 | 409 | Konflikt: duplikat (numer faktury, NIP kontrahenta), zmiana danych w międzyczasie (nieaktualna wersja), operacja niedozwolona w danym statusie, brak utworzonej firmy |
 
 ## Reguły biznesowe

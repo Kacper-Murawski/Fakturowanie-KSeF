@@ -72,6 +72,18 @@ public sealed class E2EFixture : IAsyncLifetime
         return page;
     }
 
+    /// <summary>
+    /// Zrzut ekranu do dokumentacji - tylko gdy ustawiono <c>E2E_SCREENSHOTS_DIR</c>
+    /// (np. <c>E2E_SCREENSHOTS_DIR=docs/zrzuty</c>); w zwykłym przebiegu testów nic nie robi.
+    /// </summary>
+    public static async Task ScreenshotAsync(IPage page, string name)
+    {
+        var dir = Environment.GetEnvironmentVariable("E2E_SCREENSHOTS_DIR");
+        if (string.IsNullOrEmpty(dir)) return;
+        Directory.CreateDirectory(dir);
+        await page.ScreenshotAsync(new PageScreenshotOptions { Path = Path.Combine(dir, $"{name}.png") });
+    }
+
     public async Task DisposeAsync()
     {
         if (_playwright is null) return;
