@@ -27,4 +27,8 @@
     <ProjectReference Include="..\FakturowanieKSeF.Api\FakturowanieKSeF.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="FakturowanieKSeF.Contracts" />
+  </ItemGroup>
+
 </Project>

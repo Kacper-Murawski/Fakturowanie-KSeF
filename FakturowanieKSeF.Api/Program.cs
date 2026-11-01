@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using FakturowanieKSeF.Api.Data;
+using FakturowanieKSeF.Api.Endpoints;
+using FakturowanieKSeF.Api.Infrastructure;
+using FakturowanieKSeF.Api.Services;
 using FakturowanieKSeF.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,11 +22,27 @@ builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 4. Kontrola stanu aplikacji (m.in. dostępność bazy danych) - używana przy wdrożeniu
+// 4. Logika biznesowa API
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CurrentCompany>();
+builder.Services.AddScoped<InvoiceNumbering>();
+
+// Walidacja żądań na podstawie atrybutów DataAnnotations i IValidatableObject w DTO (wbudowana w .NET 10);
+// błędy zwracane jako ValidationProblemDetails (400). Te same reguły działają w formularzach Blazor.
+builder.Services.AddValidation();
+
+// Jednolity format błędów (ProblemDetails) i zamiana wyjątków bazy (konflikty) na odpowiedzi 409
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiErrors.ExceptionHandler>();
+
+// 5. Kontrola stanu aplikacji (m.in. dostępność bazy danych) - używana przy wdrożeniu
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -35,22 +54,25 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// 5. Serwowanie aplikacji klienckiej (Blazor WebAssembly) z tego samego serwera co API
+// 6. Serwowanie aplikacji klienckiej (Blazor WebAssembly) z tego samego serwera co API
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// 6. Endpointy API - wszystkie pod prefiksem /api, żeby nie kolidowały z adresami stron klienta
+// 7. Endpointy API - wszystkie pod prefiksem /api, żeby nie kolidowały z adresami stron klienta
 var api = app.MapGroup("/api");
 api.MapGroup("/auth").WithTags("Auth").MapIdentityApi<ApplicationUser>();
 api.MapHealthChecks("/health");
+api.MapCompanyEndpoints();
+api.MapCustomerEndpoints();
+api.MapInvoiceEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());
 
-// 7. Każdy inny adres obsługuje routing po stronie klienta (Blazor)
+// 8. Każdy inny adres obsługuje routing po stronie klienta (Blazor)
 app.MapFallbackToFile("index.html");
 
 app.Run();

@@ -1,4 +1,4 @@
-namespace FakturowanieKSeF.Models;
+namespace FakturowanieKSeF.Contracts;
 
 /// <summary>Forma płatności - wartości liczbowe zgodne z typem TFormaPlatnosci schemy FA(3).</summary>
 public enum PaymentMethod

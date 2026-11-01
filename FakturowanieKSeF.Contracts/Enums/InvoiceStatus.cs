@@ -1,4 +1,4 @@
-namespace FakturowanieKSeF.Models;
+namespace FakturowanieKSeF.Contracts;
 
 /// <summary>
 /// Cykl życia faktury sprzedażowej:

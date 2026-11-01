@@ -11,4 +11,12 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.14" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\FakturowanieKSeF.Contracts\FakturowanieKSeF.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="FakturowanieKSeF.Contracts" />
+  </ItemGroup>
+
 </Project>
