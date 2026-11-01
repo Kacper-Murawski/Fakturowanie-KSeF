@@ -2,6 +2,7 @@ using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Services;
 using FakturowanieKSeF.Contracts.Dtos;
+using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Ksef.Fa3;
 using Microsoft.EntityFrameworkCore;
 
@@ -82,6 +83,31 @@ public static class ReceivedInvoiceEndpoints
                     : Results.File(System.Text.Encoding.UTF8.GetBytes(r.Xml), "application/xml", $"{r.KsefNumber}.xml");
             })
             .WithSummary("XML faktury otrzymanej (w postaci pobranej z KSeF)");
+
+        group.MapGet("/{id:int}/pdf", async (int id, CurrentCompany current, AppDbContext db, InvoicePdfRenderer renderer, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+
+                var r = await db.ReceivedInvoices.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.CompanyId == company.Id, ct);
+                if (r is null) return ApiErrors.NotFound("faktura otrzymana");
+
+                InvoiceDocumentDto document;
+                try
+                {
+                    document = Fa3InvoiceReader.Read(r.Xml);
+                }
+                catch (Exception ex) when (ex is FormatException or System.Xml.XmlException)
+                {
+                    return Results.Problem(title: "Nie można odczytać treści faktury.", detail: ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+
+                // Skrót pliku z metadanych KSeF; gdy go brak - liczony z pobranego XML
+                var hash = r.InvoiceHash ?? Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(r.Xml)));
+                var qr = new PdfVerificationQr(KsefQr.InvoiceVerificationUrl(r.SellerNip, document.IssueDate, hash), r.KsefNumber);
+
+                return Results.File(renderer.Render(document, qr, null), "application/pdf", $"{r.KsefNumber}.pdf");
+            })
+            .WithSummary("Wizualizacja faktury otrzymanej w PDF (z kodem QR weryfikacji KSeF)");
 
         group.MapGet("/sync-status", async (CurrentCompany current, CancellationToken ct) =>
                 await current.FindAsync(ct) is { } c

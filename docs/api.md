@@ -30,6 +30,7 @@ po polsku.
 | GET | `/api/invoices?status=&from=&to=&q=&page=&pageSize=` | Lista faktur z filtrami i stronicowaniem |
 | GET | `/api/invoices/{id}` | Szczegóły faktury z pozycjami i podsumowaniem VAT |
 | GET | `/api/invoices/next-number?issueDate=` | Propozycja kolejnego numeru |
+| GET | `/api/invoices/{id}/pdf` | Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych) |
 | GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |
 | POST | `/api/invoices` | Utworzenie faktury (szkicu) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
@@ -43,6 +44,7 @@ po polsku.
 | GET | `/api/received-invoices?q=&from=&to=&page=&pageSize=` | Lista faktur otrzymanych (z lokalnej bazy) |
 | GET | `/api/received-invoices/{id}` | Faktura otrzymana z treścią odczytaną z XML |
 | GET | `/api/received-invoices/{id}/xml` | XML faktury otrzymanej (w postaci pobranej z KSeF) |
+| GET | `/api/received-invoices/{id}/pdf` | Wizualizacja faktury otrzymanej w PDF z kodem QR weryfikacji |
 | GET | `/api/received-invoices/sync-status` | Stan synchronizacji (ostatnia synchronizacja, punkt kontrolny, błąd) |
 | POST | `/api/received-invoices/sync` | Ręczna synchronizacja z KSeF (409 bez tokenu, 429 częściej niż raz na minutę, 502 przy błędzie KSeF) |
 | GET | `/api/health` | Stan aplikacji i bazy danych (bez uwierzytelniania) |

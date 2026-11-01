@@ -134,6 +134,33 @@ Datą otrzymania faktury jest data nadania numeru KSeF (`AcquisitionDate`).
   przesuwał się na bieżąco (KSeF potrzebuje chwili na trwały zapis). Potwierdza to zasadność synchronizacji
   cyklicznej zamiast oczekiwania na natychmiastową dostępność.
 
+## Wizualizacja faktury (PDF) i kod QR weryfikacji
+
+PDF (`InvoicePdfRenderer`, biblioteka QuestPDF) powstaje z **dokumentu XML w strukturze FA**, odczytanego przez
+`Fa3InvoiceReader`. Ten sam renderer obsługuje faktury wystawione i otrzymane, a wydruk faktury wysłanej pokazuje
+dokładnie treść dokumentu przekazanego do KSeF.
+
+| Faktura | Źródło treści | Kod QR (KOD I) | Oznaczenie |
+|---|---|---|---|
+| Szkic / odrzucona | XML wygenerowany z danych | brak | ostrzeżenie „SZKIC” / „ODRZUCONA” na wydruku |
+| Wysłana, bez numeru KSeF | wysłany XML | tak | pod kodem „OFFLINE” |
+| Przyjęta przez KSeF | wysłany XML | tak | pod kodem numer KSeF |
+| Otrzymana z KSeF | pobrany XML | tak | pod kodem numer KSeF |
+
+**KOD I** (dokumentacja MF: *Kody weryfikujące QR*) to link
+`https://qr-test.ksef.mf.gov.pl/invoice/{NIP sprzedawcy}/{data wystawienia DD-MM-RRRR}/{SHA-256 pliku faktury, Base64URL}`.
+Po zeskanowaniu potwierdza obecność faktury w KSeF i pozwala pobrać jej XML. Jest wymagany, gdy faktura trafia
+do odbiorcy poza KSeF (PDF, wydruk, e-mail). Obraz kodu tworzy biblioteka QRCoder (ISO/IEC 18004).
+
+**Weryfikacja:**
+- link jest identyczny z linkiem budowanym przez oficjalny klient MF (test automatyczny),
+- skrót SHA-256 zapisany przy wysyłce jest identyczny ze skrótem `SkrotDokumentu` w UPO wystawionym przez KSeF
+  (sprawdzone dla faktur przyjętych na środowisku testowym),
+- treść PDF (numer, kwoty, polskie znaki, oznaczenie pod kodem QR) jest sprawdzana w testach przez odczyt
+  tekstu z pliku (PdfPig).
+
+Przykład: [`przyklady/faktura-przyjeta-w-ksef.pdf`](przyklady/faktura-przyjeta-w-ksef.pdf).
+
 ## Uwaga o danych testowych
 
 Środowisko testowe KSeF jest **współdzielone przez integratorów** i okresowo czyszczone (dokumentacja MF).
