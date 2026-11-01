@@ -7,7 +7,7 @@ Projekt inżynierski.
 
 | Projekt | Rola |
 |---|---|
-| `FakturowanieKSeF.Api` | ASP.NET Core (.NET 8): REST API pod `/api` + serwowanie aplikacji klienckiej |
+| `FakturowanieKSeF.Api` | ASP.NET Core (.NET 10): REST API pod `/api` + serwowanie aplikacji klienckiej |
 | `FakturowanieKSeF.Client` | Blazor WebAssembly: interfejs użytkownika w przeglądarce |
 | `FakturowanieKSeF.Models` | Encje domenowe (EF Core) |
 | `FakturowanieKSeF.Tests` | Testy jednostkowe i integracyjne (xUnit) |
@@ -16,7 +16,7 @@ Baza danych: PostgreSQL 16. Dokumentacja projektowa: [`docs/`](docs/).
 
 ## Uruchomienie środowiska deweloperskiego
 
-Wymagania: .NET 8 SDK, Docker.
+Wymagania: .NET 10 SDK, Docker.
 
 ```bash
 docker compose up -d                                       # baza PostgreSQL

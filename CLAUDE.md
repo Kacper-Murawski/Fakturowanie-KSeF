@@ -26,10 +26,11 @@
 - Produkcyjnie wymagane HTTPS. Do wdrożenia potrzebny jest Dockerfile dla API (serwującego też klienta Blazor WASM).
 
 ## Stos technologiczny
-- .NET 8: ASP.NET Core Web API (`FakturowanieKSeF.Api`), Blazor WebAssembly (`FakturowanieKSeF.Client`),
+- .NET 10 (LTS): ASP.NET Core Web API (`FakturowanieKSeF.Api`), Blazor WebAssembly (`FakturowanieKSeF.Client`),
   wspólne modele (`FakturowanieKSeF.Models`).
-- PostgreSQL 16 + EF Core 8 (Npgsql), ASP.NET Core Identity (`MapIdentityApi`, tokeny Bearer).
-- Wszystkie pakiety Microsoft przypięte do tej samej wersji 8.0.x.
+- PostgreSQL 16 + EF Core 10 (Npgsql), ASP.NET Core Identity (`MapIdentityApi`, tokeny Bearer).
+- Wszystkie pakiety Microsoft przypięte do tej samej wersji 10.0.x; SDK określone w `global.json`.
+- Nie zatrzymuj procesów przez `pkill -f`/`grep` po nazwie projektu (zabija własną powłokę) - używaj `fuser -k <port>/tcp`.
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).
 - API pod prefiksem `/api`; klient Blazor serwowany przez API (fallback do `index.html`).
 - Migracje: `dotnet ef migrations add <Nazwa> --project FakturowanieKSeF.Api --output-dir Data/Migrations`.

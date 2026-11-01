@@ -29,7 +29,7 @@ po zalogowaniu na własne konto.
 
 ## D2. Stos technologiczny: .NET 8, Blazor WebAssembly, PostgreSQL
 
-**Decyzja:** backend ASP.NET Core Web API (.NET 8 LTS), frontend Blazor WebAssembly, baza PostgreSQL 16, ORM EF Core 8.
+**Decyzja:** backend ASP.NET Core Web API (.NET 10 LTS, pierwotnie .NET 8 - zob. D9), frontend Blazor WebAssembly, baza PostgreSQL 16, ORM EF Core 8.
 
 **Uzasadnienie:**
 - jeden język (C#) po stronie serwera i klienta, wspólny projekt modeli,
@@ -124,3 +124,19 @@ w konfiguracji wystarczyłaby do połączenia z produkcją.
 
 **Konsekwencje:** przejście na produkcję wymaga świadomej zmiany kodu (nowa wartość typu i rozszerzenie
 listy dozwolonych hostów) oraz przeglądu bezpieczeństwa.
+
+---
+
+## D9. Migracja z .NET 8 na .NET 10
+
+**Kontekst:** projekt rozpoczęto na .NET 8 (LTS), którego wsparcie kończy się 10 listopada 2026 r.
+Po tej dacie Microsoft nie publikuje poprawek bezpieczeństwa.
+
+**Decyzja:** migracja wszystkich projektów na .NET 10 (LTS, wsparcie do listopada 2028 r.) wraz z pakietami
+w wersji 10.0.x (EF Core, Identity, Npgsql 10). Wersja SDK przypięta w `global.json`.
+
+**Uzasadnienie:**
+- aplikacja jest publicznie dostępna na serwerze, więc nie może działać na platformie bez poprawek bezpieczeństwa,
+- oficjalny klient KSeF Ministerstwa Finansów jest budowany m.in. pod .NET 10 (zob. D10),
+- na wczesnym etapie projektu migracja jest tania: model danych i migracje bazy pozostały bez zmian,
+  wszystkie testy przechodzą bez modyfikacji.
