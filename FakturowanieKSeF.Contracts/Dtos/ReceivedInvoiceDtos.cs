@@ -46,7 +46,12 @@ public sealed record BankAccountCheckDto(string Account, bool OnWhiteList, DateO
 /// <summary>Strona faktury odczytana z XML (adres w postaci wierszy - tak jak w strukturze FA).</summary>
 public sealed record DocumentPartyDto(string Name, string? Nip, string? AddressLine1, string? AddressLine2, string? CountryCode);
 
-public sealed record DocumentLineDto(int Number, string Name, string? Unit, decimal? Quantity, decimal? UnitNetPrice, decimal? NetAmount, string? VatRate);
+/// <param name="BeforeCorrection">Wiersz stanu przed korektą (StanPrzed) na fakturze korygującej.</param>
+public sealed record DocumentLineDto(int Number, string Name, string? Unit, decimal? Quantity, decimal? UnitNetPrice, decimal? NetAmount, string? VatRate,
+    bool BeforeCorrection = false);
+
+/// <summary>Faktura korygowana wskazana na fakturze korygującej (DaneFaKorygowanej).</summary>
+public sealed record DocumentCorrectedInvoiceDto(string Number, DateOnly? IssueDate, string? KsefNumber);
 
 public sealed record DocumentVatSummaryDto(string Label, decimal Net, decimal? Vat);
 
@@ -64,7 +69,13 @@ public sealed record InvoiceDocumentDto(
     decimal TotalGross,
     DateOnly? DueDate,
     string? PaymentMethod,
-    string? BankAccount);
+    string? BankAccount,
+    string? CorrectionReason = null,
+    IReadOnlyList<DocumentCorrectedInvoiceDto>? CorrectedInvoices = null)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsCorrection => InvoiceType.StartsWith("KOR", StringComparison.Ordinal);
+}
 
 /// <summary>Stan synchronizacji faktur otrzymanych.</summary>
 public sealed record ReceivedSyncStatusDto(bool HasToken, DateTime? LastSyncAt, DateTime? SyncedUntil, string? LastError);

@@ -225,6 +225,28 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Property<int>("CompanyId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("CorrectedInvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("CorrectedInvoiceIssueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CorrectedInvoiceKsefNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("CorrectedInvoiceNumber")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CorrectionReason")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CorrectionType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -252,6 +274,11 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Property<string>("IssuePlace")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("KsefAcceptedAt")
                         .HasColumnType("timestamp with time zone");
@@ -298,6 +325,8 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CorrectedInvoiceId");
+
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("KsefNumber")
@@ -320,6 +349,9 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("BeforeCorrection")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal>("GrossAmount")
                         .HasColumnType("numeric(18,2)");
@@ -818,6 +850,11 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("FakturowanieKSeF.Models.Invoice", "CorrectedInvoice")
+                        .WithMany("Corrections")
+                        .HasForeignKey("CorrectedInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("FakturowanieKSeF.Models.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
@@ -943,6 +980,8 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Company");
+
+                    b.Navigation("CorrectedInvoice");
 
                     b.Navigation("Customer");
 
@@ -1070,6 +1109,8 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
             modelBuilder.Entity("FakturowanieKSeF.Models.Invoice", b =>
                 {
+                    b.Navigation("Corrections");
+
                     b.Navigation("Items");
 
                     b.Navigation("KsefSubmissions");

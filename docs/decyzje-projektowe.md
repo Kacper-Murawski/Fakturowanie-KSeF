@@ -65,7 +65,7 @@ pozostaje przygotowany na wiele firm, żeby rozszerzenie nie wymagało przebudow
 **Uzasadnienie:** prostsza izolacja danych, prostszy interfejs i mniej przypadków brzegowych; pozwala szybciej
 dostarczyć działające minimum. Typowy użytkownik (jednoosobowa działalność) ma jedną firmę.
 
-## D5. Faktury korygujące poza zakresem MVP
+## D5. Faktury korygujące poza zakresem MVP (zrealizowane po MVP - D32)
 
 **Decyzja:** w MVP obsługiwana jest wyłącznie podstawowa faktura VAT. Korekty (KOR) i inne rodzaje faktur
 zostaną dodane po ukończeniu minimalnej funkcjonalności.
@@ -533,3 +533,35 @@ z innych klientów, ale zostawia niechciane szkice, gdy użytkownik zrezygnuje, 
 
 **Uzasadnienie:** brak nowego endpointu i reguł po stronie serwera (mniej kodu do zabezpieczenia), brak „śmieciowych”
 szkiców i luk w numeracji, użytkownik widzi i poprawia dane przed zapisem.
+
+---
+
+## D32. Faktury korygujące metodą „przed i po”
+
+**Kontekst:** w MVP korekty pominięto (D5). Bez nich nie da się poprawić faktury przyjętej w KSeF - faktury w KSeF
+nie można zmienić ani usunąć, jedyną drogą jest faktura korygująca (RodzajFaktury = KOR).
+
+**Decyzja:**
+- korekta jest fakturą (ten sam model, `Kind = Correction`) z kopią danych faktury korygowanej (numer, data,
+  numer KSeF) i nabywcy - jak dane stron na fakturze (D11), korekta jest kompletnym dokumentem,
+- pozycje zapisywane są metodą „przed i po”: wiersze stanu przed korektą (`StanPrzed=1`) i stan po korekcie,
+  a kwoty P_13_x / P_14_x / P_15 to różnica liczona per stawka tym samym kalkulatorem co faktura,
+- stan przed korektą to pozycje faktury albo jej ostatniej korekty przyjętej w KSeF; kolejna korekta odnosi się
+  do faktury pierwotnej; nowej korekty nie można wystawić, gdy poprzednia jest przetwarzana przez KSeF,
+  a przed wysyłką sprawdzane jest, czy stan przed korektą jest nadal aktualny,
+- korekty mają osobną serię numerów `KOR/n/MM/RRRR`,
+- korekta nie przyjmuje wpłat - zmienia kwotę należną faktury korygowanej (rozliczenia, D30), co pozwala wykazać
+  nadpłatę do zwrotu,
+- poza zakresem: korekta danych nabywcy (Podmiot2K), korekty zbiorcze (OkresFaKorygowanej), korekty faktur
+  zaliczkowych i faktur spoza KSeF.
+
+**Alternatywy:**
+- korekta przez wykazanie wyłącznie różnic w wierszach (np. ilość -2): krótszy dokument, ale trudniejszy w odbiorze
+  i niejednoznaczny przy zmianie ceny i stawki jednocześnie; FA(3) wprost przewiduje znacznik StanPrzed dla metody
+  „przed i po”,
+- osobna encja „Korekta”: duplikacja logiki faktury (pozycje, wysyłka do KSeF, PDF, UPO) - korekta podlega tym
+  samym procesom co faktura.
+
+**Uzasadnienie:** czytelność dla nabywcy (widać, co się zmieniło), ponowne użycie całego procesu faktury (walidacja
+XSD, wysyłka, UPO, PDF z kodem QR), kontrola spójności stanu przy kolejnych korektach. Zgodność potwierdzona
+przyjęciem korekty przez testowy KSeF.

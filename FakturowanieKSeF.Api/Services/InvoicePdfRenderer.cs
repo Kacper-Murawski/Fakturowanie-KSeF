@@ -67,6 +67,29 @@ public sealed class InvoicePdfRenderer
             if (notice is not null)
                 col.Item().PaddingTop(8).Background(Colors.Orange.Lighten4).Padding(6).Text(notice).Bold().FontColor(Colors.Orange.Darken4);
 
+            // Faktura korygująca: której faktury dotyczy i dlaczego
+            if (doc.IsCorrection)
+            {
+                col.Item().PaddingTop(8).Background(Colors.Grey.Lighten4).Padding(6).Column(c =>
+                {
+                    foreach (var k in doc.CorrectedInvoices ?? [])
+                    {
+                        c.Item().Text(t =>
+                        {
+                            t.Span("Korekta faktury nr ");
+                            t.Span(k.Number).SemiBold();
+                            if (k.IssueDate is { } d) t.Span($" z dnia {Date(d)}");
+                            if (k.KsefNumber is not null)
+                            {
+                                t.Span(", numer KSeF ");
+                                t.Span(k.KsefNumber).SemiBold();
+                            }
+                        });
+                    }
+                    if (doc.CorrectionReason is not null) c.Item().Text($"Przyczyna korekty: {doc.CorrectionReason}");
+                });
+            }
+
             col.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
         });
     }
@@ -84,40 +107,27 @@ public sealed class InvoicePdfRenderer
                 row.RelativeItem().Element(c => Party(c, "Nabywca", doc.Buyer));
             });
 
-            col.Item().Table(table =>
+            if (doc.IsCorrection)
             {
-                table.ColumnsDefinition(c =>
+                // Metoda „przed i po”: osobne zestawienia stanu przed korektą i po korekcie
+                var before = doc.Lines.Where(l => l.BeforeCorrection).ToList();
+                var after = doc.Lines.Where(l => !l.BeforeCorrection).ToList();
+                col.Item().Column(c =>
                 {
-                    c.ConstantColumn(24);   // Lp.
-                    c.RelativeColumn(5);    // nazwa
-                    c.ConstantColumn(36);   // j.m.
-                    c.ConstantColumn(48);   // ilość
-                    c.ConstantColumn(64);   // cena netto
-                    c.ConstantColumn(70);   // wartość netto
-                    c.ConstantColumn(40);   // VAT
+                    c.Item().Text("Stan przed korektą").SemiBold();
+                    c.Item().Element(e => LinesTable(e, before));
                 });
-
-                table.Header(h =>
+                col.Item().Column(c =>
                 {
-                    foreach (var (label, right) in new[] { ("Lp.", false), ("Nazwa towaru lub usługi", false), ("J.m.", false),
-                                 ("Ilość", true), ("Cena netto", true), ("Wartość netto", true), ("VAT", false) })
-                    {
-                        var cell = h.Cell().Background(Colors.Grey.Lighten3).Padding(4);
-                        (right ? cell.AlignRight() : cell).Text(label).SemiBold();
-                    }
+                    c.Item().Text("Stan po korekcie").SemiBold();
+                    if (after.Count == 0) c.Item().Text("brak pozycji (korekta do zera)").Italic();
+                    else c.Item().Element(e => LinesTable(e, after));
                 });
-
-                foreach (var line in doc.Lines)
-                {
-                    Cell(table).Text(line.Number.ToString(Pl));
-                    Cell(table).Text(line.Name);
-                    Cell(table).Text(line.Unit ?? "");
-                    Cell(table).AlignRight().Text(line.Quantity is { } q ? q.ToString("0.######", Pl) : "");
-                    Cell(table).AlignRight().Text(line.UnitNetPrice is { } p ? p.ToString("N2", Pl) : "");
-                    Cell(table).AlignRight().Text(line.NetAmount is { } n ? n.ToString("N2", Pl) : "");
-                    Cell(table).Text(VatLabel(line.VatRate));
-                }
-            });
+            }
+            else
+            {
+                col.Item().Element(e => LinesTable(e, doc.Lines));
+            }
 
             col.Item().Row(row =>
             {
@@ -141,13 +151,54 @@ public sealed class InvoicePdfRenderer
                             Cell(t).AlignRight().Text(s.Vat is { } v ? v.ToString("N2", Pl) : "—");
                         }
                     });
+                    if (doc.IsCorrection) c.Item().PaddingTop(2).Text("Różnica (po korekcie - przed korektą)").FontSize(8).FontColor(Colors.Grey.Darken1);
                     c.Item().PaddingTop(8).AlignRight().Text(t =>
                     {
-                        t.Span("Do zapłaty: ").FontSize(11);
-                        t.Span($"{doc.TotalGross.ToString("N2", Pl)} {doc.Currency}").FontSize(13).Bold();
+                        // Korekta: kwota ujemna oznacza zwrot dla nabywcy
+                        var refund = doc.IsCorrection && doc.TotalGross < 0;
+                        t.Span(refund ? "Do zwrotu: " : doc.IsCorrection ? "Do dopłaty: " : "Do zapłaty: ").FontSize(11);
+                        t.Span($"{Math.Abs(doc.TotalGross).ToString("N2", Pl)} {doc.Currency}").FontSize(13).Bold();
                     });
                 });
             });
+        });
+    }
+
+    private static void LinesTable(IContainer container, IReadOnlyList<DocumentLineDto> lines)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(c =>
+            {
+                c.ConstantColumn(24);   // Lp.
+                c.RelativeColumn(5);    // nazwa
+                c.ConstantColumn(36);   // j.m.
+                c.ConstantColumn(48);   // ilość
+                c.ConstantColumn(64);   // cena netto
+                c.ConstantColumn(70);   // wartość netto
+                c.ConstantColumn(40);   // VAT
+            });
+
+            table.Header(h =>
+            {
+                foreach (var (label, right) in new[] { ("Lp.", false), ("Nazwa towaru lub usługi", false), ("J.m.", false),
+                             ("Ilość", true), ("Cena netto", true), ("Wartość netto", true), ("VAT", false) })
+                {
+                    var cell = h.Cell().Background(Colors.Grey.Lighten3).Padding(4);
+                    (right ? cell.AlignRight() : cell).Text(label).SemiBold();
+                }
+            });
+
+            foreach (var line in lines)
+            {
+                Cell(table).Text(line.Number.ToString(Pl));
+                Cell(table).Text(line.Name);
+                Cell(table).Text(line.Unit ?? "");
+                Cell(table).AlignRight().Text(line.Quantity is { } q ? q.ToString("0.######", Pl) : "");
+                Cell(table).AlignRight().Text(line.UnitNetPrice is { } p ? p.ToString("N2", Pl) : "");
+                Cell(table).AlignRight().Text(line.NetAmount is { } n ? n.ToString("N2", Pl) : "");
+                Cell(table).Text(VatLabel(line.VatRate));
+            }
         });
     }
 

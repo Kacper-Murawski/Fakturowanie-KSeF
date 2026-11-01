@@ -35,14 +35,18 @@ public static class InvoiceEndpoints
 
                 // Rozliczenie: tylko faktury przekazane do KSeF (szkice i odrzucone nie są należnością)
                 var today = PolishDate.Today(time);
+                // Kwota należna = brutto faktury VAT + korekty przekazane do KSeF (wyrażenie tłumaczone na podzapytanie SQL)
                 if (payment is not null)
                 {
-                    query = query.Where(i => i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Accepted);
+                    query = query.Where(i => i.Kind == InvoiceKind.Vat && (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Accepted));
                     query = payment switch
                     {
-                        PaymentFilter.Paid => query.Where(i => i.Payments.Sum(p => p.Amount) >= i.TotalGross),
-                        PaymentFilter.Unpaid => query.Where(i => i.Payments.Sum(p => p.Amount) < i.TotalGross),
-                        _ => query.Where(i => i.Payments.Sum(p => p.Amount) < i.TotalGross && i.DueDate < today)
+                        PaymentFilter.Paid => query.Where(i => i.Payments.Sum(p => p.Amount) >= i.TotalGross
+                            + i.Corrections.Where(c => c.Status == InvoiceStatus.Pending || c.Status == InvoiceStatus.Accepted).Sum(c => c.TotalGross)),
+                        PaymentFilter.Unpaid => query.Where(i => i.Payments.Sum(p => p.Amount) < i.TotalGross
+                            + i.Corrections.Where(c => c.Status == InvoiceStatus.Pending || c.Status == InvoiceStatus.Accepted).Sum(c => c.TotalGross)),
+                        _ => query.Where(i => i.DueDate < today && i.Payments.Sum(p => p.Amount) < i.TotalGross
+                            + i.Corrections.Where(c => c.Status == InvoiceStatus.Pending || c.Status == InvoiceStatus.Accepted).Sum(c => c.TotalGross))
                     };
                 }
                 if (from is not null) query = query.Where(i => i.IssueDate >= from);
@@ -62,11 +66,17 @@ public static class InvoiceEndpoints
                 var rows = await query
                     .OrderByDescending(i => i.IssueDate).ThenByDescending(i => i.Id)
                     .Skip((p - 1) * size).Take(size)
-                    .Select(i => new { Invoice = i, Paid = i.Payments.Sum(x => x.Amount) })
+                    .Select(i => new
+                    {
+                        Invoice = i,
+                        Paid = i.Payments.Sum(x => x.Amount),
+                        Due = i.TotalGross + i.Corrections
+                            .Where(c => c.Status == InvoiceStatus.Pending || c.Status == InvoiceStatus.Accepted).Sum(c => c.TotalGross)
+                    })
                     .ToListAsync(ct);
 
                 return Results.Ok(new PagedResult<InvoiceListItemDto>(
-                    rows.Select(r => r.Invoice.ToListItemDto(r.Paid, today)).ToList(), total, p, size));
+                    rows.Select(r => r.Invoice.ToListItemDto(r.Paid, today, r.Due)).ToList(), total, p, size));
             })
             .WithSummary("Lista faktur (filtry: status, rozliczenie, zakres dat, wyszukiwanie; stronicowanie)");
 
@@ -74,7 +84,8 @@ public static class InvoiceEndpoints
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions).Include(i => i.Payments)
+                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions)
+                    .Include(i => i.Payments).Include(i => i.Corrections)
                     .AsSplitQuery()
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 return invoice is null ? ApiErrors.NotFound("faktura") : Results.Ok(invoice.ToDto(PolishDate.Today(time)));
@@ -133,6 +144,9 @@ public static class InvoiceEndpoints
 
                 if (company.KsefTokenEncrypted is null)
                     return ApiErrors.Conflict("Najpierw skonfiguruj token KSeF w ustawieniach firmy.");
+
+                if (invoice.Kind == InvoiceKind.Correction && await CheckCorrectionStateAsync(db, invoice, ct) is { } outdated)
+                    return outdated;
 
                 // Kontrola współbieżności: chroni przed podwójną wysyłką (np. dwukrotne kliknięcie, dwie karty)
                 db.Entry(invoice).Property(i => i.Version).OriginalValue = request.Version;
@@ -234,11 +248,11 @@ public static class InvoiceEndpoints
             })
             .WithSummary("Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych)");
 
-        group.MapGet("/next-number", async (DateOnly? issueDate, CurrentCompany current, InvoiceNumbering numbering, CancellationToken ct) =>
+        group.MapGet("/next-number", async (DateOnly? issueDate, InvoiceKind? kind, CurrentCompany current, InvoiceNumbering numbering, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var number = await numbering.NextAsync(company.Id, issueDate ?? DateOnly.FromDateTime(DateTime.Today), ct);
+                var number = await numbering.NextAsync(company.Id, issueDate ?? DateOnly.FromDateTime(DateTime.Today), kind ?? InvoiceKind.Vat, ct);
                 return Results.Ok(new { number });
             })
             .WithSummary("Propozycja kolejnego numeru faktury");
@@ -257,7 +271,7 @@ public static class InvoiceEndpoints
                     var error = await ApplyAsync(invoice, request, company, db, ct);
                     if (error is not null) return error;
 
-                    if (autoNumber) invoice.Number = await numbering.NextAsync(company.Id, invoice.IssueDate, ct);
+                    if (autoNumber) invoice.Number = await numbering.NextAsync(company.Id, invoice.IssueDate, invoice.Kind, ct);
 
                     db.Invoices.Add(invoice);
                     try
@@ -319,56 +333,110 @@ public static class InvoiceEndpoints
 
     /// <summary>
     /// Przenosi dane z żądania na encję: kopiuje aktualne dane sprzedawcy (firmy) i nabywcy, zastępuje pozycje
-    /// i przelicza kwoty wspólnym kalkulatorem. Zwraca błąd albo null.
+    /// i przelicza kwoty wspólnym kalkulatorem. Dla faktury korygującej kopiuje dane faktury korygowanej i stan
+    /// przed korektą (wiersze StanPrzed), a kwoty faktury to różnica po - przed. Zwraca błąd albo null.
     /// </summary>
     private static async Task<IResult?> ApplyAsync(Invoice invoice, SaveInvoiceRequest request, Company company,
         AppDbContext db, CancellationToken ct)
     {
-        // Nabywca: z książki adresowej (tylko kontrahent własnej firmy!) albo podany bezpośrednio
-        InvoiceParty buyer;
-        if (request.CustomerId is { } customerId)
-        {
-            var customer = await db.Customers.AsNoTracking()
-                .SingleOrDefaultAsync(c => c.Id == customerId && c.CompanyId == company.Id, ct);
-            if (customer is null) return ApiErrors.Validation(nameof(request.CustomerId), "Nie znaleziono wskazanego kontrahenta.");
+        var kind = request.IsCorrection ? InvoiceKind.Correction : InvoiceKind.Vat;
+        if (invoice.Id != 0 && (invoice.Kind != kind || invoice.CorrectedInvoiceId != request.CorrectedInvoiceId))
+            return ApiErrors.Validation(nameof(request.CorrectedInvoiceId), "Nie można zmienić rodzaju faktury ani faktury korygowanej.");
 
-            buyer = new InvoiceParty { Name = customer.Name, Nip = customer.Nip, Address = customer.Address.Copy() };
+        InvoiceParty buyer;
+        List<InvoiceItem>? before = null;
+        string? originalExemptionBasis = null;
+
+        if (request.CorrectedInvoiceId is { } correctedId)
+        {
+            var original = await db.Invoices.AsNoTracking().Include(i => i.Items)
+                .SingleOrDefaultAsync(i => i.Id == correctedId && i.CompanyId == company.Id, ct);
+            if (original is null)
+                return ApiErrors.Validation(nameof(request.CorrectedInvoiceId), "Nie znaleziono faktury korygowanej.");
+            if (original.Kind != InvoiceKind.Vat)
+                return ApiErrors.Validation(nameof(request.CorrectedInvoiceId), "Kolejną korektę wystaw do faktury pierwotnej, a nie do korekty.");
+            if (original.Status != InvoiceStatus.Accepted)
+                return ApiErrors.Validation(nameof(request.CorrectedInvoiceId), "Korygować można wyłącznie fakturę przyjętą w KSeF (z numerem KSeF).");
+            if (request.IssueDate < original.IssueDate)
+                return ApiErrors.Validation(nameof(request.IssueDate), "Data wystawienia korekty nie może być wcześniejsza niż data faktury korygowanej.");
+
+            var state = await CurrentStateAsync(db, original, invoice.Id, ct);
+            if (state.PendingCorrection)
+                return ApiErrors.Conflict("Poprzednia korekta tej faktury jest przetwarzana przez KSeF. Wystaw kolejną po jej przyjęciu.");
+            before = state.Items;
+
+            // Korekta „bez zmian” nie jest korektą
+            if (SameItems(before, request.Items))
+                return ApiErrors.Validation(nameof(request.Items), "Pozycje po korekcie są takie same jak przed korektą - zmień co najmniej jedną pozycję.");
+
+            buyer = new InvoiceParty { Name = original.Buyer.Name, Nip = original.Buyer.Nip, Address = original.Buyer.Address.Copy() };
+            invoice.CorrectedInvoiceId = original.Id;
+            invoice.CorrectedInvoiceNumber = original.Number;
+            invoice.CorrectedInvoiceIssueDate = original.IssueDate;
+            invoice.CorrectedInvoiceKsefNumber = original.KsefNumber;
+            invoice.CorrectionReason = request.CorrectionReason!.Trim();
+            invoice.CorrectionType = request.CorrectionType;
+            invoice.CustomerId = original.CustomerId;
+            invoice.Currency = original.Currency;
+            originalExemptionBasis = original.ExemptionBasis;
         }
         else
         {
-            var b = request.Buyer!;
-            buyer = new InvoiceParty { Name = b.Name.Trim(), Nip = Mapping.NormalizeNip(b.Nip), Address = b.Address.ToEntity() };
+            // Nabywca: z książki adresowej (tylko kontrahent własnej firmy!) albo podany bezpośrednio
+            if (request.CustomerId is { } customerId)
+            {
+                var customer = await db.Customers.AsNoTracking()
+                    .SingleOrDefaultAsync(c => c.Id == customerId && c.CompanyId == company.Id, ct);
+                if (customer is null) return ApiErrors.Validation(nameof(request.CustomerId), "Nie znaleziono wskazanego kontrahenta.");
+
+                buyer = new InvoiceParty { Name = customer.Name, Nip = customer.Nip, Address = customer.Address.Copy() };
+            }
+            else
+            {
+                var b = request.Buyer!;
+                buyer = new InvoiceParty { Name = b.Name.Trim(), Nip = Mapping.NormalizeNip(b.Nip), Address = b.Address.ToEntity() };
+            }
+            invoice.CustomerId = request.CustomerId;
+            invoice.Currency = request.Currency;
         }
 
+        invoice.Kind = kind;
         if (!string.IsNullOrWhiteSpace(request.Number)) invoice.Number = request.Number.Trim();
         invoice.IssueDate = request.IssueDate;
         invoice.IssuePlace = Mapping.EmptyToNull(request.IssuePlace);
         invoice.SaleDate = request.SaleDate;
-        invoice.Currency = request.Currency;
         invoice.PaymentMethod = request.PaymentMethod;
         invoice.DueDate = request.DueDate;
-        invoice.ExemptionBasis = request.Items.Any(i => i.VatRate == VatRate.Exempt)
-            ? Mapping.EmptyToNull(request.ExemptionBasis)
-            : null;
+        var anyExempt = request.Items.Any(i => i.VatRate == VatRate.Exempt) || before?.Any(i => i.VatRate == VatRate.Exempt) == true;
+        invoice.ExemptionBasis = anyExempt ? Mapping.EmptyToNull(request.ExemptionBasis) ?? originalExemptionBasis : null;
         invoice.BankAccountNumber = Mapping.NormalizeBankAccount(request.BankAccountNumber)
                                     ?? (request.PaymentMethod == PaymentMethod.Transfer ? company.BankAccountNumber : null);
 
         // Kopia aktualnych danych sprzedawcy - utrwalana w chwili wysyłki faktury do KSeF
         invoice.Seller = new InvoiceParty { Name = company.Name, Nip = company.Nip, Address = company.Address.Copy() };
         invoice.Buyer = buyer;
-        invoice.CustomerId = request.CustomerId;
 
-        // Pozycje i kwoty
-        var totals = InvoiceCalculator.Calculate(request.Items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)));
+        // Pozycje: na korekcie najpierw wiersze stanu przed korektą, potem stan po korekcie (osobna numeracja)
+        var afterInputs = request.Items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)).ToList();
+        var totals = InvoiceCalculator.Calculate(afterInputs);
 
         invoice.Items.Clear();
+        var position = 1;
+        foreach (var b in before ?? [])
+        {
+            invoice.Items.Add(new InvoiceItem
+            {
+                Position = position++, BeforeCorrection = true, Name = b.Name, Unit = b.Unit, Quantity = b.Quantity,
+                UnitNetPrice = b.UnitNetPrice, VatRate = b.VatRate, NetAmount = b.NetAmount, VatAmount = b.VatAmount, GrossAmount = b.GrossAmount
+            });
+        }
         for (var n = 0; n < request.Items.Count; n++)
         {
             var item = request.Items[n];
             var line = totals.Lines[n];
             invoice.Items.Add(new InvoiceItem
             {
-                Position = n + 1,
+                Position = position++,
                 Name = item.Name.Trim(),
                 Unit = Mapping.EmptyToNull(item.Unit),
                 Quantity = item.Quantity,
@@ -380,12 +448,64 @@ public static class InvoiceEndpoints
             });
         }
 
-        invoice.TotalNet = totals.TotalNet;
-        invoice.TotalVat = totals.TotalVat;
-        invoice.TotalGross = totals.TotalGross;
+        if (before is not null)
+        {
+            var correction = InvoiceCalculator.CalculateCorrection(
+                before.Select(b => new LineInput(b.Quantity, b.UnitNetPrice, b.VatRate)), afterInputs);
+            invoice.TotalNet = correction.TotalNet;
+            invoice.TotalVat = correction.TotalVat;
+            invoice.TotalGross = correction.TotalGross;
+        }
+        else
+        {
+            invoice.TotalNet = totals.TotalNet;
+            invoice.TotalVat = totals.TotalVat;
+            invoice.TotalGross = totals.TotalGross;
+        }
 
         return null;
     }
+
+    /// <summary>Aktualny stan pozycji faktury: po ostatniej korekcie przekazanej do KSeF albo stan pierwotny.</summary>
+    internal static async Task<(List<InvoiceItem> Items, bool PendingCorrection)> CurrentStateAsync(
+        AppDbContext db, Invoice original, int exceptCorrectionId, CancellationToken ct)
+    {
+        var corrections = await db.Invoices.AsNoTracking().Include(c => c.Items)
+            .Where(c => c.CorrectedInvoiceId == original.Id && c.Id != exceptCorrectionId
+                        && (c.Status == InvoiceStatus.Pending || c.Status == InvoiceStatus.Accepted))
+            .OrderByDescending(c => c.Id)
+            .ToListAsync(ct);
+
+        var items = corrections.FirstOrDefault(c => c.Status == InvoiceStatus.Accepted) is { } last
+            ? last.Items.Where(x => !x.BeforeCorrection)
+            : original.Items.Where(x => !x.BeforeCorrection);
+        return (items.OrderBy(x => x.Position).ToList(), corrections.Any(c => c.Status == InvoiceStatus.Pending));
+    }
+
+    /// <summary>
+    /// Przed wysyłką korekty: stan „przed korektą” musi odpowiadać aktualnemu stanowi faktury - w międzyczasie
+    /// mogła zostać przyjęta inna korekta tej samej faktury.
+    /// </summary>
+    private static async Task<IResult?> CheckCorrectionStateAsync(AppDbContext db, Invoice correction, CancellationToken ct)
+    {
+        var original = await db.Invoices.AsNoTracking().Include(i => i.Items)
+            .SingleAsync(i => i.Id == correction.CorrectedInvoiceId, ct);
+        var state = await CurrentStateAsync(db, original, correction.Id, ct);
+        if (state.PendingCorrection)
+            return ApiErrors.Conflict("Inna korekta tej faktury jest przetwarzana przez KSeF. Wyślij tę korektę po jej przyjęciu.");
+
+        var before = correction.Items.Where(x => x.BeforeCorrection).OrderBy(x => x.Position).ToList();
+        var same = before.Count == state.Items.Count && before.Zip(state.Items).All(p =>
+            p.First.Name == p.Second.Name && p.First.Unit == p.Second.Unit && p.First.Quantity == p.Second.Quantity
+            && p.First.UnitNetPrice == p.Second.UnitNetPrice && p.First.VatRate == p.Second.VatRate);
+        return same ? null : ApiErrors.Conflict(
+            "Po zapisaniu tej korekty KSeF przyjął inną korektę tej faktury. Otwórz edycję korekty i zapisz ją ponownie, aby uwzględnić aktualny stan.");
+    }
+
+    private static bool SameItems(IReadOnlyList<InvoiceItem> before, IReadOnlyList<SaveInvoiceItemRequest> after) =>
+        before.Count == after.Count && before.Zip(after).All(p =>
+            p.First.Name == p.Second.Name.Trim() && p.First.Unit == Mapping.EmptyToNull(p.Second.Unit)
+            && p.First.Quantity == p.Second.Quantity && p.First.UnitNetPrice == p.Second.UnitNetPrice && p.First.VatRate == p.Second.VatRate);
 
     private static bool IsDuplicateNumber(DbUpdateException ex) =>
         ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_Invoices_CompanyId_Number" };

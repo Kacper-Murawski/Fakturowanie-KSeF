@@ -26,18 +26,20 @@ public static class PaymentEndpoints
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.Include(i => i.Payments)
+                var invoice = await db.Invoices.Include(i => i.Payments).Include(i => i.Corrections)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
+                if (invoice.Kind == InvoiceKind.Correction)
+                    return ApiErrors.Conflict("Wpłaty rejestruj przy fakturze korygowanej - korekta zmienia jej kwotę należną.");
                 if (!PaymentRules.AcceptsPayments(invoice.Status))
                     return ApiErrors.Conflict("Wpłaty można rejestrować dla faktur przekazanych do KSeF (nie dla szkiców i faktur odrzuconych).");
 
                 var today = PolishDate.Today(time);
-                if (Validate(request, invoice.TotalGross, invoice.Payments, today) is { } error) return error;
+                if (Validate(request, invoice.TotalDue(), invoice.Payments, today) is { } error) return error;
 
                 invoice.Payments.Add(NewPayment(company.Id, request, time));
                 await db.SaveChangesAsync(ct);
-                return Results.Ok(Mapping.ToPaymentInfo(invoice.TotalGross, invoice.DueDate, invoice.Payments, today));
+                return Results.Ok(Mapping.ToPaymentInfo(invoice.TotalDue(), invoice.DueDate, invoice.Payments, today));
             })
             .WithSummary("Rejestracja wpłaty za fakturę wystawioną");
 
@@ -46,7 +48,7 @@ public static class PaymentEndpoints
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.Include(i => i.Payments)
+                var invoice = await db.Invoices.Include(i => i.Payments).Include(i => i.Corrections)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 var payment = invoice?.Payments.SingleOrDefault(p => p.Id == paymentId);
                 if (invoice is null || payment is null) return ApiErrors.NotFound("płatność");
@@ -54,7 +56,7 @@ public static class PaymentEndpoints
                 db.Payments.Remove(payment);
                 invoice.Payments.Remove(payment);
                 await db.SaveChangesAsync(ct);
-                return Results.Ok(Mapping.ToPaymentInfo(invoice.TotalGross, invoice.DueDate, invoice.Payments, PolishDate.Today(time)));
+                return Results.Ok(Mapping.ToPaymentInfo(invoice.TotalDue(), invoice.DueDate, invoice.Payments, PolishDate.Today(time)));
             })
             .WithSummary("Usunięcie błędnie zarejestrowanej wpłaty");
 
@@ -102,9 +104,17 @@ public static class PaymentEndpoints
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
                 var today = PolishDate.Today(time);
 
+                // Należność = brutto faktury VAT powiększone o korekty przekazane do KSeF
                 var receivables = await db.Invoices.AsNoTracking()
-                    .Where(i => i.CompanyId == company.Id && (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Accepted))
-                    .Select(i => new { Gross = i.TotalGross, Due = i.DueDate, Paid = i.Payments.Sum(p => p.Amount) })
+                    .Where(i => i.CompanyId == company.Id && i.Kind == InvoiceKind.Vat
+                                && (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Accepted))
+                    .Select(i => new
+                    {
+                        Gross = i.TotalGross + i.Corrections
+                            .Where(c => c.Status == InvoiceStatus.Pending || c.Status == InvoiceStatus.Accepted).Sum(c => c.TotalGross),
+                        Due = i.DueDate,
+                        Paid = i.Payments.Sum(p => p.Amount)
+                    })
                     .Where(x => x.Paid < x.Gross)
                     .Select(x => new Open(x.Gross, x.Due, x.Paid))
                     .ToListAsync(ct);

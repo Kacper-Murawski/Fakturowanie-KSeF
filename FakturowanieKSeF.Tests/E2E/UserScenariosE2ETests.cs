@@ -367,4 +367,52 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator("[data-testid=template-info]")).Not.ToBeVisibleAsync();
         await Expect(page.Locator("#buyer-name")).ToHaveValueAsync("");
     }
+
+    [E2EFact]
+    public async Task FakturaKorygujaca_ObnizkaCeny_WysylkaDoKsef_INaleznoscPoKorekcie()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        // Faktura pierwotna: 10 × 100 zł + 23% = 1 230,00 zł, przyjęta w KSeF
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Odbiorca Korekty sp. z o.o.", "1234563218");
+        await FillItemAsync(page, 0, "Usługa wdrożeniowa", "10", "100");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        var originalUrl = page.Url;
+        await page.ClickAsync("text=Wyślij do KSeF");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+
+        // Korekta: obniżka ceny do 80 zł - stan przed korektą i różnica liczona na żywo
+        await page.ClickAsync("text=Wystaw korektę");
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Nowa faktura korygująca");
+        await Expect(page.Locator("[data-testid=correction-header]")).ToContainTextAsync("Odbiorca Korekty sp. z o.o.");
+        await Expect(page.Locator("[data-testid=items-before] tbody tr")).ToHaveCountAsync(1);
+        await page.FillAsync("#reason", "Rabat za opóźnienie wdrożenia");
+        await Row(page, 0).Locator("input[aria-label='Cena netto']").FillAsync("80");
+        await Row(page, 0).Locator("input[aria-label='Cena netto']").PressAsync("Tab");
+        await Expect(page.Locator("[data-testid=correction-difference]")).ToContainTextAsync("-246,00");
+        await E2EFixture.ScreenshotAsync(page, "19-korekta-formularz");
+
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await Expect(page.Locator("h1")).ToContainTextAsync("Faktura korygująca KOR/1/");
+        await Expect(page.Locator("[data-testid=correction-info]")).ToContainTextAsync("Rabat za opóźnienie wdrożenia");
+        await Expect(page.Locator("[data-testid=correction-total]")).ToContainTextAsync("Do zwrotu: 246,00 PLN");
+
+        await page.ClickAsync("text=Wyślij do KSeF");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+        await E2EFixture.ScreenshotAsync(page, "20-korekta-przyjeta");
+
+        // Faktura pierwotna: lista korekt i należność po korekcie (1 230,00 - 246,00)
+        await page.GotoAsync(originalUrl);
+        await Expect(page.Locator("[data-testid=corrections]")).ToContainTextAsync("KOR/1/");
+        await Expect(page.Locator("[data-testid=payment-panel] [data-testid=remaining]")).ToContainTextAsync("984,00");
+
+        await page.GotoAsync("/faktury");
+        await Expect(page.Locator("tbody .badge:has-text('KOR')")).ToHaveCountAsync(1);
+    }
 }

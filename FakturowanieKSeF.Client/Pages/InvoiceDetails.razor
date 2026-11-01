@@ -19,7 +19,7 @@ else
 {
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
         <div>
-            <h1 class="mb-1">Faktura VAT @invoice.Number</h1>
+            <h1 class="mb-1">@(invoice.Kind == InvoiceKind.Correction ? "Faktura korygująca" : "Faktura VAT") @invoice.Number</h1>
             <StatusBadge Status="invoice.Status" />
             @if (invoice.KsefNumber is not null)
             {
@@ -37,7 +37,14 @@ else
             {
                 <a class="btn btn-outline-success" href="api/invoices/@invoice.Id/upo" download>Pobierz UPO</a>
             }
-            <a class="btn btn-outline-primary" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami">Wystaw podobną</a>
+            @if (invoice is { Kind: InvoiceKind.Vat, Status: InvoiceStatus.Accepted })
+            {
+                <a class="btn btn-outline-warning" href="faktury/nowa?korekta=@invoice.Id" title="Faktura korygująca (KOR) do tej faktury">Wystaw korektę</a>
+            }
+            @if (invoice.Kind == InvoiceKind.Vat)
+            {
+                <a class="btn btn-outline-primary" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami">Wystaw podobną</a>
+            }
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/pdf" download>Pobierz PDF</a>
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>
             <a class="btn btn-outline-secondary" href="faktury">Wróć do listy</a>
@@ -90,6 +97,38 @@ else
             break;
     }
 
+    @if (invoice.Correction is { } correction)
+    {
+        <div class="alert alert-secondary" data-testid="correction-info">
+            Korekta faktury <a href="faktury/@correction.CorrectedInvoiceId"><strong>@correction.CorrectedInvoiceNumber</strong></a>
+            z dnia @Format.Date(correction.CorrectedInvoiceIssueDate)@(correction.CorrectedInvoiceKsefNumber is null ? "" : $", numer KSeF {correction.CorrectedInvoiceKsefNumber}").
+            <br />Przyczyna: <strong>@correction.Reason</strong>
+            @if (correction.Type is { } type)
+            {
+                <br /><span class="small">@Format.CorrectionType(type)</span>
+            }
+            <br /><span class="small">Brutto przed korektą @Format.Money(correction.BeforeGross, invoice.Currency), po korekcie @Format.Money(correction.AfterGross, invoice.Currency).</span>
+        </div>
+    }
+
+    @if (invoice.Corrections is { Count: > 0 } corrections)
+    {
+        <div class="card mb-3" data-testid="corrections">
+            <div class="card-body">
+                <h2 class="h6">Faktury korygujące</h2>
+                <ul class="mb-0">
+                    @foreach (var c in corrections)
+                    {
+                        <li>
+                            <a href="faktury/@c.Id">@c.Number</a> z dnia @Format.Date(c.IssueDate):
+                            @Format.Money(c.TotalGross, invoice.Currency) <StatusBadge Status="c.Status" />
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
     @if (invoice.Payment is { } payment)
     {
         <PaymentPanel InvoiceUrl="@($"api/invoices/{invoice.Id}")" Info="payment" TotalGross="invoice.TotalGross"
@@ -117,31 +156,17 @@ else
                 </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Lp.</th><th>Nazwa</th><th>J.m.</th><th class="text-end">Ilość</th><th class="text-end">Cena netto</th>
-                            <th class="text-end">Wartość netto</th><th>VAT</th><th class="text-end">Wartość brutto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var i in invoice.Items)
-                        {
-                            <tr>
-                                <td>@i.Position</td>
-                                <td>@i.Name</td>
-                                <td>@i.Unit</td>
-                                <td class="text-end">@Format.Quantity(i.Quantity)</td>
-                                <td class="text-end">@Format.Amount(i.UnitNetPrice)</td>
-                                <td class="text-end">@Format.Amount(i.NetAmount)</td>
-                                <td>@i.VatRate.ToDisplayName()</td>
-                                <td class="text-end">@Format.Amount(i.GrossAmount)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            @if (invoice.Correction is { } k)
+            {
+                <h2 class="h6 text-muted text-uppercase">Stan przed korektą</h2>
+                <InvoiceItemsTable Items="k.ItemsBefore" TestId="items-before" />
+                <h2 class="h6 text-muted text-uppercase">Stan po korekcie</h2>
+                <InvoiceItemsTable Items="invoice.Items" TestId="items-after" />
+            }
+            else
+            {
+                <InvoiceItemsTable Items="invoice.Items" />
+            }
 
             <div class="row justify-content-end">
                 <div class="col-md-6">
@@ -159,7 +184,17 @@ else
                             }
                         </tbody>
                     </table>
-                    <p class="fs-5 text-end">Do zapłaty: <strong>@Format.Money(invoice.TotalGross, invoice.Currency)</strong></p>
+                    @if (invoice.Kind == InvoiceKind.Correction)
+                    {
+                        <p class="small text-muted text-end mb-1">Różnica: stan po korekcie - stan przed korektą</p>
+                        <p class="fs-5 text-end" data-testid="correction-total">
+                            @(invoice.TotalGross < 0 ? "Do zwrotu" : "Do dopłaty"): <strong>@Format.Money(Math.Abs(invoice.TotalGross), invoice.Currency)</strong>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="fs-5 text-end">Do zapłaty: <strong>@Format.Money(invoice.TotalGross, invoice.Currency)</strong></p>
+                    }
                 </div>
             </div>
 

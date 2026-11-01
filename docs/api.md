@@ -29,10 +29,10 @@ po polsku.
 | DELETE | `/api/customers/{id}` | Usunięcie kontrahenta (miękkie) |
 | GET | `/api/invoices?status=&payment=&from=&to=&q=&page=&pageSize=` | Lista faktur z filtrami i stronicowaniem; `payment`: `Unpaid`, `Paid`, `Overdue` (D30) |
 | GET | `/api/invoices/{id}` | Szczegóły faktury z pozycjami i podsumowaniem VAT |
-| GET | `/api/invoices/next-number?issueDate=` | Propozycja kolejnego numeru |
+| GET | `/api/invoices/next-number?issueDate=&kind=` | Propozycja kolejnego numeru (`kind=Correction` - seria `KOR/n/MM/RRRR`) |
 | GET | `/api/invoices/{id}/pdf` | Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych) |
 | GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |
-| POST | `/api/invoices` | Utworzenie faktury (szkicu) |
+| POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
 | DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona) |
 | POST | `/api/invoices/{id}/send` | Wysłanie faktury do KSeF (body: `version`); 202 i status `Pending`, dalej asynchronicznie - zob. `docs/integracja-ksef.md` |

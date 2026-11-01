@@ -3,9 +3,9 @@
 @inject ApiClient Api
 @inject NavigationManager Navigation
 
-<PageTitle>@(Id is null ? "Nowa faktura" : "Edycja faktury") - Fakturowanie KSeF</PageTitle>
+<PageTitle>@Title - Fakturowanie KSeF</PageTitle>
 
-<h1>@(Id is null ? "Nowa faktura" : $"Edycja faktury {originalNumber}")</h1>
+<h1>@Title</h1>
 @if (templateNumber is not null)
 {
     <div class="alert alert-info" role="status" data-testid="template-info">
@@ -62,6 +62,38 @@ else
             </div>
         </section>
 
+        @* ---------------- Korekta: faktura korygowana i przyczyna ---------------- *@
+        @if (IsCorrection)
+        {
+            <section class="card mb-3 border-warning" data-testid="correction-header">
+                <div class="card-body">
+                    <h2 class="h5">Faktura korygowana</h2>
+                    <p class="mb-3">
+                        <strong>@corrected?.Number</strong> z dnia @Format.Date(corrected?.IssueDate), numer KSeF @corrected?.KsefNumber
+                        <br />Nabywca: <strong>@corrected?.Buyer.Name</strong>@(corrected?.Buyer.Nip is { } nip ? $", NIP {Format.Nip(nip)}" : "")
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label" for="reason">Przyczyna korekty</label>
+                            <InputTextLive id="reason" class="form-control" @bind-Value="model.CorrectionReason" placeholder="np. rabat, zwrot towaru, błędna cena" />
+                            <ValidationMessage For="() => model.CorrectionReason" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="correction-type">Skutek w ewidencji VAT</label>
+                            <InputSelect id="correction-type" class="form-select" @bind-Value="model.CorrectionType">
+                                <option value="">nie określono</option>
+                                @foreach (var t in Enum.GetValues<CorrectionType>())
+                                {
+                                    <option value="@t">@Format.CorrectionType(t)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        }
+        else
+        {
         @* ---------------- Nabywca ---------------- *@
         <section class="card mb-3">
             <div class="card-body">
@@ -102,11 +134,22 @@ else
                 }
             </div>
         </section>
+        }
 
         @* ---------------- Pozycje ---------------- *@
         <section class="card mb-3">
             <div class="card-body">
-                <h2 class="h5">Pozycje</h2>
+                @if (IsCorrection)
+                {
+                    <h2 class="h5">Stan przed korektą</h2>
+                    <InvoiceItemsTable Items="before" TestId="items-before" />
+                    <h2 class="h5">Stan po korekcie</h2>
+                    <p class="small text-muted">Zmień pozycje tak, jak powinny wyglądać po korekcie (cena, ilość, stawka). Usunięcie wszystkich pozycji oznacza korektę do zera.</p>
+                }
+                else
+                {
+                    <h2 class="h5">Pozycje</h2>
+                }
                 <div class="table-responsive">
                     <table class="table align-middle items-table">
                         <thead>
@@ -155,7 +198,7 @@ else
                                     <td class="text-end text-nowrap">@(line is null ? "" : Format.Amount(line.GrossAmount))</td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń pozycję"
-                                                disabled="@(model.Items.Count == 1)" @onclick="() => RemoveItem(index)">✕</button>
+                                                disabled="@(model.Items.Count == 1 && !IsCorrection)" @onclick="() => RemoveItem(index)">✕</button>
                                     </td>
                                 </tr>
                             }
@@ -195,6 +238,15 @@ else
                                     <td class="text-end">@Format.Amount(totals.TotalVat)</td>
                                     <td class="text-end" data-testid="total-gross">@Format.Money(totals.TotalGross, model.Currency)</td>
                                 </tr>
+                                @if (correctionTotals is { } ct)
+                                {
+                                    <tr class="table-warning fw-bold" data-testid="correction-difference">
+                                        <td>Różnica (korekta)</td>
+                                        <td class="text-end">@Format.Amount(ct.TotalNet)</td>
+                                        <td class="text-end">@Format.Amount(ct.TotalVat)</td>
+                                        <td class="text-end">@Format.Money(ct.TotalGross, model.Currency)</td>
+                                    </tr>
+                                }
                             </tbody>
                         </table>
                     </div>
@@ -250,6 +302,22 @@ else
     /// <summary>Faktura-wzór dla „Wystaw podobną” (adres /faktury/nowa?wzor=5).</summary>
     [SupplyParameterFromQuery(Name = "wzor")] public int? TemplateId { get; set; }
 
+    /// <summary>Faktura korygowana dla nowej faktury korygującej (adres /faktury/nowa?korekta=5).</summary>
+    [SupplyParameterFromQuery(Name = "korekta")] public int? CorrectedId { get; set; }
+
+    private InvoiceDto? corrected;
+    private IReadOnlyList<InvoiceItemDto> before = [];
+    private CorrectionTotals? correctionTotals;
+    private bool IsCorrection => model?.CorrectedInvoiceId is not null;
+
+    private string Title => (Id, IsCorrection) switch
+    {
+        (null, true) => "Nowa faktura korygująca",
+        (null, false) => "Nowa faktura",
+        (_, true) => $"Edycja korekty {originalNumber}",
+        _ => $"Edycja faktury {originalNumber}"
+    };
+
     private SaveInvoiceRequest? model;
     private List<CustomerDto> customers = [];
     private InvoiceTotals totals = InvoiceCalculator.Calculate([]);
@@ -282,7 +350,9 @@ else
                 Items = [new SaveInvoiceItemRequest()]
             };
             templateNumber = null; // przejście z „Wystaw podobną” do pustej „Nowej faktury” (ten sam komponent)
+            corrected = null;
             if (TemplateId is not null) await CopyFromTemplateAsync(TemplateId.Value, today);
+            if (CorrectedId is not null) await StartCorrectionAsync(CorrectedId.Value, today);
             await SuggestNumberAsync();
         }
         else
@@ -313,15 +383,63 @@ else
                     : null,
                 Items = i.Items.Select(x => new SaveInvoiceItemRequest
                 {
-                    Name = x.Name, Unit = x.Unit, Quantity = x.Quantity, UnitNetPrice = x.UnitNetPrice, VatRate = x.VatRate
+                    Name = x.Name, Unit = x.Unit, Quantity = Trim(x.Quantity), UnitNetPrice = Trim(x.UnitNetPrice), VatRate = x.VatRate
                 }).ToList()
             };
+
+            if (i.Correction is { } c)
+            {
+                model.Buyer = null;
+                model.CorrectedInvoiceId = c.CorrectedInvoiceId;
+                model.CorrectionReason = c.Reason;
+                model.CorrectionType = c.Type;
+                before = c.ItemsBefore;
+                corrected = (await Api.GetAsync<InvoiceDto>($"api/invoices/{c.CorrectedInvoiceId}")).Value;
+            }
         }
 
         Recalculate();
     }
 
     private static SaveInvoiceBuyerRequest NewBuyer() => new();
+
+    /// <summary>Usuwa zbędne zera po przecinku (baza przechowuje ilość z 6 miejscami: 10.000000 → 10).</summary>
+    private static decimal Trim(decimal value) => value / 1.000000000000000000000000000000000m;
+
+    /// <summary>
+    /// Nowa faktura korygująca: stan przed korektą to pozycje faktury albo jej ostatniej przyjętej korekty;
+    /// formularz zaczyna od tego stanu, a użytkownik wprowadza zmiany (stan po korekcie).
+    /// </summary>
+    private async Task StartCorrectionAsync(int correctedId, DateOnly today)
+    {
+        var result = await Api.GetAsync<InvoiceDto>($"api/invoices/{correctedId}");
+        if (result.Value is not { } original)
+        {
+            problem = result.Problem;
+            model = null;
+            return;
+        }
+
+        corrected = original;
+        before = original.Items;
+        if (original.Corrections?.LastOrDefault(c => c.Status == InvoiceStatus.Accepted) is { } last
+            && (await Api.GetAsync<InvoiceDto>($"api/invoices/{last.Id}")).Value is { } lastCorrection)
+            before = lastCorrection.Items;
+
+        model!.CorrectedInvoiceId = original.Id;
+        model.CorrectionType = CorrectionType.CorrectionDate;
+        model.Buyer = null;
+        model.CustomerId = null;
+        model.PaymentMethod = original.PaymentMethod;
+        model.BankAccountNumber = original.BankAccountNumber;
+        model.ExemptionBasis = original.ExemptionBasis;
+        model.DueDate = null;
+        if (today < original.IssueDate) model.IssueDate = original.IssueDate;
+        model.Items = before.Select(x => new SaveInvoiceItemRequest
+        {
+            Name = x.Name, Unit = x.Unit, Quantity = Trim(x.Quantity), UnitNetPrice = Trim(x.UnitNetPrice), VatRate = x.VatRate
+        }).ToList();
+    }
 
     /// <summary>
     /// „Wystaw podobną”: nowy szkic z nabywcą, pozycjami i warunkami płatności faktury-wzoru. Numer jest nadawany
@@ -360,14 +478,15 @@ else
 
         model.Items = t.Items.Select(x => new SaveInvoiceItemRequest
         {
-            Name = x.Name, Unit = x.Unit, Quantity = x.Quantity, UnitNetPrice = x.UnitNetPrice, VatRate = x.VatRate
+            Name = x.Name, Unit = x.Unit, Quantity = Trim(x.Quantity), UnitNetPrice = Trim(x.UnitNetPrice), VatRate = x.VatRate
         }).ToList();
     }
 
     private async Task SuggestNumberAsync()
     {
         if (Id is not null || model is null) return;
-        var result = await Api.GetAsync<NextNumber>($"api/invoices/next-number?issueDate={model.IssueDate:yyyy-MM-dd}");
+        var kind = IsCorrection ? InvoiceKind.Correction : InvoiceKind.Vat;
+        var result = await Api.GetAsync<NextNumber>($"api/invoices/next-number?issueDate={model.IssueDate:yyyy-MM-dd}&kind={kind}");
         suggestedNumber = result.Value?.Number;
     }
 
@@ -395,8 +514,15 @@ else
         Recalculate();
     }
 
-    private void Recalculate() =>
-        totals = InvoiceCalculator.Calculate(model!.Items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)));
+    private void Recalculate()
+    {
+        if (model is null) return;
+        var after = model!.Items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)).ToList();
+        totals = InvoiceCalculator.Calculate(after);
+        correctionTotals = IsCorrection
+            ? InvoiceCalculator.CalculateCorrection(before.Select(b => new LineInput(b.Quantity, b.UnitNetPrice, b.VatRate)), after)
+            : null;
+    }
 
     private async Task SaveAsync()
     {

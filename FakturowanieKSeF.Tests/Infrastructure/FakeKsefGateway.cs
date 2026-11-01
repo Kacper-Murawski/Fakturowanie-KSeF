@@ -61,7 +61,7 @@ public sealed class FakeKsefGateway : IKsefGateway
 
         return Task.FromResult(StatusResponses.Count > 0
             ? StatusResponses.Dequeue()
-            : new KsefInvoiceStatus(200, "Sukces", [], $"{nip}-20261101-{invoiceReferenceNumber}-00", DateTimeOffset.UtcNow));
+            : new KsefInvoiceStatus(200, "Sukces", [], KsefNumber(nip, invoiceReferenceNumber), DateTimeOffset.UtcNow));
     }
 
     public Task CloseSessionAsync(string nip, string ksefToken, string sessionReferenceNumber, CancellationToken ct = default)
@@ -93,4 +93,8 @@ public sealed class FakeKsefGateway : IKsefGateway
     public Task<string?> GetUpoAsync(string nip, string ksefToken, string sessionReferenceNumber, string ksefNumber,
         CancellationToken ct = default) =>
         Task.FromResult(UpoReady ? $"<Potwierdzenie><NumerKSeFDokumentu>{ksefNumber}</NumerKSeFDokumentu></Potwierdzenie>" : null);
+
+    /// <summary>Numer KSeF w formacie zgodnym z typem TNumerKSeF (NIP-RRRRMMDD-12 znaków hex-2 znaki hex).</summary>
+    private static string KsefNumber(string nip, string invoiceReferenceNumber) =>
+        $"{nip}-20261101-{int.Parse(invoiceReferenceNumber["FAKTURA-".Length..]):X12}-00";
 }

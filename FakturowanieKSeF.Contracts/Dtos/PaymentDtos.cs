@@ -6,12 +6,16 @@ namespace FakturowanieKSeF.Contracts.Dtos;
 public sealed record PaymentDto(int Id, DateOnly PaidOn, decimal Amount, string? Note);
 
 /// <summary>Rozliczenie faktury: stan, kwoty i historia płatności.</summary>
+/// <param name="TotalDue">Kwota należna: brutto faktury powiększone o korekty (przyjęte lub wysłane do KSeF).</param>
+/// <param name="Overpaid">Nadpłata do zwrotu - np. po korekcie zmniejszającej już opłaconą fakturę.</param>
 public sealed record PaymentInfoDto(
     PaymentStatus Status,
     decimal PaidAmount,
     decimal Remaining,
     bool IsOverdue,
-    IReadOnlyList<PaymentDto> Payments);
+    IReadOnlyList<PaymentDto> Payments,
+    decimal TotalDue = 0,
+    decimal Overpaid = 0);
 
 /// <summary>Rejestracja płatności faktury.</summary>
 public sealed class AddPaymentRequest

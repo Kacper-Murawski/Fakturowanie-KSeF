@@ -66,6 +66,35 @@ public class Invoice : BaseEntity
 
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
 
+    /// <summary>Rodzaj faktury: VAT albo korygująca (KOR).</summary>
+    public InvoiceKind Kind { get; set; } = InvoiceKind.Vat;
+
+    // ---------------- faktura korygująca ----------------
+    // Dane faktury korygowanej kopiowane są przy zapisie korekty (jak dane stron) - korekta jest kompletnym
+    // dokumentem; odwołanie CorrectedInvoiceId służy nawigacji i rozliczeniom.
+
+    /// <summary>Faktura korygowana (tylko dla <see cref="InvoiceKind.Correction"/>).</summary>
+    public int? CorrectedInvoiceId { get; set; }
+    public Invoice? CorrectedInvoice { get; set; }
+
+    /// <summary>Korekty wystawione do tej faktury.</summary>
+    public List<Invoice> Corrections { get; set; } = [];
+
+    [MaxLength(256)]
+    public string? CorrectedInvoiceNumber { get; set; }
+
+    public DateOnly? CorrectedInvoiceIssueDate { get; set; }
+
+    [MaxLength(40)]
+    public string? CorrectedInvoiceKsefNumber { get; set; }
+
+    /// <summary>Przyczyna korekty (PrzyczynaKorekty).</summary>
+    [MaxLength(256)]
+    public string? CorrectionReason { get; set; }
+
+    /// <summary>Typ skutku korekty w ewidencji VAT (TypKorekty).</summary>
+    public CorrectionType? CorrectionType { get; set; }
+
     /// <summary>Numer KSeF nadany po przyjęciu faktury (kopia z udanej wysyłki, dla szybkiego wyszukiwania).</summary>
     [MaxLength(40)]
     public string? KsefNumber { get; set; }

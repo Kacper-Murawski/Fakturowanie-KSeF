@@ -1,0 +1,35 @@
+@* Pozycje faktury (na fakturze korygującej - osobno stan przed i po korekcie) *@
+<div class="table-responsive" data-testid="@TestId">
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Lp.</th><th>Nazwa</th><th>J.m.</th><th class="text-end">Ilość</th><th class="text-end">Cena netto</th>
+                <th class="text-end">Wartość netto</th><th>VAT</th><th class="text-end">Wartość brutto</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Items.Count == 0)
+            {
+                <tr><td colspan="8" class="text-muted fst-italic">brak pozycji</td></tr>
+            }
+            @foreach (var i in Items)
+            {
+                <tr>
+                    <td>@i.Position</td>
+                    <td>@i.Name</td>
+                    <td>@i.Unit</td>
+                    <td class="text-end">@Format.Quantity(i.Quantity)</td>
+                    <td class="text-end">@Format.Amount(i.UnitNetPrice)</td>
+                    <td class="text-end">@Format.Amount(i.NetAmount)</td>
+                    <td>@i.VatRate.ToDisplayName()</td>
+                    <td class="text-end">@Format.Amount(i.GrossAmount)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<InvoiceItemDto> Items { get; set; } = [];
+    [Parameter] public string? TestId { get; set; }
+}
