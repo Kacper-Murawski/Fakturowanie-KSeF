@@ -29,7 +29,7 @@ po zalogowaniu na własne konto.
 
 ## D2. Stos technologiczny: .NET 8, Blazor WebAssembly, PostgreSQL
 
-**Decyzja:** backend ASP.NET Core Web API (.NET 8 LTS), frontend Blazor WebAssembly, baza PostgreSQL 16, ORM EF Core 8.
+**Decyzja:** backend ASP.NET Core Web API (.NET 10 LTS, pierwotnie .NET 8 - zob. D9), frontend Blazor WebAssembly, baza PostgreSQL 16, ORM EF Core 8.
 
 **Uzasadnienie:**
 - jeden język (C#) po stronie serwera i klienta, wspólny projekt modeli,
@@ -101,3 +101,87 @@ Testy uruchamiane automatycznie w GitHub Actions przy każdym pushu (usługa Pos
 **Uzasadnienie:** testy sprawdzają rzeczywiste zachowanie systemu (migracje, ograniczenia bazy, Identity).
 Zabezpieczenie: fabryka testowa odmawia pracy na bazie, której nazwa nie zaczyna się od `ksef_test_`,
 co chroni bazę deweloperską i produkcyjną przed przypadkowym usunięciem.
+
+---
+
+## D8. Komunikacja wyłącznie ze środowiskiem testowym KSeF, wymuszona w kodzie
+
+**Kontekst:** MF udostępnia trzy środowiska KSeF 2.0: TEST (`api-test.ksef.mf.gov.pl`), DEMO (przedprodukcyjne)
+i PROD (`api.ksef.mf.gov.pl`), w którym faktury mają pełną moc prawną. Omyłkowe wysłanie faktury testowej
+do produkcji skutkowałoby wystawieniem prawdziwego dokumentu podatkowego.
+
+**Decyzja:** w fazie projektu aplikacja może łączyć się wyłącznie ze środowiskiem TEST. Ochrona jest wielowarstwowa:
+1. typ `KsefEnvironment` nie zawiera wartości produkcyjnej - adresu produkcji nie da się wybrać konfiguracją,
+2. `KsefTestOnlyHandler` (DelegatingHandler) sprawdza adres każdego wychodzącego żądania do KSeF i blokuje
+   wszystko poza `https://api-test.ksef.mf.gov.pl` zanim żądanie opuści serwer (dotyczy również adresów
+   zwracanych przez samo API, np. do pobrania UPO),
+3. testy automatyczne weryfikują blokadę dla adresu produkcyjnego, DEMO, API 1.0, braku HTTPS
+   i domen podszywających się pod host testowy,
+4. na poziomie infrastruktury: polityka sieciowa środowiska deweloperskiego dopuszcza tylko host testowy.
+
+**Alternatywa:** wybór środowiska wyłącznie przez plik konfiguracyjny - odrzucona, bo pojedyncza pomyłka
+w konfiguracji wystarczyłaby do połączenia z produkcją.
+
+**Konsekwencje:** przejście na produkcję wymaga świadomej zmiany kodu (nowa wartość typu i rozszerzenie
+listy dozwolonych hostów) oraz przeglądu bezpieczeństwa.
+
+---
+
+## D9. Migracja z .NET 8 na .NET 10
+
+**Kontekst:** projekt rozpoczęto na .NET 8 (LTS), którego wsparcie kończy się 10 listopada 2026 r.
+Po tej dacie Microsoft nie publikuje poprawek bezpieczeństwa.
+
+**Decyzja:** migracja wszystkich projektów na .NET 10 (LTS, wsparcie do listopada 2028 r.) wraz z pakietami
+w wersji 10.0.x (EF Core, Identity, Npgsql 10). Wersja SDK przypięta w `global.json`.
+
+**Uzasadnienie:**
+- aplikacja jest publicznie dostępna na serwerze, więc nie może działać na platformie bez poprawek bezpieczeństwa,
+- oficjalny klient KSeF Ministerstwa Finansów jest budowany m.in. pod .NET 10 (zob. D10),
+- na wczesnym etapie projektu migracja jest tania: model danych i migracje bazy pozostały bez zmian,
+  wszystkie testy przechodzą bez modyfikacji.
+
+---
+
+## D10. Oficjalny klient KSeF Ministerstwa Finansów jako submoduł git
+
+**Kontekst:** komunikacja z KSeF 2.0 wymaga m.in. podpisu XAdES lub szyfrowania tokenu kluczem publicznym MF,
+szyfrowania faktur (AES-256, klucz szyfrowany RSA-OAEP), skrótów SHA-256, obsługi sesji, statusów i UPO.
+MF udostępnia referencyjnego klienta C# (`CIRFMF/ksef-client-csharp`, licencja MIT), publikowanego jako pakiet
+wyłącznie w GitHub Packages (wymaga uwierzytelnienia tokenem PAT).
+
+**Decyzja:** klient MF dołączony jako submoduł git (`external/ksef-client-csharp`), przypięty do wydania 2.9.0
+i budowany ze źródeł razem z aplikacją. Aplikacja korzysta z niego wyłącznie przez własny projekt
+`FakturowanieKSeF.Ksef`, który konfiguruje klienta na środowisko testowe i dopina blokadę produkcji (D8).
+
+**Alternatywy:**
+- pakiet z GitHub Packages - wymaga tokenu PAT lokalnie, w CI i przy budowie obrazu Docker,
+- kopia kodu w repozytorium - utrudnia śledzenie wersji i aktualizacje,
+- własna implementacja protokołu - największy nakład i ryzyko błędów w kryptografii; samodzielna implementacja
+  mechanizmów kryptograficznych bez potrzeby jest uznawana za złą praktykę.
+
+**Uzasadnienie:** protokół i kryptografia utrzymywane przez wydawcę API, zgodne z jego zmianami; brak sekretów
+potrzebnych do budowania; wersja przypięta, a aktualizacja jest świadomą decyzją (MF wprowadza zmiany łamiące
+zgodność także w mniejszych wydaniach, np. 2.8.0 i 2.9.0). Wyraźny podział między kodem autora a biblioteką.
+
+**Konsekwencje:**
+- klonowanie repozytorium z `--recursive`, w CI `submodules: true`,
+- zależności kryptograficzne biblioteki (`System.Security.Cryptography.Xml`, `.Pkcs` 10.0.10) miały znane
+  podatności - w projekcie `FakturowanieKSeF.Ksef` wymuszono wersje poprawione (10.0.14); `dotnet list package --vulnerable`
+  nie zgłasza podatności dla aplikacji. Ostrzeżenia NuGet z wewnętrznego restore biblioteki dla platform,
+  których aplikacja nie używa (.NET 8/9, netstandard2.0), pozostają w logu budowania,
+- test automatyczny sprawdza, że potok HTTP klienta MF skonfigurowany przez `AddKsefTestClient()` blokuje produkcję.
+
+---
+
+## D11. Wynik spike'a KSeF: przepływ potwierdzony na środowisku testowym
+
+**Wynik:** prototyp przeszedł pełny przepływ (uwierzytelnienie XAdES, sesja online, faktura FA(3), numer KSeF, UPO)
+w ok. 7 s. Szczegóły i artefakty: [`docs/spike-ksef/`](spike-ksef/README.md).
+
+**Decyzje wynikające ze spike'a:**
+- wybór oficjalnego klienta MF (D10) potwierdzony w praktyce, bez potrzeby własnej implementacji protokołu,
+- model faktury zostanie rozszerzony o dane KSeF: numery referencyjne, numer KSeF, datę jego nadania,
+  skrót dokumentu, status ze szczegółami błędów, wysłany XML i UPO (etap 2),
+- obsługa statusów asynchronicznie, przez usługę w tle (etap 6),
+- docelowe uwierzytelnianie użytkowników tokenem KSeF przechowywanym w postaci zaszyfrowanej (etap 6).

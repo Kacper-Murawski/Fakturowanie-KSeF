@@ -1,0 +1,8 @@
+﻿Spike KSeF - środowisko TESTOWE (https://api-test.ksef.mf.gov.pl/)
+Data:              2026-11-01 09:09:37
+NIP testowy:       9767751984
+Sesja:             20261101-SO-1F72210000-47B0A23594-4B
+Faktura (ref.):    20261101-EE-1F722FA000-47B4FF55FB-C7
+Numer KSeF:        9767751984-20261101-476E8D000000-0D
+UPO:               upo.xml
+Czas całkowity:    00:07
