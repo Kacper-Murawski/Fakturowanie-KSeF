@@ -1,7 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\external\ksef-client-csharp\KSeF.Client\KSeF.Client.csproj" />
+    <ProjectReference Include="..\FakturowanieKSeF.Models\FakturowanieKSeF.Models.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,5 +16,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Oficjalne schematy XSD struktury FA(3) (źródło: CIRFMF/ksef-docs, CIRFMF/ksef-client-csharp) -->
+    <EmbeddedResource Include="Fa3\Schemas\*.xsd" LogicalName="Fa3.Schemas.%(Filename)%(Extension)" />
+  </ItemGroup>
 
 </Project>

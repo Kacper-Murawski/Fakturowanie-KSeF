@@ -30,6 +30,7 @@ po polsku.
 | GET | `/api/invoices?status=&from=&to=&q=&page=&pageSize=` | Lista faktur z filtrami i stronicowaniem |
 | GET | `/api/invoices/{id}` | Szczegóły faktury z pozycjami i podsumowaniem VAT |
 | GET | `/api/invoices/next-number?issueDate=` | Propozycja kolejnego numeru |
+| GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |
 | POST | `/api/invoices` | Utworzenie faktury (szkicu) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
 | DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona) |
@@ -43,6 +44,7 @@ po polsku.
 | 400 | Błąd walidacji: lista błędów per pole, np. `Address.PostalCode`, `Items[1].Quantity` |
 | 401 | Brak lub nieważny token |
 | 404 | Rekord nie istnieje **lub należy do innego użytkownika** (celowo nierozróżniane) |
+| 422 | Faktury nie da się przedstawić w strukturze FA(3) (np. dane sprzed wprowadzenia ograniczeń) |
 | 409 | Konflikt: duplikat (numer faktury, NIP kontrahenta), zmiana danych w międzyczasie (nieaktualna wersja), operacja niedozwolona w danym statusie, brak utworzonej firmy |
 
 ## Reguły biznesowe
@@ -67,6 +69,7 @@ Pokrywa to test `DataIsolationTests`.
 - Reguły walidacji są zapisane atrybutami w DTO (`FakturowanieKSeF.Contracts`): NIP z sumą kontrolną,
   kod pocztowy `00-000` dla Polski, kody kraju i waluty, rachunek 10–34 znaki, ilość > 0, cena ≥ 0.
 - Działają też zależności między polami: firma wymaga NIP, przelew wymaga terminu płatności, termin nie może być
-  wcześniejszy niż data wystawienia, nabywca musi być wskazany.
+  wcześniejszy niż data wystawienia, nabywca musi być wskazany, waluta tylko PLN, pozycje „zw” wymagają podstawy
+  prawnej zwolnienia, stawki 4% i 3% (ryczałt dla taksówek) są niedostępne.
 - API sprawdza je automatycznie, a ten sam kod będzie używany w formularzach Blazor.
 - Dane są normalizowane przed zapisem: NIP bez myślników i prefiksu „PL”, rachunek bez spacji.

@@ -31,6 +31,7 @@ else
                 <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
                 <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
             }
+            <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>
             <a class="btn btn-outline-secondary" href="faktury">Wróć do listy</a>
         </div>
     </div>
@@ -115,6 +116,10 @@ else
                 @if (invoice.BankAccountNumber is not null)
                 {
                     <br /><span>Rachunek: <strong>@Format.BankAccount(invoice.BankAccountNumber)</strong></span>
+                }
+                @if (invoice.ExemptionBasis is not null)
+                {
+                    <br /><span>Podstawa zwolnienia z VAT: <strong>@invoice.ExemptionBasis</strong></span>
                 }
             </div>
         </div>

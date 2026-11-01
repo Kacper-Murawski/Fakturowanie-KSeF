@@ -75,6 +75,7 @@ erDiagram
         string PaymentMethod "FormaPlatnosci"
         date DueDate
         string BankAccountNumber "NrRB"
+        string ExemptionBasis "P_19A - podstawa zwolnienia"
         string Seller_Name "kopia - Podmiot1"
         string Seller_Nip
         string Seller_Address_x "4 kolumny"

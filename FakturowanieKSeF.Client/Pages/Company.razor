@@ -22,12 +22,12 @@ else
 
         <div class="mb-3">
             <label class="form-label" for="name">Nazwa firmy</label>
-            <InputText id="name" class="form-control" @bind-Value="model.Name" />
+            <InputTextLive id="name" class="form-control" @bind-Value="model.Name" />
             <ValidationMessage For="() => model.Name" />
         </div>
         <div class="mb-3">
             <label class="form-label" for="nip">NIP</label>
-            <InputText id="nip" class="form-control" @bind-Value="model.Nip" placeholder="1234567890" />
+            <InputTextLive id="nip" class="form-control" @bind-Value="model.Nip" placeholder="1234567890" />
             <ValidationMessage For="() => model.Nip" />
         </div>
 
@@ -39,17 +39,17 @@ else
         <div class="row g-2 mb-3">
             <div class="col-sm-6">
                 <label class="form-label" for="email">E-mail</label>
-                <InputText id="email" class="form-control" @bind-Value="model.Email" />
+                <InputTextLive id="email" class="form-control" @bind-Value="model.Email" />
                 <ValidationMessage For="() => model.Email" />
             </div>
             <div class="col-sm-6">
                 <label class="form-label" for="phone">Telefon</label>
-                <InputText id="phone" class="form-control" @bind-Value="model.Phone" />
+                <InputTextLive id="phone" class="form-control" @bind-Value="model.Phone" />
             </div>
         </div>
         <div class="mb-3">
             <label class="form-label" for="bank">Numer rachunku bankowego</label>
-            <InputText id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="00 0000 0000 0000 0000 0000 0000" />
+            <InputTextLive id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="00 0000 0000 0000 0000 0000 0000" />
             <div class="form-text">Podpowiadany na fakturach płatnych przelewem.</div>
             <ValidationMessage For="() => model.BankAccountNumber" />
         </div>

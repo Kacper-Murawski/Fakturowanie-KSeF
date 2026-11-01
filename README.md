@@ -53,5 +53,6 @@ dotnet run --project tools/FakturowanieKSeF.KsefSpike
 ```
 
 Generuje losowy NIP testowy i samopodpisany certyfikat, uwierzytelnia się w **testowym** KSeF,
-wysyła przykładową fakturę FA(3), odbiera numer KSeF i UPO. Wyniki trafiają do `spike-output/`.
+wysyła przykładową fakturę FA(3), odbiera numer KSeF i UPO. Z parametrem `-- --generated` wysyła fakturę
+zbudowaną generatorem XML aplikacji (`Fa3XmlGenerator`). Wyniki trafiają do `spike-output/`.
 Aplikacja nie może połączyć się z produkcyjnym KSeF (blokada w kodzie, zob. `docs/decyzje-projektowe.md`, D8).

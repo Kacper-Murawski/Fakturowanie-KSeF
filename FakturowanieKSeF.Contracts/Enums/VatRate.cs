@@ -35,6 +35,10 @@ public enum VatRate
 
 public static class VatRateExtensions
 {
+    /// <summary>Stawki dostępne przy wystawianiu faktury (bez ryczałtu dla taksówek: 4% i 3%).</summary>
+    public static IReadOnlyList<VatRate> Selectable { get; } =
+        Enum.GetValues<VatRate>().Where(r => r is not (VatRate.Rate4 or VatRate.Rate3)).ToArray();
+
     /// <summary>Kod stawki w schemie FA(3) (element P_12).</summary>
     public static string ToFaCode(this VatRate rate) => rate switch
     {

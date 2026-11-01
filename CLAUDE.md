@@ -43,6 +43,9 @@
 - Nie zatrzymuj procesów przez `pkill -f`/`grep` po nazwie projektu (zabija własną powłokę) - używaj `fuser -k <port>/tcp`.
 - Integracja z KSeF w projekcie `FakturowanieKSeF.Ksef` (rejestracja: `AddKsefTestClient()`); oficjalny klient MF
   jako submoduł `external/ksef-client-csharp` przypięty do tagu - aktualizacja tylko świadomie (RELEASE_NOTES + testy).
+- XML FA(3): `Fa3XmlGenerator` + `Fa3SchemaValidator` (`FakturowanieKSeF.Ksef/Fa3`, schematy XSD osadzone jako zasoby).
+  Każdy XML przed wydaniem/wysyłką MUSI przejść walidację XSD. Mapowanie pól: `docs/fa3-xml.md`.
+- Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).
 - API pod prefiksem `/api`; klient Blazor serwowany przez API (fallback do `index.html`).
 - Migracje: `dotnet ef migrations add <Nazwa> --project FakturowanieKSeF.Api --output-dir Data/Migrations`.

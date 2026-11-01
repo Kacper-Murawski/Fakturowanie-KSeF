@@ -42,6 +42,7 @@ public sealed record InvoiceDto(
     PaymentMethod PaymentMethod,
     DateOnly? DueDate,
     string? BankAccountNumber,
+    string? ExemptionBasis,
     InvoicePartyDto Seller,
     InvoicePartyDto Buyer,
     int? CustomerId,
@@ -75,7 +76,20 @@ public sealed class SaveInvoiceItemRequest
     public decimal UnitNetPrice { get; set; }
 
     [EnumDataType(typeof(VatRate), ErrorMessage = "Nieznana stawka VAT.")]
+    [SupportedVatRate]
     public VatRate VatRate { get; set; } = VatRate.Rate23;
+}
+
+/// <summary>
+/// Stawki 4% i 3% występują w FA(3) wyłącznie dla ryczałtu dla taksówek osobowych (osobny sposób rozliczenia
+/// podatku) - poza zakresem aplikacji.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property)]
+public sealed class SupportedVatRateAttribute : ValidationAttribute
+{
+    public SupportedVatRateAttribute() : base("Stawki 4% i 3% (ryczałt dla taksówek osobowych) nie są obsługiwane.") { }
+
+    public override bool IsValid(object? value) => value is not (VatRate.Rate4 or VatRate.Rate3);
 }
 
 /// <summary>
@@ -108,6 +122,10 @@ public sealed class SaveInvoiceRequest : IValidatableObject
     [BankAccount]
     public string? BankAccountNumber { get; set; }
 
+    /// <summary>Podstawa prawna zwolnienia z VAT (wymagana przy pozycjach ze stawką „zw”).</summary>
+    [MaxLength(256)]
+    public string? ExemptionBasis { get; set; }
+
     public int? CustomerId { get; set; }
 
     public SaveInvoiceBuyerRequest? Buyer { get; set; }
@@ -130,6 +148,13 @@ public sealed class SaveInvoiceRequest : IValidatableObject
 
         if (PaymentMethod == PaymentMethod.Transfer && DueDate is null)
             yield return new ValidationResult("Dla płatności przelewem podaj termin płatności.", [nameof(DueDate)]);
+
+        // Ograniczenia zakresu MVP wynikające ze struktury FA(3) (decyzja D21)
+        if (Currency != "PLN")
+            yield return new ValidationResult("W obecnej wersji obsługiwane są wyłącznie faktury w PLN.", [nameof(Currency)]);
+
+        if (Items.Any(i => i.VatRate == VatRate.Exempt) && string.IsNullOrWhiteSpace(ExemptionBasis))
+            yield return new ValidationResult("Podaj podstawę prawną zwolnienia z VAT (np. art. 113 ust. 1 ustawy o VAT).", [nameof(ExemptionBasis)]);
     }
 }
 
