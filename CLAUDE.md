@@ -52,6 +52,9 @@
   Odbiór faktur: `ReceivedInvoiceSync` (przyrostowo do HWM, punkt kontrolny w `Company`), odczyty tylko z lokalnej bazy,
   szanuj limity API KSeF (budżet zapytań na synchronizację, ręczna synchronizacja max raz/min, cyklicznie min. 15 min).
   Test na żywo z testowym KSeF: `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests`.
+- Testy E2E (Playwright): `FakturowanieKSeF.Tests/E2E`, uruchamiane z `E2E_TESTS=1` (CI zawsze); nowa funkcja UI = scenariusz E2E.
+  Lokalnie w kontenerze: `E2E_CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
+- Dokumentacja do pracy: indeks `docs/README.md` - aktualizuj odpowiedni dokument przy każdej zmianie.
 - Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).
 - API pod prefiksem `/api`; klient Blazor serwowany przez API (fallback do `index.html`).

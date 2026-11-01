@@ -36,13 +36,18 @@ i numer KSeF, a także widzi faktury, które inni wystawili na jego NIP. Aplikac
 | 7. Odbiór z KSeF ✅ | Okresowe pobieranie metadanych faktur zakupowych, pobranie XML, parsowanie, lista i podgląd | Faktura wystawiona na nasz NIP pojawia się w aplikacji |
 | 8. PDF ✅ | Wizualizacja faktury (np. QuestPDF) z numerem KSeF i kodem QR weryfikacji | Pobieranie PDF z listy faktur |
 | 9. Wdrożenie | Dockerfile, docker-compose produkcyjny, reverse proxy z automatycznym HTTPS (Caddy), sekrety w zmiennych środowiskowych, backup bazy, VPS + domena | Aplikacja dostępna publicznie pod HTTPS |
-| 10. Testy i dokumentacja | Testy E2E głównych scenariuszy (Playwright), testy bezpieczeństwa izolacji danych, dokumentacja do pracy | Komplet rozdziałów technicznych pracy |
+| 10. Testy i dokumentacja ✅ | Testy E2E głównych scenariuszy (Playwright), testy bezpieczeństwa izolacji danych, dokumentacja do pracy | Komplet rozdziałów technicznych pracy |
 
 ## Uzasadnienie kolejności
 - Integracja z KSeF to największe ryzyko projektu, dlatego spike (etap 1) jest przed budową modelu i UI:
   jego wyniki mogą zmienić model danych.
 - Backend przed frontendem: API testowalne przez Swagger, UI powstaje na stabilnym kontrakcie.
 - Wdrożenie można wykonać wcześniej (np. po etapie 4), żeby od początku testować w docelowym środowisku.
+
+## Stan realizacji
+
+Etapy 0-8 i 10 zrealizowane. Etap 9 (wdrożenie) odłożony na prośbę autora - aplikacja testowana lokalnie.
+Dokumentacja do pracy: [`docs/README.md`](README.md).
 
 ## Ustalenia z autorem
 - 1 konto = 1 firma w MVP (decyzja D4).
