@@ -1,5 +1,7 @@
 using System.Net;
-using FakturowanieKSeF.Api.Ksef;
+using FakturowanieKSeF.Ksef;
+using KSeF.Client.Core.Interfaces.Rest;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FakturowanieKSeF.Tests;
 
@@ -54,5 +56,30 @@ public class KsefEnvironmentGuardTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(1, inner.Calls);
+    }
+}
+
+/// <summary>
+/// Sprawdza blokadę na prawdziwym potoku HTTP oficjalnego klienta MF, skonfigurowanym przez AddKsefTestClient().
+/// Żądanie do produkcji musi zostać zatrzymane lokalnie - test nie wymaga dostępu do sieci.
+/// </summary>
+public class KsefClientRegistrationTests
+{
+    [Theory]
+    [InlineData("https://api.ksef.mf.gov.pl/v2/auth/challenge")]
+    [InlineData("https://api-demo.ksef.mf.gov.pl/v2/auth/challenge")]
+    public async Task KlientHttpBibliotekiMf_BlokujeZadaniaPozaSrodowiskiemTestowym(string url)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddKsefTestClient();
+        await using var provider = services.BuildServiceProvider();
+
+        var factory = provider.GetRequiredService<IHttpClientFactory>();
+        // Klient typowany biblioteki MF (AddHttpClient<IRestClient, RestClient>) ma nazwę typu interfejsu
+        using var client = factory.CreateClient(nameof(IRestClient));
+
+        Assert.Equal("https://api-test.ksef.mf.gov.pl/", client.BaseAddress?.ToString());
+        await Assert.ThrowsAsync<KsefProductionBlockedException>(() => client.GetAsync(url));
     }
 }

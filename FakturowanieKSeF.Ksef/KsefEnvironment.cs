@@ -1,4 +1,4 @@
-namespace FakturowanieKSeF.Api.Ksef;
+namespace FakturowanieKSeF.Ksef;
 
 /// <summary>
 /// Środowiska KSeF, z którymi aplikacja może się łączyć.

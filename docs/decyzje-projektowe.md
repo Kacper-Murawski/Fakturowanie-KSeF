@@ -140,3 +140,34 @@ w wersji 10.0.x (EF Core, Identity, Npgsql 10). Wersja SDK przypięta w `global.
 - oficjalny klient KSeF Ministerstwa Finansów jest budowany m.in. pod .NET 10 (zob. D10),
 - na wczesnym etapie projektu migracja jest tania: model danych i migracje bazy pozostały bez zmian,
   wszystkie testy przechodzą bez modyfikacji.
+
+---
+
+## D10. Oficjalny klient KSeF Ministerstwa Finansów jako submoduł git
+
+**Kontekst:** komunikacja z KSeF 2.0 wymaga m.in. podpisu XAdES lub szyfrowania tokenu kluczem publicznym MF,
+szyfrowania faktur (AES-256, klucz szyfrowany RSA-OAEP), skrótów SHA-256, obsługi sesji, statusów i UPO.
+MF udostępnia referencyjnego klienta C# (`CIRFMF/ksef-client-csharp`, licencja MIT), publikowanego jako pakiet
+wyłącznie w GitHub Packages (wymaga uwierzytelnienia tokenem PAT).
+
+**Decyzja:** klient MF dołączony jako submoduł git (`external/ksef-client-csharp`), przypięty do wydania 2.9.0
+i budowany ze źródeł razem z aplikacją. Aplikacja korzysta z niego wyłącznie przez własny projekt
+`FakturowanieKSeF.Ksef`, który konfiguruje klienta na środowisko testowe i dopina blokadę produkcji (D8).
+
+**Alternatywy:**
+- pakiet z GitHub Packages - wymaga tokenu PAT lokalnie, w CI i przy budowie obrazu Docker,
+- kopia kodu w repozytorium - utrudnia śledzenie wersji i aktualizacje,
+- własna implementacja protokołu - największy nakład i ryzyko błędów w kryptografii; samodzielna implementacja
+  mechanizmów kryptograficznych bez potrzeby jest uznawana za złą praktykę.
+
+**Uzasadnienie:** protokół i kryptografia utrzymywane przez wydawcę API, zgodne z jego zmianami; brak sekretów
+potrzebnych do budowania; wersja przypięta, a aktualizacja jest świadomą decyzją (MF wprowadza zmiany łamiące
+zgodność także w mniejszych wydaniach, np. 2.8.0 i 2.9.0). Wyraźny podział między kodem autora a biblioteką.
+
+**Konsekwencje:**
+- klonowanie repozytorium z `--recursive`, w CI `submodules: true`,
+- zależności kryptograficzne biblioteki (`System.Security.Cryptography.Xml`, `.Pkcs` 10.0.10) miały znane
+  podatności - w projekcie `FakturowanieKSeF.Ksef` wymuszono wersje poprawione (10.0.14); `dotnet list package --vulnerable`
+  nie zgłasza podatności dla aplikacji. Ostrzeżenia NuGet z wewnętrznego restore biblioteki dla platform,
+  których aplikacja nie używa (.NET 8/9, netstandard2.0), pozostają w logu budowania,
+- test automatyczny sprawdza, że potok HTTP klienta MF skonfigurowany przez `AddKsefTestClient()` blokuje produkcję.

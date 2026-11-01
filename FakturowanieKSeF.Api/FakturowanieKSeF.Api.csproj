@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FakturowanieKSeF.Client\FakturowanieKSeF.Client.csproj" />
     <ProjectReference Include="..\FakturowanieKSeF.Models\FakturowanieKSeF.Models.csproj" />
+    <ProjectReference Include="..\FakturowanieKSeF.Ksef\FakturowanieKSeF.Ksef.csproj" />
   </ItemGroup>
 
 </Project>

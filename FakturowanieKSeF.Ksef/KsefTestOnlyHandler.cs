@@ -1,4 +1,4 @@
-namespace FakturowanieKSeF.Api.Ksef;
+namespace FakturowanieKSeF.Ksef;
 
 /// <summary>
 /// Ostatnia linia obrony przed połączeniem z produkcyjnym KSeF: handler HTTP podpinany do każdego
