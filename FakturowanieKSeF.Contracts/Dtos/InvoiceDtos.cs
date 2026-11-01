@@ -54,6 +54,8 @@ public sealed record InvoiceDto(
     InvoiceStatus Status,
     string? KsefNumber,
     DateTime? KsefAcceptedAt,
+    /// <summary>Ostatnia próba wysyłki do KSeF (null, jeśli faktury nie wysyłano).</summary>
+    KsefSubmissionDto? LastSubmission,
     /// <summary>Wersja rekordu - przy zapisie zmian należy ją odesłać (kontrola współbieżności).</summary>
     uint Version);
 

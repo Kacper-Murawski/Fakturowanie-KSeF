@@ -53,6 +53,13 @@ public static class Mapping
             items.Select(x => new InvoiceItemDto(x.Position, x.Name, x.Unit, x.Quantity, x.UnitNetPrice, x.VatRate,
                 x.NetAmount, x.VatAmount, x.GrossAmount)).ToList(),
             totals.ByVatRate, i.TotalNet, i.TotalVat, i.TotalGross,
-            i.Status, i.KsefNumber, i.KsefAcceptedAt, i.Version);
+            i.Status, i.KsefNumber, i.KsefAcceptedAt,
+            i.KsefSubmissions.OrderByDescending(s => s.Id).FirstOrDefault()?.ToDto(),
+            i.Version);
     }
+
+    public static KsefSubmissionDto ToDto(this KsefSubmission s) => new(
+        s.SentAt, s.StatusCode, s.StatusDescription,
+        string.IsNullOrEmpty(s.StatusDetails) ? [] : s.StatusDetails.Split('\n'),
+        s.KsefNumber, s.KsefAssignedAt, s.UpoXml is not null, s.CompletedAt, s.FailedAttempts, s.LastError);
 }

@@ -1,6 +1,7 @@
 using FakturowanieKSeF.Api.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,15 @@ namespace FakturowanieKSeF.Tests.Infrastructure;
 public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly string _connectionString;
+
+    public FakeKsefGateway Ksef { get; } = new();
+
+    /// <summary>Jeden przebieg usługi wysyłki do KSeF (tak, jak zrobiłaby to usługa w tle).</summary>
+    public async Task<int> ProcessKsefAsync()
+    {
+        using var scope = Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<FakturowanieKSeF.Api.Services.KsefSubmissionProcessor>().ProcessAsync();
+    }
 
     public ApiFactory()
     {
@@ -37,8 +47,13 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.ConfigureAppConfiguration((_, config) =>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = _connectionString
+                ["ConnectionStrings:DefaultConnection"] = _connectionString,
+                // Usługa w tle wyłączona - testy wywołują procesor wysyłek jawnie, w kontrolowanych krokach
+                ["Ksef:Worker:Enabled"] = "false"
             }));
+
+        // Atrapa KSeF zamiast prawdziwego połączenia - testy nie wymagają sieci
+        builder.ConfigureTestServices(services => services.AddSingleton<FakturowanieKSeF.Ksef.IKsefGateway>(Ksef));
     }
 
     public async Task InitializeAsync()

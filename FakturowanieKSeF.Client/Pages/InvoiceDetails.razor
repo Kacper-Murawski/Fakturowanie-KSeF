@@ -2,6 +2,7 @@
 @inject ApiClient Api
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@implements IDisposable
 
 <PageTitle>Faktura @invoice?.Number - Fakturowanie KSeF</PageTitle>
 
@@ -25,20 +26,66 @@ else
                 <span class="ms-2 small">Numer KSeF: <strong>@invoice.KsefNumber</strong> (@Format.DateTime(invoice.KsefAcceptedAt))</span>
             }
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
             @if (invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected)
             {
+                <button class="btn btn-success" @onclick="SendAsync" disabled="@busy">@(busy ? "Wysyłanie…" : "Wyślij do KSeF")</button>
                 <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
                 <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+            }
+            @if (invoice.LastSubmission?.HasUpo == true)
+            {
+                <a class="btn btn-outline-success" href="api/invoices/@invoice.Id/upo" download>Pobierz UPO</a>
             }
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>
             <a class="btn btn-outline-secondary" href="faktury">Wróć do listy</a>
         </div>
     </div>
 
-    @if (invoice.Status == InvoiceStatus.Draft)
+    @switch (invoice.Status)
     {
-        <div class="alert alert-info small">To jest szkic. Wysyłka do KSeF zostanie udostępniona w kolejnym etapie projektu.</div>
+        case InvoiceStatus.Draft:
+            <div class="alert alert-info small">
+                To jest szkic - można go jeszcze zmienić. Po wysłaniu do KSeF i nadaniu numeru KSeF faktura staje się dokumentem
+                ostatecznym i nie można jej edytować.
+            </div>
+            break;
+
+        case InvoiceStatus.Pending:
+            <div class="alert alert-warning d-flex align-items-center gap-2" role="status">
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                <span>
+                    Faktura przekazana do KSeF - oczekiwanie na przetworzenie. Strona odświeży się automatycznie.
+                    @if (invoice.LastSubmission is { FailedAttempts: > 0 } pending)
+                    {
+                        <br /><small>Problemy z połączeniem z KSeF (@pending.FailedAttempts): @pending.LastError. Aplikacja ponawia próby.</small>
+                    }
+                </span>
+            </div>
+            break;
+
+        case InvoiceStatus.Accepted when invoice.LastSubmission is { } ok:
+            <div class="alert alert-success small">
+                Faktura przyjęta w KSeF (testowym) - numer KSeF <strong>@invoice.KsefNumber</strong>, nadany @Format.DateTime(ok.KsefAssignedAt).
+                @(ok.HasUpo ? "Urzędowe poświadczenie odbioru (UPO) jest dostępne do pobrania." : "UPO zostanie pobrane automatycznie, gdy KSeF je wygeneruje.")
+            </div>
+            break;
+
+        case InvoiceStatus.Rejected when invoice.LastSubmission is { } bad:
+            <div class="alert alert-danger">
+                <strong>KSeF nie przyjął faktury</strong>@(bad.StatusCode is { } code ? $" (kod {code})" : ""): @bad.StatusDescription
+                @if (bad.StatusDetails.Count > 0)
+                {
+                    <ul class="mb-0 mt-1">
+                        @foreach (var d in bad.StatusDetails)
+                        {
+                            <li>@d</li>
+                        }
+                    </ul>
+                }
+                <div class="small mt-1">Popraw fakturę i wyślij ją ponownie.</div>
+            </div>
+            break;
     }
 
     <div class="invoice-sheet card">
@@ -133,12 +180,45 @@ else
     private ApiProblem? problem;
     private bool busy;
 
-    protected override async Task OnParametersSetAsync()
+    private Timer? refreshTimer;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
         var result = await Api.GetAsync<InvoiceDto>($"api/invoices/{Id}");
         invoice = result.Value;
         problem = result.Problem;
+        ScheduleRefresh();
     }
+
+    /// <summary>Dopóki KSeF przetwarza fakturę (lub nie ma jeszcze UPO) - odświeżanie co 3 s.</summary>
+    private void ScheduleRefresh()
+    {
+        var waiting = invoice is { Status: InvoiceStatus.Pending } or { Status: InvoiceStatus.Accepted, LastSubmission.HasUpo: false };
+        refreshTimer?.Dispose();
+        refreshTimer = waiting
+            ? new Timer(_ => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }), null, TimeSpan.FromSeconds(3), Timeout.InfiniteTimeSpan)
+            : null;
+    }
+
+    private async Task SendAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Wysłać fakturę {invoice!.Number} do KSeF (środowisko testowe)? Po przyjęciu nie będzie można jej zmienić.")) return;
+
+        busy = true;
+        var result = await Api.PostAsync<InvoiceDto>($"api/invoices/{Id}/send", new SendInvoiceRequest { Version = invoice.Version });
+        busy = false;
+
+        problem = result.Problem;
+        if (result.Value is { } sent)
+        {
+            invoice = sent;
+            ScheduleRefresh();
+        }
+    }
+
+    public void Dispose() => refreshTimer?.Dispose();
 
     private async Task DeleteAsync()
     {

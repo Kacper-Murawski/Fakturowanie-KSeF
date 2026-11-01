@@ -54,4 +54,11 @@ public class KsefSubmission
 
     /// <summary>Moment zakończenia przetwarzania (sukces lub odrzucenie).</summary>
     public DateTime? CompletedAt { get; set; }
+
+    /// <summary>Liczba nieudanych prób komunikacji z KSeF (błędy sieci, niedostępność usługi).</summary>
+    public int FailedAttempts { get; set; }
+
+    /// <summary>Ostatni błąd komunikacji (do diagnostyki; nie jest to odrzucenie faktury przez KSeF).</summary>
+    [MaxLength(1000)]
+    public string? LastError { get; set; }
 }

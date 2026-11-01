@@ -56,17 +56,23 @@ else
 
         <button type="submit" class="btn btn-primary" disabled="@busy">Zapisz</button>
     </EditForm>
+
+    @if (companyExists)
+    {
+        <KsefSettings />
+    }
 }
 
 @code {
     private SaveCompanyRequest? model;
     private DeepValidator? validator;
     private ApiProblem? problem;
-    private bool busy, saved;
+    private bool busy, saved, companyExists;
 
     protected override async Task OnInitializedAsync()
     {
         var result = await Api.GetAsync<CompanyDto>("api/company");
+        companyExists = result.Value is not null;
         model = result.Value is { } c
             ? new SaveCompanyRequest
             {
@@ -83,7 +89,11 @@ else
         var result = await Api.PutAsync<CompanyDto>("api/company", model!);
         problem = result.Problem;
         if (problem is not null) validator?.ShowServerErrors(problem);
-        else saved = true;
+        else
+        {
+            saved = true;
+            companyExists = true;
+        }
         busy = false;
     }
 }

@@ -1,3 +1,4 @@
+using KSeF.Client.Api.Services;
 using KSeF.Client.DI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,7 +23,12 @@ public static class KsefServiceCollectionExtensions
             options => options.BaseUrl = baseUri.ToString().TrimEnd('/'),
             httpClientBuilder => httpClientBuilder.AddHttpMessageHandler(() => new KsefTestOnlyHandler()));
 
-        services.AddCryptographyClient();
+        // Certyfikaty publiczne MF pobierane leniwie przy pierwszej operacji (KsefGateway wywołuje WarmupAsync),
+        // a nie przy starcie - aplikacja i testy uruchamiają się bez łączenia z KSeF
+        services.AddCryptographyClient(CryptographyServiceWarmupMode.Disabled);
+
+        services.AddMemoryCache();
+        services.AddScoped<IKsefGateway, KsefGateway>();
 
         return services;
     }

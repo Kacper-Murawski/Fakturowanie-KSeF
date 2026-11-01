@@ -34,6 +34,12 @@ po polsku.
 | POST | `/api/invoices` | Utworzenie faktury (szkicu) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
 | DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona) |
+| POST | `/api/invoices/{id}/send` | Wysłanie faktury do KSeF (body: `version`); 202 i status `Pending`, dalej asynchronicznie - zob. `docs/integracja-ksef.md` |
+| GET | `/api/invoices/{id}/upo` | UPO faktury przyjętej przez KSeF (404, jeśli jeszcze niedostępne) |
+| GET | `/api/company/ksef` | Stan integracji z KSeF (czy token jest skonfigurowany; sam token nigdy nie jest zwracany) |
+| PUT | `/api/company/ksef/token` | Zapis tokenu KSeF po weryfikacji w KSeF (400, jeśli KSeF go odrzuci) |
+| POST | `/api/company/ksef/test-token` | Wygenerowanie tokenu w testowym KSeF dla NIP firmy (502 przy błędzie KSeF) |
+| DELETE | `/api/company/ksef/token` | Usunięcie tokenu |
 | GET | `/api/health` | Stan aplikacji i bazy danych (bez uwierzytelniania) |
 
 ## Kody odpowiedzi
