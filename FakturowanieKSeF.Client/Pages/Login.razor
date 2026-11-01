@@ -1,0 +1,68 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Logowanie - Fakturowanie KSeF</PageTitle>
+
+<div class="auth-card">
+    <h1 class="h3 mb-3">Logowanie</h1>
+
+    <EditForm Model="model" OnValidSubmit="LoginAsync" FormName="login">
+        <DataAnnotationsValidator />
+
+        @if (error is not null)
+        {
+            <div class="alert alert-danger" role="alert">@error</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label" for="email">E-mail</label>
+            <InputText id="email" type="email" class="form-control" @bind-Value="model.Email" autocomplete="username" />
+            <ValidationMessage For="() => model.Email" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="password">Hasło</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="model.Password" autocomplete="current-password" />
+            <ValidationMessage For="() => model.Password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100" disabled="@busy">
+            @(busy ? "Logowanie…" : "Zaloguj się")
+        </button>
+    </EditForm>
+
+    <p class="mt-3 mb-0 text-center">Nie masz konta? <a href="register">Zarejestruj się</a></p>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private readonly LoginModel model = new();
+    private string? error;
+    private bool busy;
+
+    private async Task LoginAsync()
+    {
+        busy = true;
+        error = await Auth.LoginAsync(model.Email, model.Password);
+        busy = false;
+
+        if (error is null)
+        {
+            // Tylko adresy względne - ochrona przed przekierowaniem na obcą stronę (open redirect)
+            var target = string.IsNullOrEmpty(ReturnUrl) || ReturnUrl.Contains("://") || ReturnUrl.StartsWith("//") ? "" : ReturnUrl;
+            Navigation.NavigateTo(target);
+        }
+    }
+
+    private sealed class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Podaj adres e-mail.")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Nieprawidłowy adres e-mail.")]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Podaj hasło.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

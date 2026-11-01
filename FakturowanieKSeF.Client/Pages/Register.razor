@@ -1,0 +1,85 @@
+@page "/register"
+@attribute [AllowAnonymous]
+@using System.ComponentModel.DataAnnotations
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Rejestracja - Fakturowanie KSeF</PageTitle>
+
+<div class="auth-card">
+    <h1 class="h3 mb-3">Załóż konto</h1>
+
+    <EditForm Model="model" OnValidSubmit="RegisterAsync" FormName="register">
+        <DataAnnotationsValidator />
+
+        @if (errors.Count > 0)
+        {
+            <div class="alert alert-danger" role="alert">
+                <ul class="mb-0">
+                    @foreach (var e in errors)
+                    {
+                        <li>@e</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label" for="email">E-mail</label>
+            <InputText id="email" type="email" class="form-control" @bind-Value="model.Email" autocomplete="username" />
+            <ValidationMessage For="() => model.Email" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="password">Hasło</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="model.Password" autocomplete="new-password" />
+            <div class="form-text">Co najmniej 8 znaków, w tym wielka i mała litera, cyfra oraz znak specjalny.</div>
+            <ValidationMessage For="() => model.Password" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="password2">Powtórz hasło</label>
+            <InputText id="password2" type="password" class="form-control" @bind-Value="model.ConfirmPassword" autocomplete="new-password" />
+            <ValidationMessage For="() => model.ConfirmPassword" />
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100" disabled="@busy">
+            @(busy ? "Zakładanie konta…" : "Zarejestruj się")
+        </button>
+    </EditForm>
+
+    <p class="mt-3 mb-0 text-center">Masz już konto? <a href="login">Zaloguj się</a></p>
+</div>
+
+@code {
+    private readonly RegisterModel model = new();
+    private List<string> errors = [];
+    private bool busy;
+
+    private async Task RegisterAsync()
+    {
+        busy = true;
+        errors = (await Auth.RegisterAsync(model.Email, model.Password)).ToList();
+
+        if (errors.Count == 0)
+        {
+            // Po rejestracji od razu logujemy i prowadzimy do uzupełnienia danych firmy
+            var loginError = await Auth.LoginAsync(model.Email, model.Password);
+            if (loginError is null) Navigation.NavigateTo("firma");
+            else errors.Add(loginError);
+        }
+        busy = false;
+    }
+
+    private sealed class RegisterModel
+    {
+        [Required(ErrorMessage = "Podaj adres e-mail.")]
+        [EmailAddress(ErrorMessage = "Nieprawidłowy adres e-mail.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Podaj hasło.")]
+        [MinLength(8, ErrorMessage = "Hasło musi mieć co najmniej 8 znaków.")]
+        public string Password { get; set; } = string.Empty;
+
+        [Compare(nameof(Password), ErrorMessage = "Hasła nie są takie same.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

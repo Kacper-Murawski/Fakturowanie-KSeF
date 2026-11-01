@@ -101,3 +101,37 @@ a, .btn-link {
 code {
     color: #c02d76;
 }
+
+/* ---- Fakturowanie KSeF ---- */
+.auth-card {
+    max-width: 420px;
+    margin: 3rem auto;
+    padding: 2rem;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+}
+
+.form-narrow {
+    max-width: 720px;
+}
+
+.items-table td {
+    vertical-align: top;
+}
+
+.invoice-sheet {
+    max-width: 1000px;
+}
+
+.top-row {
+    align-items: center;
+}
+
+tr[role="button"] {
+    cursor: pointer;
+}
+
+.items-table th:nth-child(2) {
+    min-width: 16rem;
+}

@@ -1,15 +1,39 @@
 ﻿@inherits LayoutComponentBase
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <AuthorizeView>
+        <Authorized>
+            <div class="sidebar">
+                <NavMenu />
+            </div>
+        </Authorized>
+    </AuthorizeView>
 
     <main>
-        <div class="top-row px-4">
-        </div>
+        <AuthorizeView>
+            <Authorized>
+                <div class="top-row px-4 justify-content-end gap-3">
+                    <span class="text-muted small">@context.User.Identity?.Name</span>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="LogoutAsync">Wyloguj</button>
+                </div>
+            </Authorized>
+        </AuthorizeView>
 
-        <article class="content px-4">
+        <article class="content px-4 py-3">
+            <div class="alert alert-warning py-1 px-2 small mb-3" role="note">
+                Wersja testowa: faktury są wysyłane wyłącznie do <strong>testowego</strong> środowiska KSeF i nie mają mocy prawnej.
+            </div>
             @Body
         </article>
     </main>
 </div>
+
+@code {
+    private async Task LogoutAsync()
+    {
+        await Auth.LogoutAsync();
+        Navigation.NavigateTo("login");
+    }
+}

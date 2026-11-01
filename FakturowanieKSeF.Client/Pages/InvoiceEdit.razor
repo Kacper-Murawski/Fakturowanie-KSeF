@@ -1,0 +1,344 @@
+@page "/faktury/nowa"
+@page "/faktury/{Id:int}/edycja"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>@(Id is null ? "Nowa faktura" : "Edycja faktury") - Fakturowanie KSeF</PageTitle>
+
+<h1>@(Id is null ? "Nowa faktura" : $"Edycja faktury {originalNumber}")</h1>
+
+@if (companyMissing)
+{
+    <div class="alert alert-info">Przed wystawieniem faktury <a href="firma">uzupełnij dane swojej firmy</a> - pojawią się one jako sprzedawca.</div>
+}
+else if (model is null)
+{
+    <ProblemAlert Problem="problem" />
+    @if (problem is null)
+    {
+        <p class="text-muted">Wczytywanie…</p>
+    }
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="invoice">
+        <DeepValidator @ref="validator" />
+        <ProblemAlert Problem="problem" />
+        <ValidationSummary class="text-danger small" />
+
+        @* ---------------- Nagłówek ---------------- *@
+        <section class="card mb-3">
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="number">Numer faktury</label>
+                    <InputText id="number" class="form-control" @bind-Value="model.Number" placeholder="@suggestedNumber" />
+                    <div class="form-text">@(Id is null ? "Puste - numer zostanie nadany automatycznie." : "")</div>
+                    <ValidationMessage For="() => model.Number" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="issue">Data wystawienia</label>
+                    <InputDate id="issue" class="form-control" @bind-Value="model.IssueDate" @bind-Value:after="SuggestNumberAsync" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="sale">Data sprzedaży</label>
+                    <InputDate id="sale" class="form-control" @bind-Value="model.SaleDate" />
+                    <div class="form-text">Jeśli inna niż wystawienia.</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="place">Miejsce wystawienia</label>
+                    <InputText id="place" class="form-control" @bind-Value="model.IssuePlace" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="currency">Waluta</label>
+                    <InputText id="currency" class="form-control" @bind-Value="model.Currency" maxlength="3" />
+                    <ValidationMessage For="() => model.Currency" />
+                </div>
+            </div>
+        </section>
+
+        @* ---------------- Nabywca ---------------- *@
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Nabywca</h2>
+                <div class="mb-3">
+                    <label class="form-label" for="customer">Kontrahent</label>
+                    <select id="customer" class="form-select" value="@(model.CustomerId?.ToString() ?? "")" @onchange="OnCustomerChanged">
+                        <option value="">— wpisz dane nabywcy ręcznie —</option>
+                        @foreach (var c in customers)
+                        {
+                            <option value="@c.Id">@c.Name @(c.Nip is null ? "" : $"(NIP {Format.Nip(c.Nip)})")</option>
+                        }
+                    </select>
+                    <ValidationMessage For="() => model.Buyer" />
+                </div>
+
+                @if (model.CustomerId is null && model.Buyer is not null)
+                {
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-8">
+                            <label class="form-label" for="buyer-name">Nazwa / imię i nazwisko</label>
+                            <InputText id="buyer-name" class="form-control" @bind-Value="model.Buyer.Name" />
+                            <ValidationMessage For="() => model.Buyer.Name" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="buyer-nip">NIP (puste dla osoby prywatnej)</label>
+                            <InputText id="buyer-nip" class="form-control" @bind-Value="model.Buyer.Nip" />
+                            <ValidationMessage For="() => model.Buyer.Nip" />
+                        </div>
+                    </div>
+                    <AddressFields Address="model.Buyer.Address" IdPrefix="buyer" />
+                }
+                else if (SelectedCustomer is { } sc)
+                {
+                    <p class="mb-0 text-muted">@sc.Address.Street, @sc.Address.PostalCode @sc.Address.City</p>
+                }
+            </div>
+        </section>
+
+        @* ---------------- Pozycje ---------------- *@
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Pozycje</h2>
+                <div class="table-responsive">
+                    <table class="table align-middle items-table">
+                        <thead>
+                            <tr>
+                                <th style="width:3rem">Lp.</th>
+                                <th>Nazwa towaru lub usługi</th>
+                                <th style="width:7rem">J.m.</th>
+                                <th style="width:8rem">Ilość</th>
+                                <th style="width:10rem">Cena netto</th>
+                                <th style="width:10rem">VAT</th>
+                                <th class="text-end" style="width:9rem">Netto</th>
+                                <th class="text-end" style="width:9rem">Brutto</th>
+                                <th style="width:3rem"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var n = 0; n < model.Items.Count; n++)
+                            {
+                                var item = model.Items[n];
+                                var line = n < totals.Lines.Count ? totals.Lines[n] : null;
+                                var index = n;
+                                <tr>
+                                    <td>@(n + 1)</td>
+                                    <td>
+                                        <InputText class="form-control" @bind-Value="item.Name" aria-label="@($"Nazwa pozycji {n + 1}")" />
+                                        <ValidationMessage For="() => item.Name" />
+                                    </td>
+                                    <td><InputText class="form-control" @bind-Value="item.Unit" aria-label="Jednostka miary" /></td>
+                                    <td>
+                                        <InputNumber class="form-control" @bind-Value="item.Quantity" @bind-Value:after="Recalculate" step="any" aria-label="Ilość" />
+                                        <ValidationMessage For="() => item.Quantity" />
+                                    </td>
+                                    <td>
+                                        <InputNumber class="form-control" @bind-Value="item.UnitNetPrice" @bind-Value:after="Recalculate" step="0.01" aria-label="Cena netto" />
+                                        <ValidationMessage For="() => item.UnitNetPrice" />
+                                    </td>
+                                    <td>
+                                        <InputSelect class="form-select" @bind-Value="item.VatRate" @bind-Value:after="Recalculate" aria-label="Stawka VAT">
+                                            @foreach (var rate in Enum.GetValues<VatRate>())
+                                            {
+                                                <option value="@rate">@rate.ToDisplayName()</option>
+                                            }
+                                        </InputSelect>
+                                    </td>
+                                    <td class="text-end text-nowrap">@(line is null ? "" : Format.Amount(line.NetAmount))</td>
+                                    <td class="text-end text-nowrap">@(line is null ? "" : Format.Amount(line.GrossAmount))</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń pozycję"
+                                                disabled="@(model.Items.Count == 1)" @onclick="() => RemoveItem(index)">✕</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddItem">+ Dodaj pozycję</button>
+
+                @* Podsumowanie liczone tym samym kalkulatorem co na serwerze *@
+                <div class="row justify-content-end mt-3">
+                    <div class="col-md-6">
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th><th class="text-end">Brutto</th></tr></thead>
+                            <tbody>
+                                @foreach (var s in totals.ByVatRate)
+                                {
+                                    <tr>
+                                        <td>@s.VatRate.ToDisplayName()</td>
+                                        <td class="text-end">@Format.Amount(s.Net)</td>
+                                        <td class="text-end">@Format.Amount(s.Vat)</td>
+                                        <td class="text-end">@Format.Amount(s.Gross)</td>
+                                    </tr>
+                                }
+                                <tr class="fw-bold">
+                                    <td>Razem</td>
+                                    <td class="text-end">@Format.Amount(totals.TotalNet)</td>
+                                    <td class="text-end">@Format.Amount(totals.TotalVat)</td>
+                                    <td class="text-end" data-testid="total-gross">@Format.Money(totals.TotalGross, model.Currency)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        @* ---------------- Płatność ---------------- *@
+        <section class="card mb-3">
+            <div class="card-body row g-3">
+                <div class="col-md-3">
+                    <label class="form-label" for="payment">Forma płatności</label>
+                    <InputSelect id="payment" class="form-select" @bind-Value="model.PaymentMethod">
+                        @foreach (var m in Enum.GetValues<PaymentMethod>())
+                        {
+                            <option value="@m">@Format.Payment(m)</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="due">Termin płatności</label>
+                    <InputDate id="due" class="form-control" @bind-Value="model.DueDate" />
+                    <div class="btn-group btn-group-sm mt-1">
+                        @foreach (var days in new[] { 7, 14, 30 })
+                        {
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => model.DueDate = model.IssueDate.AddDays(days)">@days dni</button>
+                        }
+                    </div>
+                    <ValidationMessage For="() => model.DueDate" />
+                </div>
+                @if (model.PaymentMethod == PaymentMethod.Transfer)
+                {
+                    <div class="col-md-6">
+                        <label class="form-label" for="bank">Numer rachunku</label>
+                        <InputText id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="@(companyAccount ?? "")" />
+                        <div class="form-text">Puste - zostanie użyty rachunek z danych firmy.</div>
+                        <ValidationMessage For="() => model.BankAccountNumber" />
+                    </div>
+                }
+            </div>
+        </section>
+
+        <div class="d-flex gap-2 mb-5">
+            <button type="submit" class="btn btn-primary" disabled="@busy">@(busy ? "Zapisywanie…" : "Zapisz fakturę")</button>
+            <a class="btn btn-outline-secondary" href="@(Id is null ? "faktury" : $"faktury/{Id}")">Anuluj</a>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private SaveInvoiceRequest? model;
+    private List<CustomerDto> customers = [];
+    private InvoiceTotals totals = InvoiceCalculator.Calculate([]);
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private string? suggestedNumber, originalNumber, companyAccount;
+    private bool busy, companyMissing;
+
+    private CustomerDto? SelectedCustomer => customers.FirstOrDefault(c => c.Id == model?.CustomerId);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var company = await Api.GetAsync<CompanyDto>("api/company");
+        if (company.Value is null)
+        {
+            companyMissing = true;
+            return;
+        }
+        companyAccount = company.Value.BankAccountNumber;
+        customers = (await Api.GetAsync<List<CustomerDto>>("api/customers")).Value ?? [];
+
+        if (Id is null)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            model = new SaveInvoiceRequest
+            {
+                IssueDate = today,
+                DueDate = today.AddDays(14),
+                Buyer = NewBuyer(),
+                Items = [new SaveInvoiceItemRequest()]
+            };
+            await SuggestNumberAsync();
+        }
+        else
+        {
+            var result = await Api.GetAsync<InvoiceDto>($"api/invoices/{Id}");
+            problem = result.Problem;
+            if (result.Value is not { } i) return;
+
+            if (i.Status is not (InvoiceStatus.Draft or InvoiceStatus.Rejected))
+            {
+                Navigation.NavigateTo($"faktury/{Id}");
+                return;
+            }
+
+            originalNumber = i.Number;
+            model = new SaveInvoiceRequest
+            {
+                Number = i.Number, IssueDate = i.IssueDate, IssuePlace = i.IssuePlace, SaleDate = i.SaleDate,
+                Currency = i.Currency, PaymentMethod = i.PaymentMethod, DueDate = i.DueDate,
+                BankAccountNumber = i.BankAccountNumber, CustomerId = i.CustomerId, Version = i.Version,
+                Buyer = i.CustomerId is null
+                    ? new SaveInvoiceBuyerRequest
+                    {
+                        Name = i.Buyer.Name, Nip = i.Buyer.Nip,
+                        Address = new AddressDto { Street = i.Buyer.Address.Street, PostalCode = i.Buyer.Address.PostalCode, City = i.Buyer.Address.City, CountryCode = i.Buyer.Address.CountryCode }
+                    }
+                    : null,
+                Items = i.Items.Select(x => new SaveInvoiceItemRequest
+                {
+                    Name = x.Name, Unit = x.Unit, Quantity = x.Quantity, UnitNetPrice = x.UnitNetPrice, VatRate = x.VatRate
+                }).ToList()
+            };
+        }
+
+        Recalculate();
+    }
+
+    private static SaveInvoiceBuyerRequest NewBuyer() => new();
+
+    private async Task SuggestNumberAsync()
+    {
+        if (Id is not null || model is null) return;
+        var result = await Api.GetAsync<NextNumber>($"api/invoices/next-number?issueDate={model.IssueDate:yyyy-MM-dd}");
+        suggestedNumber = result.Value?.Number;
+    }
+
+    private void OnCustomerChanged(ChangeEventArgs e)
+    {
+        model!.CustomerId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        model.Buyer = model.CustomerId is null ? NewBuyer() : null;
+    }
+
+    private void AddItem()
+    {
+        model!.Items.Add(new SaveInvoiceItemRequest { VatRate = model.Items.LastOrDefault()?.VatRate ?? VatRate.Rate23 });
+        Recalculate();
+    }
+
+    private void RemoveItem(int index)
+    {
+        model!.Items.RemoveAt(index);
+        Recalculate();
+    }
+
+    private void Recalculate() =>
+        totals = InvoiceCalculator.Calculate(model!.Items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)));
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        var result = Id is null
+            ? await Api.PostAsync<InvoiceDto>("api/invoices", model!)
+            : await Api.PutAsync<InvoiceDto>($"api/invoices/{Id}", model!);
+        busy = false;
+
+        problem = result.Problem;
+        if (result.Value is { } saved) Navigation.NavigateTo($"faktury/{saved.Id}");
+        else if (problem is not null) validator?.ShowServerErrors(problem);
+    }
+
+    private sealed record NextNumber(string Number);
+}

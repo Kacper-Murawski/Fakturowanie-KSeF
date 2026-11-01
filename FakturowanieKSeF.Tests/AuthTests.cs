@@ -69,3 +69,41 @@ public class AuthTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }
+
+/// <summary>Logowanie przeglądarki ciasteczkiem sesji (aplikacja Blazor) i wylogowanie.</summary>
+public class CookieAuthTests(ApiFactory factory) : IClassFixture<ApiFactory>
+{
+    [Fact]
+    public async Task LogowanieCiasteczkiem_UstawiaBezpieczneCiasteczko_AWylogowanieKonczySesje()
+    {
+        var client = factory.CreateClient(); // klient testowy przechowuje ciasteczka jak przeglądarka
+        var dane = new { email = $"cookie_{Guid.NewGuid():N}@example.com", password = "Haslo123!" };
+        await client.PostAsJsonAsync("/api/auth/register", dane);
+
+        var logowanie = await client.PostAsJsonAsync("/api/auth/login?useCookies=true", dane);
+        Assert.Equal(HttpStatusCode.OK, logowanie.StatusCode);
+
+        var cookie = Assert.Single(logowanie.Headers.GetValues("Set-Cookie"), c => c.StartsWith("ksef.auth="));
+        Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);       // niedostępne dla JavaScriptu
+        Assert.Contains("samesite=strict", cookie, StringComparison.OrdinalIgnoreCase); // niewysyłane z obcych stron
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/auth/manage/info")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/auth/logout", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/manage/info")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Rejestracja_ZwracaPolskieKomunikatyBledowHasla()
+    {
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/register",
+            new { email = $"pl_{Guid.NewGuid():N}@example.com", password = "haslohaslo" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Hasło musi zawierać cyfrę.", body);
+        Assert.Contains("Hasło musi zawierać wielką literę.", body);
+    }
+}

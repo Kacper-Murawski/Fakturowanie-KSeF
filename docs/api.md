@@ -5,9 +5,16 @@ deweloperskim: `/swagger`. Błędy zwracane są w formacie ProblemDetails (RFC 9
 
 ## Uwierzytelnianie
 
-ASP.NET Core Identity (`/api/auth/*`): `register`, `login` (zwraca token Bearer i token odświeżania),
-`refresh`, `manage/info`. Wszystkie pozostałe endpointy wymagają nagłówka `Authorization: Bearer <token>`,
-w przeciwnym razie zwracają **401**.
+ASP.NET Core Identity (`/api/auth/*`): `register`, `login`, `refresh`, `manage/info`, `logout`.
+
+- **Przeglądarka (aplikacja Blazor):** `POST /api/auth/login?useCookies=true` ustawia ciasteczko sesji `ksef.auth`
+  (HttpOnly, SameSite=Strict, ważne 8 h z przedłużaniem przy aktywności); `POST /api/auth/logout` je usuwa.
+- **Inni klienci (testy, ewentualna aplikacja mobilna):** `POST /api/auth/login` zwraca token Bearer
+  i token odświeżania; nagłówek `Authorization: Bearer <token>`.
+
+Bez ważnej sesji lub tokenu endpointy biznesowe zwracają **401**. Polityka haseł: min. 8 znaków, wielka i mała
+litera, cyfra, znak specjalny. Po 5 nieudanych logowaniach konto jest blokowane na 15 minut. Komunikaty błędów
+po polsku.
 
 ## Endpointy
 

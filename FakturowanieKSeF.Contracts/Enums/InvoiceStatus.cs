@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace FakturowanieKSeF.Contracts;
 
 /// <summary>
@@ -8,6 +10,7 @@ namespace FakturowanieKSeF.Contracts;
 ///   └──── popraw ◀── Rejected (KSeF odrzucił, np. błąd walidacji)
 /// </code>
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<InvoiceStatus>))]
 public enum InvoiceStatus
 {
     /// <summary>Szkic - można edytować i usunąć.</summary>

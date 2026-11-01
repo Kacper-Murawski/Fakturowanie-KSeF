@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace FakturowanieKSeF.Contracts;
 
 /// <summary>Forma płatności - wartości liczbowe zgodne z typem TFormaPlatnosci schemy FA(3).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<PaymentMethod>))]
 public enum PaymentMethod
 {
     Cash = 1,         // Gotówka

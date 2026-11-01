@@ -1,0 +1,130 @@
+@page "/kontrahenci/nowy"
+@page "/kontrahenci/{Id:int}"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>@(Id is null ? "Nowy kontrahent" : "Kontrahent") - Fakturowanie KSeF</PageTitle>
+
+<h1>@(Id is null ? "Nowy kontrahent" : "Edycja kontrahenta")</h1>
+
+@if (model is null)
+{
+    <ProblemAlert Problem="problem" />
+    @if (problem is null)
+    {
+        <p class="text-muted">Wczytywanie…</p>
+    }
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="customer" class="form-narrow">
+        <DeepValidator @ref="validator" />
+        <ProblemAlert Problem="problem" />
+
+        <div class="mb-3">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" id="type-company" name="type" checked="@model.IsCompany" @onchange="() => model.IsCompany = true" />
+                <label class="form-check-label" for="type-company">Firma</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" id="type-person" name="type" checked="@(!model.IsCompany)" @onchange="() => model.IsCompany = false" />
+                <label class="form-check-label" for="type-person">Osoba prywatna</label>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="name">@(model.IsCompany ? "Nazwa firmy" : "Imię i nazwisko")</label>
+            <InputText id="name" class="form-control" @bind-Value="model.Name" />
+            <ValidationMessage For="() => model.Name" />
+        </div>
+        @if (model.IsCompany)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="nip">NIP</label>
+                <InputText id="nip" class="form-control" @bind-Value="model.Nip" />
+                <ValidationMessage For="() => model.Nip" />
+            </div>
+        }
+
+        <fieldset class="mb-3">
+            <legend class="h6">Adres</legend>
+            <AddressFields Address="model.Address" IdPrefix="customer" />
+        </fieldset>
+
+        <div class="mb-3">
+            <label class="form-label" for="email">E-mail</label>
+            <InputText id="email" class="form-control" @bind-Value="model.Email" />
+            <ValidationMessage For="() => model.Email" />
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" disabled="@busy">Zapisz</button>
+            <a class="btn btn-outline-secondary" href="kontrahenci">Anuluj</a>
+            @if (Id is not null)
+            {
+                <button type="button" class="btn btn-outline-danger ms-auto" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+            }
+        </div>
+        @if (Id is not null)
+        {
+            <p class="form-text mt-2">Zmiana danych kontrahenta nie zmienia faktur już wystawionych - zawierają one kopię danych z dnia wystawienia.</p>
+        }
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private SaveCustomerRequest? model;
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id is null)
+        {
+            model = new SaveCustomerRequest();
+            return;
+        }
+
+        var result = await Api.GetAsync<CustomerDto>($"api/customers/{Id}");
+        problem = result.Problem;
+        if (result.Value is { } c)
+        {
+            model = new SaveCustomerRequest
+            {
+                Name = c.Name, IsCompany = c.IsCompany, Nip = c.Nip, Email = c.Email,
+                Address = new AddressDto { Street = c.Address.Street, PostalCode = c.Address.PostalCode, City = c.Address.City, CountryCode = c.Address.CountryCode }
+            };
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        if (!model!.IsCompany) model.Nip = null;
+
+        var result = Id is null
+            ? await Api.PostAsync<CustomerDto>("api/customers", model)
+            : await Api.PutAsync<CustomerDto>($"api/customers/{Id}", model);
+
+        problem = result.Problem;
+        busy = false;
+
+        if (problem is null) Navigation.NavigateTo("kontrahenci");
+        else validator?.ShowServerErrors(problem);
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Usunąć kontrahenta {model!.Name}? Wystawione faktury pozostaną bez zmian.")) return;
+
+        busy = true;
+        var result = await Api.DeleteAsync($"api/customers/{Id}");
+        problem = result.Problem;
+        busy = false;
+        if (problem is null) Navigation.NavigateTo("kontrahenci");
+    }
+}

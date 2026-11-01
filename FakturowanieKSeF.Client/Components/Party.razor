@@ -1,0 +1,14 @@
+@* Dane strony faktury (sprzedawca / nabywca) *@
+<div>
+    <strong>@Data.Name</strong><br />
+    @Data.Address.Street<br />
+    @Data.Address.PostalCode @Data.Address.City@(Data.Address.CountryCode == "PL" ? "" : $", {Data.Address.CountryCode}")<br />
+    @if (Data.Nip is not null)
+    {
+        <span>NIP: @Format.Nip(Data.Nip)</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public InvoicePartyDto Data { get; set; } = null!;
+}

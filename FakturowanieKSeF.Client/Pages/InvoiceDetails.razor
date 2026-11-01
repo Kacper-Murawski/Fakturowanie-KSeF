@@ -1,0 +1,148 @@
+@page "/faktury/{Id:int}"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Faktura @invoice?.Number - Fakturowanie KSeF</PageTitle>
+
+<ProblemAlert Problem="problem" />
+
+@if (invoice is null)
+{
+    @if (problem is null)
+    {
+        <p class="text-muted">Wczytywanie…</p>
+    }
+}
+else
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h1 class="mb-1">Faktura VAT @invoice.Number</h1>
+            <StatusBadge Status="invoice.Status" />
+            @if (invoice.KsefNumber is not null)
+            {
+                <span class="ms-2 small">Numer KSeF: <strong>@invoice.KsefNumber</strong> (@Format.DateTime(invoice.KsefAcceptedAt))</span>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            @if (invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected)
+            {
+                <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
+                <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+            }
+            <a class="btn btn-outline-secondary" href="faktury">Wróć do listy</a>
+        </div>
+    </div>
+
+    @if (invoice.Status == InvoiceStatus.Draft)
+    {
+        <div class="alert alert-info small">To jest szkic. Wysyłka do KSeF zostanie udostępniona w kolejnym etapie projektu.</div>
+    }
+
+    <div class="invoice-sheet card">
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-sm-6 small">
+                    Data wystawienia: <strong>@Format.Date(invoice.IssueDate)</strong>@(invoice.IssuePlace is null ? "" : $", {invoice.IssuePlace}")<br />
+                    Data sprzedaży: <strong>@Format.Date(invoice.SaleDate ?? invoice.IssueDate)</strong>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-sm-6">
+                    <h2 class="h6 text-muted text-uppercase">Sprzedawca</h2>
+                    <Party Data="invoice.Seller" />
+                </div>
+                <div class="col-sm-6">
+                    <h2 class="h6 text-muted text-uppercase">Nabywca</h2>
+                    <Party Data="invoice.Buyer" />
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Lp.</th><th>Nazwa</th><th>J.m.</th><th class="text-end">Ilość</th><th class="text-end">Cena netto</th>
+                            <th class="text-end">Wartość netto</th><th>VAT</th><th class="text-end">Wartość brutto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var i in invoice.Items)
+                        {
+                            <tr>
+                                <td>@i.Position</td>
+                                <td>@i.Name</td>
+                                <td>@i.Unit</td>
+                                <td class="text-end">@Format.Quantity(i.Quantity)</td>
+                                <td class="text-end">@Format.Amount(i.UnitNetPrice)</td>
+                                <td class="text-end">@Format.Amount(i.NetAmount)</td>
+                                <td>@i.VatRate.ToDisplayName()</td>
+                                <td class="text-end">@Format.Amount(i.GrossAmount)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row justify-content-end">
+                <div class="col-md-6">
+                    <table class="table table-sm">
+                        <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th><th class="text-end">Brutto</th></tr></thead>
+                        <tbody>
+                            @foreach (var s in invoice.VatSummary)
+                            {
+                                <tr>
+                                    <td>@s.VatRate.ToDisplayName()</td>
+                                    <td class="text-end">@Format.Amount(s.Net)</td>
+                                    <td class="text-end">@Format.Amount(s.Vat)</td>
+                                    <td class="text-end">@Format.Amount(s.Gross)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <p class="fs-5 text-end">Do zapłaty: <strong>@Format.Money(invoice.TotalGross, invoice.Currency)</strong></p>
+                </div>
+            </div>
+
+            <div class="small">
+                Forma płatności: <strong>@Format.Payment(invoice.PaymentMethod)</strong>
+                @if (invoice.DueDate is not null)
+                {
+                    <span>, termin: <strong>@Format.Date(invoice.DueDate)</strong></span>
+                }
+                @if (invoice.BankAccountNumber is not null)
+                {
+                    <br /><span>Rachunek: <strong>@Format.BankAccount(invoice.BankAccountNumber)</strong></span>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private InvoiceDto? invoice;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var result = await Api.GetAsync<InvoiceDto>($"api/invoices/{Id}");
+        invoice = result.Value;
+        problem = result.Problem;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Usunąć fakturę {invoice!.Number}?")) return;
+
+        busy = true;
+        var result = await Api.DeleteAsync($"api/invoices/{Id}");
+        busy = false;
+        problem = result.Problem;
+        if (problem is null) Navigation.NavigateTo("faktury");
+    }
+}
