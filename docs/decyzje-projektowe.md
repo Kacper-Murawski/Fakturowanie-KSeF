@@ -185,3 +185,29 @@ w ok. 7 s. Szczegóły i artefakty: [`docs/spike-ksef/`](spike-ksef/README.md).
   skrót dokumentu, status ze szczegółami błędów, wysłany XML i UPO (etap 2),
 - obsługa statusów asynchronicznie, przez usługę w tle (etap 6),
 - docelowe uwierzytelnianie użytkowników tokenem KSeF przechowywanym w postaci zaszyfrowanej (etap 6).
+
+---
+
+## D12. Model danych v2
+
+Pełny opis i diagram ERD: [`docs/model-danych.md`](model-danych.md).
+
+**Najważniejsze decyzje:**
+1. **Kopie danych stron na fakturze** (`Seller`, `Buyer` jako typy własne EF Core) zamiast odwołania do aktualnych
+   danych firmy i kontrahenta - faktura musi pozostać niezmienna po wystawieniu.
+   *Alternatywa:* wersjonowanie danych kontrahentów (tabela historii) - bardziej złożone, bez korzyści w MVP.
+2. **Osobna tabela prób wysyłki do KSeF** (`KsefSubmissions`) zamiast kolumn w fakturze - zachowuje historię
+   (odrzucenie, poprawka, ponowna wysyłka) i dokładnie wysłany XML wraz z UPO, co ma znaczenie dowodowe.
+3. **Stawka VAT jako wyliczenie zgodne z FA(3)**, a nie liczba - stawki „zw”, „oo”, „np” oraz warianty 0%
+   (kraj, WDT, eksport) mają odrębne znaczenie prawne i są raportowane osobno.
+4. **Precyzja liczb i typy dat zgodne ze schemą FA(3)** (`date` dla dat dokumentu, `numeric` z precyzją typów XSD),
+   co eliminuje konwersje i zaokrąglenia przy generowaniu XML.
+5. **Miękkie usuwanie + `ON DELETE RESTRICT`** - dokumenty podatkowe nie mogą znikać kaskadowo; ochrona działa
+   zarówno w aplikacji (filtr globalny, automatyczna zamiana usunięcia), jak i na poziomie bazy (klucze obce).
+6. **Kontrola współbieżności** (`xmin`) na fakturze - zapobiega m.in. podwójnej wysyłce do KSeF.
+7. **Dane biznesowe przypisane do firmy** (`CompanyId`), a firma do konta - izolacja danych po firmie
+   zalogowanego użytkownika; model gotowy na wiele firm na konto w przyszłości (D4).
+8. **Jedna migracja początkowa.** Ponieważ aplikacja nie była jeszcze wdrożona i nie istniały żadne dane,
+   wcześniejszą migrację zastąpiono jedną migracją `InitialCreate` z nowym modelem. Automatycznie wygenerowana
+   migracja przyrostowa zawierała błędne „zmiany nazw” kolumn (np. stary `NetPrice` → `VatAmount`), które
+   zaciemniałyby historię schematu. Od chwili pierwszego wdrożenia każda zmiana modelu będzie osobną migracją.

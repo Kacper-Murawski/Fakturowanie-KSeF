@@ -17,7 +17,7 @@ namespace FakturowanieKSeF.Api.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.26")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -105,11 +105,25 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BankAccountNumber")
+                        .HasMaxLength(34)
+                        .HasColumnType("character varying(34)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("KsefTokenEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("KsefTokenUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -118,17 +132,28 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.Property<string>("Nip")
                         .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)");
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
 
                     b.Property<string>("OwnerId")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Phone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("ReceivedInvoicesSyncedUntil")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Companies");
                 });
@@ -141,8 +166,15 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<bool>("IsCompany")
                         .HasColumnType("boolean");
@@ -156,17 +188,17 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasColumnType("character varying(250)");
 
                     b.Property<string>("Nip")
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)");
-
-                    b.Property<string>("OwnerId")
-                        .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "Nip")
+                        .IsUnique()
+                        .HasFilter("\"Nip\" IS NOT NULL AND \"IsDeleted\" = false");
 
                     b.ToTable("Customers");
                 });
@@ -180,14 +212,10 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BankAccountNumber")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
+                        .HasMaxLength(34)
+                        .HasColumnType("character varying(34)");
 
                     b.Property<int>("CompanyId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ContractorId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
@@ -195,40 +223,81 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.Property<string>("Currency")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
 
-                    b.Property<DateTime>("DueDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<int?>("CustomerId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("IssueDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("IssueDate")
+                        .HasColumnType("date");
 
-                    b.Property<string>("KsefReferenceNumber")
+                    b.Property<string>("IssuePlace")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("Number")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("SaleDate")
+                    b.Property<DateTime?>("KsefAcceptedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("KsefNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateOnly?>("SaleDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("TotalGross")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalNet")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalVat")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CompanyId");
+                    b.HasIndex("CustomerId");
 
-                    b.HasIndex("ContractorId");
+                    b.HasIndex("KsefNumber")
+                        .IsUnique()
+                        .HasFilter("\"KsefNumber\" IS NOT NULL");
+
+                    b.HasIndex("CompanyId", "IssueDate");
+
+                    b.HasIndex("CompanyId", "Number")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Invoices");
                 });
@@ -241,37 +310,178 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<decimal>("GrossAmount")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<int>("InvoiceId")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
-                    b.Property<decimal>("NetPrice")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<decimal>("NetAmount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("Quantity")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("numeric(22,6)");
 
-                    b.Property<DateTime?>("UpdatedAt")
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("UnitNetPrice")
+                        .HasColumnType("numeric(22,8)");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("VatRate")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("InvoiceItems");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.KsefSubmission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal>("VatRate")
-                        .HasColumnType("numeric");
+                    b.Property<string>("InvoiceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("InvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("InvoiceReferenceNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("KsefAssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("KsefNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SentXml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SessionReferenceNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("StatusCode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StatusDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("StatusDetails")
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpoXml")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("InvoiceItems");
+                    b.HasIndex("InvoiceReferenceNumber");
+
+                    b.ToTable("KsefSubmissions");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.ReceivedInvoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<DateTime>("DownloadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("IssueDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("KsefAcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("KsefNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("SellerName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("SellerNip")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<decimal>("TotalGross")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalNet")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalVat")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Xml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "IssueDate");
+
+                    b.HasIndex("CompanyId", "KsefNumber")
+                        .IsUnique();
+
+                    b.ToTable("ReceivedInvoices");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -408,6 +618,12 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
             modelBuilder.Entity("FakturowanieKSeF.Models.Company", b =>
                 {
+                    b.HasOne("FakturowanieKSeF.Models.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsOne("FakturowanieKSeF.Models.Address", "Address", b1 =>
                         {
                             b1.Property<int>("CompanyId")
@@ -415,23 +631,23 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                             b1.Property<string>("City")
                                 .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("character varying(50)");
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
 
-                            b1.Property<string>("Country")
+                            b1.Property<string>("CountryCode")
                                 .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("character varying(50)");
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)");
 
                             b1.Property<string>("PostalCode")
                                 .IsRequired()
-                                .HasMaxLength(20)
-                                .HasColumnType("character varying(20)");
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)");
 
                             b1.Property<string>("Street")
                                 .IsRequired()
-                                .HasMaxLength(100)
-                                .HasColumnType("character varying(100)");
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)");
 
                             b1.HasKey("CompanyId");
 
@@ -443,10 +659,18 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.Navigation("Address")
                         .IsRequired();
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("FakturowanieKSeF.Models.Customer", b =>
                 {
+                    b.HasOne("FakturowanieKSeF.Models.Company", "Company")
+                        .WithMany("Customers")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsOne("FakturowanieKSeF.Models.Address", "Address", b1 =>
                         {
                             b1.Property<int>("CustomerId")
@@ -454,23 +678,23 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                             b1.Property<string>("City")
                                 .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("character varying(50)");
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
 
-                            b1.Property<string>("Country")
+                            b1.Property<string>("CountryCode")
                                 .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("character varying(50)");
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)");
 
                             b1.Property<string>("PostalCode")
                                 .IsRequired()
-                                .HasMaxLength(20)
-                                .HasColumnType("character varying(20)");
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)");
 
                             b1.Property<string>("Street")
                                 .IsRequired()
-                                .HasMaxLength(100)
-                                .HasColumnType("character varying(100)");
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)");
 
                             b1.HasKey("CustomerId");
 
@@ -482,25 +706,148 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.Navigation("Address")
                         .IsRequired();
+
+                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("FakturowanieKSeF.Models.Invoice", b =>
                 {
                     b.HasOne("FakturowanieKSeF.Models.Company", "Company")
-                        .WithMany()
+                        .WithMany("Invoices")
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("FakturowanieKSeF.Models.Customer", "Contractor")
+                    b.HasOne("FakturowanieKSeF.Models.Customer", "Customer")
                         .WithMany()
-                        .HasForeignKey("ContractorId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.OwnsOne("FakturowanieKSeF.Models.InvoiceParty", "Buyer", b1 =>
+                        {
+                            b1.Property<int>("InvoiceId")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(250)
+                                .HasColumnType("character varying(250)");
+
+                            b1.Property<string>("Nip")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)");
+
+                            b1.HasKey("InvoiceId");
+
+                            b1.ToTable("Invoices");
+
+                            b1.WithOwner()
+                                .HasForeignKey("InvoiceId");
+
+                            b1.OwnsOne("FakturowanieKSeF.Models.Address", "Address", b2 =>
+                                {
+                                    b2.Property<int>("InvoicePartyInvoiceId")
+                                        .HasColumnType("integer");
+
+                                    b2.Property<string>("City")
+                                        .IsRequired()
+                                        .HasMaxLength(100)
+                                        .HasColumnType("character varying(100)");
+
+                                    b2.Property<string>("CountryCode")
+                                        .IsRequired()
+                                        .HasMaxLength(2)
+                                        .HasColumnType("character varying(2)");
+
+                                    b2.Property<string>("PostalCode")
+                                        .IsRequired()
+                                        .HasMaxLength(10)
+                                        .HasColumnType("character varying(10)");
+
+                                    b2.Property<string>("Street")
+                                        .IsRequired()
+                                        .HasMaxLength(200)
+                                        .HasColumnType("character varying(200)");
+
+                                    b2.HasKey("InvoicePartyInvoiceId");
+
+                                    b2.ToTable("Invoices");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("InvoicePartyInvoiceId");
+                                });
+
+                            b1.Navigation("Address")
+                                .IsRequired();
+                        });
+
+                    b.OwnsOne("FakturowanieKSeF.Models.InvoiceParty", "Seller", b1 =>
+                        {
+                            b1.Property<int>("InvoiceId")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(250)
+                                .HasColumnType("character varying(250)");
+
+                            b1.Property<string>("Nip")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)");
+
+                            b1.HasKey("InvoiceId");
+
+                            b1.ToTable("Invoices");
+
+                            b1.WithOwner()
+                                .HasForeignKey("InvoiceId");
+
+                            b1.OwnsOne("FakturowanieKSeF.Models.Address", "Address", b2 =>
+                                {
+                                    b2.Property<int>("InvoicePartyInvoiceId")
+                                        .HasColumnType("integer");
+
+                                    b2.Property<string>("City")
+                                        .IsRequired()
+                                        .HasMaxLength(100)
+                                        .HasColumnType("character varying(100)");
+
+                                    b2.Property<string>("CountryCode")
+                                        .IsRequired()
+                                        .HasMaxLength(2)
+                                        .HasColumnType("character varying(2)");
+
+                                    b2.Property<string>("PostalCode")
+                                        .IsRequired()
+                                        .HasMaxLength(10)
+                                        .HasColumnType("character varying(10)");
+
+                                    b2.Property<string>("Street")
+                                        .IsRequired()
+                                        .HasMaxLength(200)
+                                        .HasColumnType("character varying(200)");
+
+                                    b2.HasKey("InvoicePartyInvoiceId");
+
+                                    b2.ToTable("Invoices");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("InvoicePartyInvoiceId");
+                                });
+
+                            b1.Navigation("Address")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("Buyer")
                         .IsRequired();
 
                     b.Navigation("Company");
 
-                    b.Navigation("Contractor");
+                    b.Navigation("Customer");
+
+                    b.Navigation("Seller")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FakturowanieKSeF.Models.InvoiceItem", b =>
@@ -512,6 +859,28 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.KsefSubmission", b =>
+                {
+                    b.HasOne("FakturowanieKSeF.Models.Invoice", "Invoice")
+                        .WithMany("KsefSubmissions")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.ReceivedInvoice", b =>
+                {
+                    b.HasOne("FakturowanieKSeF.Models.Company", "Company")
+                        .WithMany("ReceivedInvoices")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -565,9 +934,20 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FakturowanieKSeF.Models.Company", b =>
+                {
+                    b.Navigation("Customers");
+
+                    b.Navigation("Invoices");
+
+                    b.Navigation("ReceivedInvoices");
+                });
+
             modelBuilder.Entity("FakturowanieKSeF.Models.Invoice", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("KsefSubmissions");
                 });
 #pragma warning restore 612, 618
         }

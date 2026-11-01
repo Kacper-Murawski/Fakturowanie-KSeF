@@ -19,8 +19,10 @@
 - **KSeF: WYŁĄCZNIE środowisko testowe (`api-test.ksef.mf.gov.pl`).** Nigdy nie łącz się z produkcyjnym
   (`api.ksef.mf.gov.pl`) ani DEMO. Każdy HttpClient do KSeF musi mieć `KsefTestOnlyHandler`;
   `KsefEnvironment` celowo nie ma wartości produkcyjnej. Nie zmieniaj tego bez wyraźnej decyzji autora.
-- **Izolacja danych między użytkownikami (multi-tenancy):** każde zapytanie do bazy musi być
-  filtrowane po zalogowanym właścicielu (`OwnerId`), żaden endpoint nie może zwrócić cudzych danych.
+- **Izolacja danych między użytkownikami (multi-tenancy):** dane biznesowe należą do firmy (`CompanyId`),
+  firma do konta (`Company.OwnerId`). Każde zapytanie musi być filtrowane po firmie zalogowanego użytkownika,
+  żaden endpoint nie może zwrócić cudzych danych.
+- Model danych opisany w `docs/model-danych.md` (diagram ERD) - aktualizuj go przy każdej zmianie modelu.
 - Sekrety (hasło do bazy, tokeny i certyfikaty KSeF) nie mogą trafiać do repozytorium w konfiguracji produkcyjnej:
   używaj zmiennych środowiskowych lub user-secrets.
 - Produkcyjnie wymagane HTTPS. Do wdrożenia potrzebny jest Dockerfile dla API (serwującego też klienta Blazor WASM).
