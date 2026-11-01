@@ -16,6 +16,9 @@
 - Uruchamianie lokalne (docker compose + dotnet run) służy wyłącznie do developmentu i testów.
 
 ## Konsekwencje dla kodu
+- **KSeF: WYŁĄCZNIE środowisko testowe (`api-test.ksef.mf.gov.pl`).** Nigdy nie łącz się z produkcyjnym
+  (`api.ksef.mf.gov.pl`) ani DEMO. Każdy HttpClient do KSeF musi mieć `KsefTestOnlyHandler`;
+  `KsefEnvironment` celowo nie ma wartości produkcyjnej. Nie zmieniaj tego bez wyraźnej decyzji autora.
 - **Izolacja danych między użytkownikami (multi-tenancy):** każde zapytanie do bazy musi być
   filtrowane po zalogowanym właścicielu (`OwnerId`), żaden endpoint nie może zwrócić cudzych danych.
 - Sekrety (hasło do bazy, tokeny i certyfikaty KSeF) nie mogą trafiać do repozytorium w konfiguracji produkcyjnej:

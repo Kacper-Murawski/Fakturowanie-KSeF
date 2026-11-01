@@ -101,3 +101,26 @@ Testy uruchamiane automatycznie w GitHub Actions przy każdym pushu (usługa Pos
 **Uzasadnienie:** testy sprawdzają rzeczywiste zachowanie systemu (migracje, ograniczenia bazy, Identity).
 Zabezpieczenie: fabryka testowa odmawia pracy na bazie, której nazwa nie zaczyna się od `ksef_test_`,
 co chroni bazę deweloperską i produkcyjną przed przypadkowym usunięciem.
+
+---
+
+## D8. Komunikacja wyłącznie ze środowiskiem testowym KSeF, wymuszona w kodzie
+
+**Kontekst:** MF udostępnia trzy środowiska KSeF 2.0: TEST (`api-test.ksef.mf.gov.pl`), DEMO (przedprodukcyjne)
+i PROD (`api.ksef.mf.gov.pl`), w którym faktury mają pełną moc prawną. Omyłkowe wysłanie faktury testowej
+do produkcji skutkowałoby wystawieniem prawdziwego dokumentu podatkowego.
+
+**Decyzja:** w fazie projektu aplikacja może łączyć się wyłącznie ze środowiskiem TEST. Ochrona jest wielowarstwowa:
+1. typ `KsefEnvironment` nie zawiera wartości produkcyjnej - adresu produkcji nie da się wybrać konfiguracją,
+2. `KsefTestOnlyHandler` (DelegatingHandler) sprawdza adres każdego wychodzącego żądania do KSeF i blokuje
+   wszystko poza `https://api-test.ksef.mf.gov.pl` zanim żądanie opuści serwer (dotyczy również adresów
+   zwracanych przez samo API, np. do pobrania UPO),
+3. testy automatyczne weryfikują blokadę dla adresu produkcyjnego, DEMO, API 1.0, braku HTTPS
+   i domen podszywających się pod host testowy,
+4. na poziomie infrastruktury: polityka sieciowa środowiska deweloperskiego dopuszcza tylko host testowy.
+
+**Alternatywa:** wybór środowiska wyłącznie przez plik konfiguracyjny - odrzucona, bo pojedyncza pomyłka
+w konfiguracji wystarczyłaby do połączenia z produkcją.
+
+**Konsekwencje:** przejście na produkcję wymaga świadomej zmiany kodu (nowa wartość typu i rozszerzenie
+listy dozwolonych hostów) oraz przeglądu bezpieczeństwa.
