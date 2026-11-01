@@ -16,7 +16,8 @@ Projekt inżynierski.
 | `tools/FakturowanieKSeF.KsefSpike` | Prototyp konsolowy: pełny przepływ wysyłki faktury do testowego KSeF |
 | `FakturowanieKSeF.Tests` | Testy jednostkowe i integracyjne (xUnit) |
 
-Baza danych: PostgreSQL 16. Dokumentacja projektowa: [`docs/`](docs/).
+Baza danych: PostgreSQL 16. Dokumentacja projektowa (architektura, decyzje, model danych, KSeF, bezpieczeństwo, testy,
+instrukcja użytkownika): [`docs/`](docs/README.md).
 
 ## Uruchomienie środowiska deweloperskiego
 
@@ -45,7 +46,8 @@ dotnet test
 ```
 
 Testy integracyjne tworzą własną tymczasową bazę (`ksef_test_*`) na serwerze PostgreSQL i usuwają ją po zakończeniu.
-Komunikacja z KSeF jest w nich zastąpiona atrapą. Test na żywo z **testowym** KSeF (wymaga dostępu do
+Komunikacja z KSeF jest w nich zastąpiona atrapą. Testy E2E w przeglądarce (Playwright, wymagają Chromium -
+instalacja: `pwsh FakturowanieKSeF.Tests/bin/Debug/net10.0/playwright.ps1 install chromium`): `E2E_TESTS=1 dotnet test`. Test na żywo z **testowym** KSeF (wymaga dostępu do
 `api-test.ksef.mf.gov.pl`): `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests`.
 
 ## Prototyp KSeF (środowisko testowe)
