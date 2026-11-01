@@ -42,5 +42,10 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test
+      - name: Install Playwright Chromium (testy E2E)
+        run: pwsh FakturowanieKSeF.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Test (jednostkowe, integracyjne i E2E w przeglądarce)
+        env:
+          E2E_TESTS: "1"
         run: dotnet test --no-build --configuration Release --logger "console;verbosity=normal"

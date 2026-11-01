@@ -22,6 +22,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public FakeKsefGateway Ksef { get; } = new();
 
+    /// <summary>Dodatkowa konfiguracja w klasach pochodnych (np. testy E2E z włączoną usługą w tle).</summary>
+    protected virtual IEnumerable<KeyValuePair<string, string?>> AdditionalSettings() => [];
+
     /// <summary>Jeden przebieg usługi wysyłki do KSeF (tak, jak zrobiłaby to usługa w tle).</summary>
     public async Task<int> ProcessKsefAsync()
     {
@@ -44,14 +47,16 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
-        builder.ConfigureAppConfiguration((_, config) =>
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                // Usługa w tle wyłączona - testy wywołują procesor wysyłek jawnie, w kontrolowanych krokach
-                ["Ksef:Worker:Enabled"] = "false",
-                ["Ksef:Receive:Enabled"] = "false"
-            }));
+        var settings = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = _connectionString,
+            // Usługa w tle wyłączona - testy wywołują procesor wysyłek jawnie, w kontrolowanych krokach
+            ["Ksef:Worker:Enabled"] = "false",
+            ["Ksef:Receive:Enabled"] = "false"
+        };
+        foreach (var (key, value) in AdditionalSettings()) settings[key] = value;
+
+        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(settings));
 
         // Atrapa KSeF zamiast prawdziwego połączenia - testy nie wymagają sieci
         builder.ConfigureTestServices(services => services.AddSingleton<FakturowanieKSeF.Ksef.IKsefGateway>(Ksef));
