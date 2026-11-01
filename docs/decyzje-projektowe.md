@@ -391,3 +391,30 @@ przy nieprawidłowym tokenie) jest dopuszczalne wyłącznie, gdy faktura na pewn
 
 **Testowalność:** bramka `IKsefGateway` z atrapą pozwala w CI sprawdzić wszystkie ścieżki (przyjęcie, odrzucenie,
 awarie przed i po wysyłce, podwójna wysyłka); prawdziwą bramkę sprawdza test na żywo i test E2E z testowym KSeF.
+
+---
+
+## D26. Odbiór faktur: synchronizacja przyrostowa „do HWM” w trybie mieszanym
+
+**Decyzja:**
+- faktury otrzymane są pobierane przyrostowo przez `/invoices/query/metadata` (Podmiot2, data trwałego zapisu)
+  z ograniczeniem do HWM; punkt kontrolny jest przechowywany per firma,
+- deduplikacja odbywa się po numerze KSeF,
+- synchronizacja działa cyklicznie co 15 minut, a dodatkowo można ją uruchomić ręcznie (nie częściej niż raz
+  na minutę), z budżetem zapytań mieszczącym się w limitach API,
+- przeglądanie korzysta wyłącznie z lokalnej bazy.
+
+Szczegóły: [`docs/integracja-ksef.md`](integracja-ksef.md#odbiór-faktur-faktury-otrzymane).
+
+**Alternatywy:**
+- eksport paczek (`/invoices/exports`): asynchroniczny, szyfrowany, zalecany dla dużych wolumenów; dla małych
+  i średnich firm nadmiarowy (dodatkowe odpytywanie statusu, rozpakowywanie archiwów),
+- synchronizacja „do Teraz”: najświeższe faktury szybciej, ale wymaga ponownego sprawdzania okna (HWM, Teraz]
+  i deduplikacji przy każdym przebiegu,
+- pobieranie z KSeF przy każdym wyświetleniu: wprost odradzane przez MF (ryzyko blokady za przekroczenie limitów).
+
+**Uzasadnienie:** zgodność z zaleceniami MF dla profilu niskiego wolumenu, gwarancja kompletności danych bez
+wielokrotnego sprawdzania (HWM), odporność na przerwania (punkt kontrolny przesuwany tylko za faktury zapisane
+w bazie), ochrona przed przekroczeniem limitów API.
+
+**Obserwacja z testów na żywo:** faktura była dostępna do pobrania ok. 2 minut po nadaniu numeru KSeF.

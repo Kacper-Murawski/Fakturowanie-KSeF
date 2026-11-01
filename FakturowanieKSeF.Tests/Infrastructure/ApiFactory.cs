@@ -49,7 +49,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 // Usługa w tle wyłączona - testy wywołują procesor wysyłek jawnie, w kontrolowanych krokach
-                ["Ksef:Worker:Enabled"] = "false"
+                ["Ksef:Worker:Enabled"] = "false",
+                ["Ksef:Receive:Enabled"] = "false"
             }));
 
         // Atrapa KSeF zamiast prawdziwego połączenia - testy nie wymagają sieci

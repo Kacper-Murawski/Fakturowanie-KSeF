@@ -143,6 +143,13 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime?>("ReceivedInvoicesLastSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReceivedInvoicesLastSyncError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<DateTime?>("ReceivedInvoicesSyncedUntil")
                         .HasColumnType("timestamp with time zone");
 

@@ -1,0 +1,12 @@
+@* Strona faktury odczytana z XML (faktury otrzymane) *@
+<div>
+    <strong>@Data.Name</strong><br />
+    @if (Data.AddressLine1 is not null) { @Data.AddressLine1<br /> }
+    @if (Data.AddressLine2 is not null) { @Data.AddressLine2<br /> }
+    @if (Data.CountryCode is not null && Data.CountryCode != "PL") { @Data.CountryCode<br /> }
+    @if (Data.Nip is not null) { <span>NIP: @Format.Nip(Data.Nip)</span> }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DocumentPartyDto Data { get; set; } = null!;
+}
