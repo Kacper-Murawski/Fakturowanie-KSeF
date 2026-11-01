@@ -25,13 +25,26 @@ public static class InvoiceEndpoints
         var group = api.MapGroup("/invoices").WithTags("Faktury").RequireAuthorization();
 
         group.MapGet("/", async (
-                InvoiceStatus? status, DateOnly? from, DateOnly? to, string? q, int? page, int? pageSize,
-                CurrentCompany current, AppDbContext db, CancellationToken ct) =>
+                InvoiceStatus? status, PaymentFilter? payment, DateOnly? from, DateOnly? to, string? q, int? page, int? pageSize,
+                CurrentCompany current, AppDbContext db, TimeProvider time, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
                 var query = db.Invoices.AsNoTracking().Where(i => i.CompanyId == company.Id);
                 if (status is not null) query = query.Where(i => i.Status == status);
+
+                // Rozliczenie: tylko faktury przekazane do KSeF (szkice i odrzucone nie są należnością)
+                var today = PolishDate.Today(time);
+                if (payment is not null)
+                {
+                    query = query.Where(i => i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Accepted);
+                    query = payment switch
+                    {
+                        PaymentFilter.Paid => query.Where(i => i.Payments.Sum(p => p.Amount) >= i.TotalGross),
+                        PaymentFilter.Unpaid => query.Where(i => i.Payments.Sum(p => p.Amount) < i.TotalGross),
+                        _ => query.Where(i => i.Payments.Sum(p => p.Amount) < i.TotalGross && i.DueDate < today)
+                    };
+                }
                 if (from is not null) query = query.Where(i => i.IssueDate >= from);
                 if (to is not null) query = query.Where(i => i.IssueDate <= to);
                 if (!string.IsNullOrWhiteSpace(q))
@@ -46,22 +59,25 @@ public static class InvoiceEndpoints
                 var p = Math.Max(page ?? 1, 1);
                 var size = Math.Clamp(pageSize ?? 20, 1, MaxPageSize);
                 var total = await query.CountAsync(ct);
-                var items = await query
+                var rows = await query
                     .OrderByDescending(i => i.IssueDate).ThenByDescending(i => i.Id)
                     .Skip((p - 1) * size).Take(size)
+                    .Select(i => new { Invoice = i, Paid = i.Payments.Sum(x => x.Amount) })
                     .ToListAsync(ct);
 
-                return Results.Ok(new PagedResult<InvoiceListItemDto>(items.Select(i => i.ToListItemDto()).ToList(), total, p, size));
+                return Results.Ok(new PagedResult<InvoiceListItemDto>(
+                    rows.Select(r => r.Invoice.ToListItemDto(r.Paid, today)).ToList(), total, p, size));
             })
-            .WithSummary("Lista faktur (filtry: status, zakres dat, wyszukiwanie; stronicowanie)");
+            .WithSummary("Lista faktur (filtry: status, rozliczenie, zakres dat, wyszukiwanie; stronicowanie)");
 
-        group.MapGet("/{id:int}", async (int id, CurrentCompany current, AppDbContext db, CancellationToken ct) =>
+        group.MapGet("/{id:int}", async (int id, CurrentCompany current, AppDbContext db, TimeProvider time, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions)
+                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions).Include(i => i.Payments)
+                    .AsSplitQuery()
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
-                return invoice is null ? ApiErrors.NotFound("faktura") : Results.Ok(invoice.ToDto());
+                return invoice is null ? ApiErrors.NotFound("faktura") : Results.Ok(invoice.ToDto(PolishDate.Today(time)));
             })
             .WithSummary("Szczegóły faktury");
 

@@ -436,6 +436,50 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.ToTable("KsefSubmissions");
                 });
 
+            modelBuilder.Entity("FakturowanieKSeF.Models.Payment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("InvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("PaidOn")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("ReceivedInvoiceId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("ReceivedInvoiceId");
+
+                    b.ToTable("Payments", t =>
+                        {
+                            t.HasCheckConstraint("CK_Payments_OneInvoice", "(\"InvoiceId\" IS NULL) <> (\"ReceivedInvoiceId\" IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("FakturowanieKSeF.Models.ReceivedInvoice", b =>
                 {
                     b.Property<int>("Id")
@@ -464,6 +508,9 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.Property<DateTime>("DownloadedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("InvoiceHash")
                         .HasMaxLength(64)
@@ -925,6 +972,31 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Navigation("Invoice");
                 });
 
+            modelBuilder.Entity("FakturowanieKSeF.Models.Payment", b =>
+                {
+                    b.HasOne("FakturowanieKSeF.Models.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FakturowanieKSeF.Models.Invoice", "Invoice")
+                        .WithMany("Payments")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FakturowanieKSeF.Models.ReceivedInvoice", "ReceivedInvoice")
+                        .WithMany("Payments")
+                        .HasForeignKey("ReceivedInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Invoice");
+
+                    b.Navigation("ReceivedInvoice");
+                });
+
             modelBuilder.Entity("FakturowanieKSeF.Models.ReceivedInvoice", b =>
                 {
                     b.HasOne("FakturowanieKSeF.Models.Company", "Company")
@@ -1001,6 +1073,13 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("KsefSubmissions");
+
+                    b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.ReceivedInvoice", b =>
+                {
+                    b.Navigation("Payments");
                 });
 #pragma warning restore 612, 618
         }

@@ -17,6 +17,9 @@ erDiagram
     Customers |o--o{ Invoices : "źródło danych nabywcy"
     Invoices ||--|{ InvoiceItems : "pozycje"
     Invoices ||--o{ KsefSubmissions : "próby wysyłki"
+    Invoices |o--o{ Payments : "wpłaty nabywcy"
+    ReceivedInvoices |o--o{ Payments : "zapłaty sprzedawcy"
+    Companies ||--o{ Payments : "rozliczenia"
 
     AspNetUsers {
         string Id PK
@@ -132,6 +135,7 @@ erDiagram
     ReceivedInvoices {
         int Id PK
         int CompanyId FK
+        date DueDate "termin płatności z XML"
         string KsefNumber "unikalny w firmie"
         string InvoiceNumber
         string SellerNip
@@ -149,6 +153,17 @@ erDiagram
         date BankAccountCheckedOn "stan wykazu na dzień"
         string BankAccountCheckRequestId "identyfikator zapytania MF"
     }
+
+    Payments {
+        int Id PK
+        int CompanyId FK
+        int InvoiceId FK "albo"
+        int ReceivedInvoiceId FK "albo (CHECK: dokładnie jedno)"
+        date PaidOn
+        numeric Amount "w walucie faktury"
+        string Note
+        timestamptz CreatedAt
+    }
 ```
 
 ## Opis tabel
@@ -162,6 +177,7 @@ erDiagram
 | `InvoiceItems` | Pozycje faktury (FaWiersz). |
 | `KsefSubmissions` | Historia prób wysyłki faktury do KSeF: wysłany XML, skrót, numery referencyjne, status, numer KSeF, UPO. |
 | `DataProtectionKeys` | Klucze ASP.NET Core Data Protection (szyfrowanie tokenów KSeF i ciasteczek sesji), rotowane automatycznie. |
+| `Payments` | Rozliczenia: wpłaty za faktury wystawione i zapłaty za otrzymane (D30). Stan rozliczenia jest wyliczany z sumy płatności, a nie przechowywany. |
 | `ReceivedInvoices` | Faktury zakupowe pobrane z KSeF (tylko do odczytu), z pełnym XML. Jedyne pola zmieniane przez użytkownika to wynik sprawdzenia rachunku na białej liście (D29). |
 
 ## Kluczowe reguły
@@ -187,6 +203,8 @@ i datę przyjęcia do `Invoices`, żeby listy i wyszukiwanie nie wymagały złą
 - Klucze obce do faktur i od faktur mają `ON DELETE RESTRICT`: baza nie pozwoli fizycznie usunąć firmy lub
   kontrahenta, do którego odwołują się faktury, ani faktury z historią wysyłek do KSeF.
 - Jedynie pozycje faktury (`InvoiceItems`) są usuwane kaskadowo, bo są częścią faktury.
+- Płatności (`Payments`) to zapis pomocniczy użytkownika, nie dokument podatkowy - błędnie zarejestrowaną
+  płatność usuwa się fizycznie.
 
 **Unikalność** (indeksy częściowe PostgreSQL, z pominięciem usuniętych rekordów):
 - numer faktury w ramach firmy: `(CompanyId, Number)`,

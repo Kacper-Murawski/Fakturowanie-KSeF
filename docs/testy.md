@@ -10,8 +10,8 @@ Strategię uzasadnia decyzja D7.
 flowchart TB
     L["Testy na żywo z testowym KSeF (2)<br/>prawdziwa bramka: token, wysyłka, numer KSeF, UPO, odbiór A→B"]
     E["Testy E2E w przeglądarce (7)<br/>Playwright + Chromium pl-PL, cały stos, atrapa KSeF"]
-    I["Testy integracyjne (ok. 80)<br/>API + PostgreSQL + Identity + usługi w tle, atrapa KSeF"]
-    U["Testy jednostkowe (ok. 70)<br/>NIP, kalkulator, stawki VAT, XML FA(3) + XSD, QR, blokada produkcji, wykaz VAT"]
+    I["Testy integracyjne (ok. 85)<br/>API + PostgreSQL + Identity + usługi w tle, atrapa KSeF"]
+    U["Testy jednostkowe (ok. 75)<br/>NIP, kalkulator, stawki VAT, XML FA(3) + XSD, QR, blokada produkcji, wykaz VAT"]
     L --> E --> I --> U
 ```
 
@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **159 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **170 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -36,6 +36,7 @@ jednostkowe, integracyjne i E2E.
 | XML FA(3) | `Fa3XmlGeneratorTests`, `Fa3SchemaValidatorTests`, `InvoiceXmlApiTests`, `Fa3InvoiceReaderTests` | każdy wariant faktury zgodny z oficjalnym XSD; UTF-8 bez BOM; znaki specjalne; ochrona przed XXE; odczyt faktur MF |
 | Integracja z KSeF | `KsefSettingsTests`, `KsefSendingTests`, `ReceivedInvoicesTests`, `KsefEnvironmentGuardTests`, `KsefClientRegistrationTests` | szyfrowanie tokenu; pełny przepływ wysyłki; odrzucenie i ponowna wysyłka; awarie przed i po wysyłce; podwójna wysyłka; synchronizacja do HWM, limity, deduplikacja; blokada produkcji |
 | PDF i QR | `InvoicePdfTests`, `KsefQrTests` | treść PDF odczytana z pliku (PdfPig); zgodność linku QR z klientem MF |
+| Rozliczenia | `PaymentRulesTests`, `PaymentApiTests` | stan rozliczenia i zaległości; wpłaty częściowe i pełne; nadpłata, data z przyszłości, szkic; filtry list; podsumowanie należności i zobowiązań; izolacja |
 | Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests`, testy rachunku w `ReceivedInvoicesTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF (wyszukiwanie, sprawdzenie rachunku); pamięć podręczna; limity dzienne; awaria MF; zapis wyniku sprawdzenia, rachunki zagraniczne, izolacja |
 | Interfejs (E2E) | `UserScenariosE2ETests` | główne scenariusze użytkownika i regresje błędów interfejsu |
 | Na żywo | `KsefLiveTests` | prawdziwy testowy KSeF: wysyłka, numer KSeF, UPO; faktura firmy A odebrana przez firmę B |

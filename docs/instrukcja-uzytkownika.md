@@ -81,7 +81,20 @@ PDF szkicu jest oznaczony jako dokument niebędący fakturą.
 
 ![Wydruk PDF](zrzuty/14-wydruk-pdf.png)
 
-## 7. Lista faktur i pulpit
+## 7. Rozliczenia (płatności)
+
+Pod danymi faktury przekazanej do KSeF znajduje się sekcja **Rozliczenie**. Rejestruj w niej wpłaty od nabywcy:
+datę, kwotę (domyślnie pozostała do zapłaty) i uwagi, np. „zaliczka”. Aplikacja pokazuje stan: *Nieopłacona*,
+*Częściowo opłacona*, *Opłacona* lub *Po terminie*. Przycisk **Oznacz jako opłaconą** rejestruje wpłatę pozostałej
+kwoty z dzisiejszą datą. Błędnie zarejestrowaną wpłatę usuniesz przyciskiem ✕. Tak samo rejestrujesz zapłaty za
+faktury otrzymane. Szkice i faktury odrzucone nie podlegają rozliczeniu.
+
+![Rozliczenie faktury](zrzuty/17-rozliczenie-faktury.png)
+
+Listy faktur mają filtr **Płatność** (nieopłacone, po terminie, opłacone), a pulpit pokazuje sumę **należności**
+i **zobowiązań**, w tym kwoty po terminie. Kliknięcie kwoty otwiera listę odpowiednich faktur.
+
+## 8. Lista faktur i pulpit
 
 W menu **Faktury** jest lista faktur z wyszukiwaniem (numer, nabywca, NIP, numer KSeF), filtrami statusu i dat
 oraz stronicowaniem. **Pulpit** pokazuje liczbę faktur w każdym statusie.
@@ -90,7 +103,7 @@ oraz stronicowaniem. **Pulpit** pokazuje liczbę faktur w każdym statusie.
 
 ![Pulpit](zrzuty/11-pulpit.png)
 
-## 8. Faktury otrzymane
+## 9. Faktury otrzymane
 
 W menu **Faktury otrzymane** znajdują się faktury wystawione na NIP Twojej firmy przez innych podatników,
 pobrane z KSeF. Aplikacja pobiera je automatycznie co 15 minut. Możesz też wybrać **Pobierz z KSeF**,
@@ -123,4 +136,5 @@ najlepiej wykonać je w dniu zlecenia przelewu („Sprawdź ponownie”).
 | „Synchronizacja była uruchomiona przed chwilą…” | Odczekaj minutę przed ponownym pobraniem faktur otrzymanych. |
 | „W obecnej wersji obsługiwane są wyłącznie faktury w PLN.” | Ograniczenie wersji MVP. |
 | „Podmiotu o tym numerze NIP nie ma w wykazie podatników VAT.” | Podmiot nie jest zarejestrowany jako podatnik VAT (np. osoba prywatna). Wpisz dane ręcznie. |
+| „Kwota przekracza pozostałą do zapłaty (…)” | Wpłata większa niż pozostała kwota. Sprawdź kwotę lub zarejestrowane wcześniej wpłaty. |
 | „Wykorzystano dzienny limit sprawdzeń w wykazie…” | Wpisz dane ręcznie lub skorzystaj z wykazu następnego dnia. |

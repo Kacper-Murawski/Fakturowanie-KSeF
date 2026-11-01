@@ -1,3 +1,4 @@
+using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Contracts.Dtos;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -113,27 +114,6 @@ public sealed class VatRegistryLimiter(IConfiguration config)
 
             _perUser[(kind, userId)] = used + 1;
             _total[kind] = _total.GetValueOrDefault(kind) + 1;
-        }
-    }
-}
-
-/// <summary>Data w strefie czasowej Polski - wykaz MF i KSeF operują na dniach kalendarzowych czasu polskiego.</summary>
-public static class PolishDate
-{
-    private static readonly TimeZoneInfo Zone = FindZone();
-
-    public static DateOnly Today(TimeProvider time) =>
-        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), Zone).DateTime);
-
-    private static TimeZoneInfo FindZone()
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw");
-        }
-        catch (Exception e) when (e is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            return TimeZoneInfo.Utc; // brak bazy stref czasowych w systemie - dzień według UTC
         }
     }
 }

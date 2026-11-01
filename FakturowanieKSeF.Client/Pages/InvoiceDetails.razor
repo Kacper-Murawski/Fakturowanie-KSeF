@@ -89,6 +89,13 @@ else
             break;
     }
 
+    @if (invoice.Payment is { } payment)
+    {
+        <PaymentPanel InvoiceUrl="@($"api/invoices/{invoice.Id}")" Info="payment" TotalGross="invoice.TotalGross"
+                      Currency="@invoice.Currency" DueDate="invoice.DueDate"
+                      InfoChanged="info => invoice = invoice with { Payment = info }" />
+    }
+
     <div class="invoice-sheet card">
         <div class="card-body">
             <div class="row mb-4">

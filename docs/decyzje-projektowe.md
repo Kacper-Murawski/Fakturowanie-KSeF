@@ -491,3 +491,29 @@ stan wykazu z dnia zlecenia przelewu.
 
 **Uzasadnienie:** sprawdzenie wykonywane świadomie w momencie istotnym prawnie (przed zapłatą), zapis
 identyfikatora zapytania MF jako dowodu, oszczędne gospodarowanie wspólnym limitem MF.
+
+---
+
+## D30. Rozliczenia faktur jako lista płatności
+
+**Decyzja:** płatności są osobną tabelą `Payments` (data, kwota, uwagi), powiązaną z fakturą wystawioną albo
+otrzymaną (ograniczenie CHECK: dokładnie jedna). Stan rozliczenia (*nieopłacona*, *częściowo opłacona*, *opłacona*)
+i zaległość (*po terminie*) nie są przechowywane, tylko wyliczane z sumy płatności, kwoty brutto i terminu
+płatności - w zapytaniach SQL (filtry list, podsumowanie) i w jednej funkcji `PaymentRules` współdzielonej z klientem.
+Rozliczeniu podlegają faktury przekazane do KSeF (nie szkice ani odrzucone). Nadpłata i data z przyszłości są
+odrzucane. Dzień „dzisiaj” liczony jest w czasie polskim. Termin płatności faktur otrzymanych jest zapisywany
+podczas pobierania z KSeF (z XML), a dla faktur pobranych wcześniej uzupełniony w migracji.
+
+**Alternatywy:**
+- pole „opłacona” (tak/nie) lub „data zapłaty” w fakturze: najprostsze, ale nie obsługuje wpłat częściowych
+  (zaliczki, raty) ani historii,
+- przechowywany status rozliczenia aktualizowany przy każdej płatności: szybsze filtry, ale ryzyko niespójności
+  (status „po terminie” zmienia się z upływem czasu, bez żadnego zapisu),
+- automatyczne rozliczanie na podstawie wyciągów bankowych (import MT940/CSV lub API banku): wygodne, ale wymaga
+  dopasowywania przelewów do faktur i integracji z bankami - kierunek rozwoju,
+- oznaczenie zapłaty w samej fakturze FA(3) (`Zaplacono`, `DataZaplaty`): dotyczy faktur opłaconych przed
+  wystawieniem; nie zastępuje rozliczeń po wystawieniu.
+
+**Uzasadnienie:** model odpowiada rzeczywistości (wpłaty częściowe, historia, możliwość korekty pomyłki), stan
+zawsze zgodny z danymi (wyliczany), zaległość aktualna bez zadań w tle. Przy skali MVP wyliczanie sumy w podzapytaniu
+jest wystarczająco szybkie (indeksy na kluczach obcych).

@@ -138,6 +138,7 @@ api.MapInvoiceEndpoints();
 api.MapKsefSettingsEndpoints();
 api.MapReceivedInvoiceEndpoints();
 api.MapVatRegistryEndpoints();
+api.MapPaymentEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

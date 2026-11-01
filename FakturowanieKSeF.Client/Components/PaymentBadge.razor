@@ -1,0 +1,27 @@
+@* Etykieta stanu rozliczenia faktury *@
+@if (Status is { } status)
+{
+    <span class="badge @Css(status)" data-testid="payment-badge">@Label(status)</span>
+}
+
+@code {
+    [Parameter] public PaymentStatus? Status { get; set; }
+    [Parameter] public bool IsOverdue { get; set; }
+
+    private string Label(PaymentStatus s) => IsOverdue
+        ? (s == PaymentStatus.PartiallyPaid ? "Po terminie (częściowo)" : "Po terminie")
+        : s switch
+        {
+            PaymentStatus.Paid => "Opłacona",
+            PaymentStatus.PartiallyPaid => "Częściowo opłacona",
+            _ => "Nieopłacona"
+        };
+
+    private string Css(PaymentStatus s) => IsOverdue ? "bg-danger"
+        : s switch
+        {
+            PaymentStatus.Paid => "bg-success",
+            PaymentStatus.PartiallyPaid => "bg-warning text-dark",
+            _ => "bg-secondary"
+        };
+}

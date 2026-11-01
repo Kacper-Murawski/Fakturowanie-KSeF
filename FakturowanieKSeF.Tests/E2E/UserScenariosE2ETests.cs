@@ -189,7 +189,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
 
         await page.ClickAsync("text=Wyślij do KSeF");
         // Usługa w tle (atrapa KSeF) przetwarza wysyłkę; strona odświeża status automatycznie
-        await Expect(page.Locator(".badge")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
         await Expect(page.GetByText("Pobierz UPO")).ToBeVisibleAsync(new() { Timeout = 30_000 });
         await Expect(page.Locator("h1 + span + span")).ToContainTextAsync(nip + "-");
 
@@ -202,6 +202,34 @@ public class UserScenariosE2ETests(E2EFixture fx)
 
         // Faktura przyjęta jest nienaruszalna
         await Expect(page.GetByText("Edytuj")).Not.ToBeVisibleAsync();
+
+        // Rozliczenie: wpłata częściowa (brutto 2 361,60), potem „Oznacz jako opłaconą”
+        var panel = page.Locator("[data-testid=payment-panel]");
+        await Expect(panel.Locator("[data-testid=payment-badge]")).ToHaveTextAsync("Nieopłacona");
+        await panel.Locator("#paid-amount").FillAsync("1000.50"); // pole liczbowe: wartość w formacie HTML (kropka)
+        await panel.Locator("#paid-note").FillAsync("zaliczka");
+        await panel.Locator("button:has-text('Zarejestruj')").ClickAsync();
+        await Expect(panel.Locator("[data-testid=payment-badge]")).ToHaveTextAsync("Częściowo opłacona");
+        await Expect(panel.Locator("[data-testid=remaining]")).ToContainTextAsync("1 361,10");
+        await E2EFixture.ScreenshotAsync(page, "17-rozliczenie-faktury");
+
+        // Nadpłata - komunikat przy polu kwoty
+        await panel.Locator("#paid-amount").FillAsync("5000");
+        await panel.Locator("button:has-text('Zarejestruj')").ClickAsync();
+        await Expect(panel.GetByText("Kwota przekracza pozostałą do zapłaty")).ToBeVisibleAsync();
+
+        await panel.Locator("button:has-text('Oznacz jako opłaconą')").ClickAsync();
+        await Expect(panel.Locator("[data-testid=payment-badge]")).ToHaveTextAsync("Opłacona");
+        await Expect(panel.Locator("tbody tr")).ToHaveCountAsync(2);
+
+        // Lista z filtrem rozliczenia i pulpit (brak należności)
+        await page.GotoAsync("/faktury?payment=Paid");
+        await Expect(page.Locator("tbody tr")).ToHaveCountAsync(1);
+        await Expect(page.Locator("tbody [data-testid=payment-badge]")).ToHaveTextAsync("Opłacona");
+        await page.GotoAsync("/faktury?payment=Unpaid");
+        await Expect(page.GetByText("Brak faktur spełniających kryteria.")).ToBeVisibleAsync();
+        await page.GotoAsync("/");
+        await Expect(page.Locator("[data-testid=receivables]")).ToContainTextAsync("0,00 PLN");
     }
 
     [E2EFact]
