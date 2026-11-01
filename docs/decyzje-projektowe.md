@@ -50,3 +50,25 @@ tokeny Bearer. Użytkownicy przechowywani w tej samej bazie PostgreSQL.
 
 **Konsekwencje:** wbudowany `/register` przyjmuje tylko e-mail i hasło, więc imię i nazwisko (`FirstName`, `LastName`)
 są opcjonalne i uzupełniane w profilu.
+
+---
+
+## D4. Jedno konto użytkownika = jedna firma (w MVP)
+
+**Kontekst:** użytkownik może w przyszłości prowadzić kilka działalności lub obsługiwać kilka firm (np. biuro rachunkowe).
+
+**Decyzja:** w MVP każde konto ma dokładnie jedną firmę. Model danych (encja `Company` powiązana z właścicielem)
+pozostaje przygotowany na wiele firm, żeby rozszerzenie nie wymagało przebudowy.
+
+**Alternatywa:** od początku wiele firm na konto, z przełącznikiem aktywnej firmy w interfejsie.
+
+**Uzasadnienie:** prostsza izolacja danych, prostszy interfejs i mniej przypadków brzegowych; pozwala szybciej
+dostarczyć działające minimum. Typowy użytkownik (jednoosobowa działalność) ma jedną firmę.
+
+## D5. Faktury korygujące poza zakresem MVP
+
+**Decyzja:** w MVP obsługiwana jest wyłącznie podstawowa faktura VAT. Korekty (KOR) i inne rodzaje faktur
+zostaną dodane po ukończeniu minimalnej funkcjonalności.
+
+**Uzasadnienie:** korekty wymagają powiązania z fakturą pierwotną (w tym jej numerem KSeF) i osobnej logiki
+różnic „przed/po”; to rozszerzenie, które nie blokuje głównego przepływu wystawienia i wysyłki faktury.

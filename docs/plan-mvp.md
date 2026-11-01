@@ -44,8 +44,7 @@ i numer KSeF, a także widzi faktury, które inni wystawili na jego NIP. Aplikac
 - Backend przed frontendem: API testowalne przez Swagger, UI powstaje na stabilnym kontrakcie.
 - Wdrożenie można wykonać wcześniej (np. po etapie 4), żeby od początku testować w docelowym środowisku.
 
-## Otwarte pytania do autora
-- 1 konto = 1 firma w MVP?
-- Czy korekty muszą być w MVP (wymóg promotora)?
-- Termin oddania pracy (harmonogram)?
-- Wymagany układ rozdziałów pracy?
+## Ustalenia z autorem
+- 1 konto = 1 firma w MVP (decyzja D4).
+- Faktury korygujące poza MVP.
+- Harmonogram i układ rozdziałów pracy: brak narzuconych wymagań na tym etapie.
