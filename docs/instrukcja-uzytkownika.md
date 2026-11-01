@@ -35,6 +35,14 @@ Wyszukiwanie działa po nazwie i NIP. Zmiana danych kontrahenta nie zmienia fakt
 
 ![Formularz kontrahenta](zrzuty/04-kontrahent-formularz.png)
 
+**Dane z wykazu podatników VAT.** Wpisz NIP i wybierz **Pobierz z wykazu VAT**: nazwa i adres uzupełnią się
+na podstawie wykazu Ministerstwa Finansów (tzw. Biała lista). Pod polem pojawi się data stanu danych i status VAT,
+a ostrzeżenie, jeśli podmiot nie jest czynnym podatnikiem VAT. Ten sam przycisk działa przy NIP-ie nabywcy
+wpisywanym ręcznie na fakturze i w danych Twojej firmy (tam podpowiada też rachunek bankowy). Dzienna liczba
+sprawdzeń jest ograniczona; po jej wyczerpaniu dane można wpisać ręcznie.
+
+![Kontrahent uzupełniony z wykazu VAT](zrzuty/15-kontrahent-z-wykazu-vat.png)
+
 ## 4. Wystawianie faktury
 
 Wybierz **Nowa faktura**:
@@ -104,3 +112,5 @@ Podgląd faktury otrzymanej pokazuje jej pełną treść, a także umożliwia po
 | „Faktura o tym numerze już istnieje.” | Zmień numer albo zostaw pole puste (numer automatyczny). |
 | „Synchronizacja była uruchomiona przed chwilą…” | Odczekaj minutę przed ponownym pobraniem faktur otrzymanych. |
 | „W obecnej wersji obsługiwane są wyłącznie faktury w PLN.” | Ograniczenie wersji MVP. |
+| „Podmiotu o tym numerze NIP nie ma w wykazie podatników VAT.” | Podmiot nie jest zarejestrowany jako podatnik VAT (np. osoba prywatna). Wpisz dane ręcznie. |
+| „Wykorzystano dzienny limit sprawdzeń w wykazie…” | Wpisz dane ręcznie lub skorzystaj z wykazu następnego dnia. |

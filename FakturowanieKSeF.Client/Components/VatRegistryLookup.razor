@@ -1,0 +1,70 @@
+@* Pole NIP z przyciskiem pobrania danych z wykazu podatników VAT (Biała lista MF).
+   Pole NIP przekazywane jako ChildContent - komponent dokłada przycisk i komunikat o wyniku. *@
+@using FakturowanieKSeF.Contracts.Validation
+@inject ApiClient Api
+
+<div class="input-group">
+    @ChildContent
+    <button type="button" class="btn btn-outline-secondary" data-testid="vat-lookup"
+            disabled="@(busy || !NipValidator.IsValid(Nip))" @onclick="LookupAsync"
+            title="Uzupełnij nazwę i adres na podstawie wykazu podatników VAT Ministerstwa Finansów">
+        @(busy ? "Sprawdzanie…" : "Pobierz z wykazu VAT")
+    </button>
+</div>
+@if (message is not null)
+{
+    <div class="form-text @messageClass" role="status" data-testid="vat-lookup-status">@message</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string? Nip { get; set; }
+    [Parameter, EditorRequired] public EventCallback<VatRegistryEntryDto> OnFound { get; set; }
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = null!;
+
+    /// <summary>Obiekty formularza uzupełniane danymi z wykazu - po uzupełnieniu ich pola są walidowane ponownie,
+    /// żeby zniknęły nieaktualne komunikaty (np. „Podaj miejscowość.”).</summary>
+    [Parameter] public object[] Revalidate { get; set; } = [];
+
+    [CascadingParameter] private EditContext? EditContext { get; set; }
+
+    private bool busy;
+    private string? message, messageClass;
+
+    private async Task LookupAsync()
+    {
+        busy = true;
+        message = null;
+        var result = await Api.GetAsync<VatRegistryEntryDto>($"api/vat-registry/{NipValidator.Normalize(Nip!)}");
+        busy = false;
+
+        if (result.Value is not { } entry)
+        {
+            message = result.Problem?.Title;
+            messageClass = result.Problem?.Status == 404 ? "text-warning-emphasis" : "text-danger";
+            return;
+        }
+
+        await OnFound.InvokeAsync(entry);
+        foreach (var model in Revalidate)
+            foreach (var property in model.GetType().GetProperties().Where(p => p.PropertyType == typeof(string)))
+                EditContext?.NotifyFieldChanged(new FieldIdentifier(model, property.Name));
+
+        var checkedOn = entry.CheckedOn.ToString("dd.MM.yyyy");
+        (message, messageClass) = entry switch
+        {
+            { IsActiveVatPayer: false } => ($"Uzupełniono dane z wykazu (stan na {checkedOn}). Uwaga: status VAT - {entry.VatStatus}.", "text-warning-emphasis"),
+            { Address: null } => ($"Uzupełniono nazwę z wykazu (stan na {checkedOn}). Adresu „{entry.RegistryAddress}” nie udało się rozpoznać - uzupełnij go ręcznie.", "text-warning-emphasis"),
+            _ => ($"Uzupełniono dane z wykazu podatników VAT (stan na {checkedOn}): czynny podatnik VAT.", "text-success")
+        };
+    }
+
+    /// <summary>Kopiuje adres z wykazu do adresu w formularzu (ten sam obiekt - powiązania pól pozostają aktualne).</summary>
+    public static void CopyAddress(VatRegistryEntryDto entry, AddressDto target)
+    {
+        if (entry.Address is not { } a) return;
+        target.Street = a.Street;
+        target.PostalCode = a.PostalCode;
+        target.City = a.City;
+        target.CountryCode = a.CountryCode;
+    }
+}

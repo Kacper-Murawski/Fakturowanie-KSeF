@@ -20,6 +20,7 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 | **Wyścigi i podwójne operacje** | Optymistyczna kontrola współbieżności (`xmin`), unikalne indeksy (numer faktury, NIP, numer KSeF) (D17) | Testy konfliktu wersji i podwójnej wysyłki |
 | **Utrata lub duplikacja dokumentów podatkowych** | Miękkie usuwanie, `ON DELETE RESTRICT`, faktury wysłane nienaruszalne; brak oznaczania faktury jako odrzuconej po jej przyjęciu do przetwarzania przez KSeF (D12, D25) | Testy modelu danych i awarii wysyłki |
 | **Przekroczenie limitów API KSeF (blokada konta integratora)** | Budżet zapytań na synchronizację, ręczna synchronizacja max raz na minutę, cyklicznie min. 15 minut (D26) | Test ograniczenia częstotliwości |
+| **Wyczerpanie limitu API wykazu VAT przez jednego użytkownika** (limit MF liczony dla adresu IP serwera) | Pamięć podręczna wyników do końca dnia, dzienny limit na użytkownika i dla całej aplikacji, endpoint tylko dla zalogowanych (D28) | `VatRegistryLimitTests` |
 | **Podatne zależności** | Wymuszone poprawione wersje bibliotek kryptograficznych klienta MF (D10); pakiety Microsoft w jednej wersji 10.0.x; `dotnet list package --vulnerable` bez zgłoszeń dla aplikacji | Audyt NuGet przy budowie |
 | **Ujawnienie danych na współdzielonym środowisku testowym KSeF** | Ostrzeżenie w interfejsie przed używaniem prawdziwych danych firm (D24) | Interfejs |
 

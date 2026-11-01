@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Endpoints;
 using FakturowanieKSeF.Api.Infrastructure;
+using FakturowanieKSeF.Api.Integrations.VatWhiteList;
 using FakturowanieKSeF.Api.Services;
 using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Ksef.Fa3;
@@ -70,6 +71,16 @@ builder.Services.AddScoped<ReceivedInvoiceSync>();
 builder.Services.AddSingleton<InvoicePdfRenderer>();
 builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 
+// Wykaz podatników VAT (Biała lista MF) - podpowiadanie danych po NIP, z pamięcią podręczną i limitami (D28)
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IVatWhiteListClient, VatWhiteListClient>(http =>
+{
+    http.BaseAddress = new Uri(VatWhiteListClient.BaseAddress);
+    http.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddSingleton<VatRegistryLimiter>();
+builder.Services.AddScoped<VatRegistryLookup>();
+
 // Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji
 builder.Services.AddDataProtection()
     .SetApplicationName("FakturowanieKSeF")
@@ -126,6 +137,7 @@ api.MapCustomerEndpoints();
 api.MapInvoiceEndpoints();
 api.MapKsefSettingsEndpoints();
 api.MapReceivedInvoiceEndpoints();
+api.MapVatRegistryEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

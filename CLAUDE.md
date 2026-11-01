@@ -56,6 +56,10 @@
   Lokalnie w kontenerze: `E2E_CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
 - Dokumentacja do pracy: indeks `docs/README.md` - aktualizuj odpowiedni dokument przy każdej zmianie.
 - Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
+- Git: każda funkcja na osobnej gałęzi o nazwie tematycznej po polsku, np. `feature/faktury-korygujace`,
+  `fix/walidacja-nip` (nie nazwy losowe); jeden PR do `main` na funkcję, scalanie przez merge commit.
+- Biała lista VAT (`wl-api.mf.gov.pl`): klient `IVatWhiteListClient` (w testach `FakeVatWhiteList`), odczyty przez
+  `VatRegistryLookup` (pamięć podręczna + dzienne limity, bo MF limituje zapytania na adres IP serwera).
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).
 - API pod prefiksem `/api`; klient Blazor serwowany przez API (fallback do `index.html`).
 - Migracje: `dotnet ef migrations add <Nazwa> --project FakturowanieKSeF.Api --output-dir Data/Migrations`.

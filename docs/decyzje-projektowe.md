@@ -434,3 +434,32 @@ niskopoziomowe (PdfSharp/iText - więcej kodu; iText na licencji AGPL).
 **Uzasadnienie:** wydruk odpowiada dokładnie dokumentowi w KSeF (jedno źródło prawdy - XML), deklaratywny układ
 w C#, licencja QuestPDF Community bezpłatna dla projektu akademickiego (oraz firm z przychodem < 1 mln USD).
 Poprawność kodu QR potwierdzona zgodnością linku z klientem MF i skrótu dokumentu z UPO wystawionym przez KSeF.
+
+---
+
+## D28. Dane kontrahenta z wykazu podatników VAT (Biała lista MF)
+
+**Kontekst:** wszystkie konkurencyjne programy do faktur uzupełniają dane kontrahenta po wpisaniu NIP. Źródłem
+może być wykaz podatników VAT Ministerstwa Finansów (publiczne API `wl-api.mf.gov.pl`, bez klucza) albo rejestr
+REGON GUS (API BIR, wymaga klucza i protokołu SOAP). API wykazu ogranicza dzienną liczbę zapytań wyszukujących
+dla adresu IP, a w modelu SaaS wszystkie zapytania wychodzą z jednego adresu serwera.
+
+**Decyzja:** dane po NIP są pobierane z wykazu podatników VAT przez usługę `VatRegistryLookup`:
+- wynik (także „brak w wykazie”) jest przechowywany w pamięci podręcznej do końca dnia - wykaz podaje stan na dzień,
+- liczba zapytań do MF jest ograniczona dziennie dla całej aplikacji i dla każdego użytkownika (konfiguracja
+  `VatWhiteList:DailyLimit`, `VatWhiteList:DailyLimitPerUser`), żeby jeden użytkownik nie zablokował funkcji innym,
+- adres z wykazu (jeden tekst wielkimi literami) jest rozbijany na pola formularza z polską pisownią
+  („UL. JANA PAWŁA II 15” → „ul. Jana Pawła II 15”); gdy nie da się go rozpoznać, użytkownik dostaje komunikat,
+- dane tylko podpowiadają wartości w formularzu - użytkownik je widzi i zatwierdza przed zapisem,
+- interfejs pokazuje status VAT i ostrzega, gdy podmiot nie jest czynnym podatnikiem VAT.
+
+**Alternatywy:**
+- REGON GUS (BIR1): obejmuje też podmioty niebędące podatnikami VAT, ale wymaga klucza od GUS, protokołu SOAP
+  i nie podaje statusu VAT ani rachunków; możliwe rozszerzenie w przyszłości,
+- zapytania bez pamięci podręcznej i limitów: prostsze, ale ryzyko przekroczenia limitu MF dla całej aplikacji,
+- pamięć podręczna w bazie danych zamiast w pamięci procesu: przetrwałaby restart, ale przy jednej instancji
+  aplikacji nie daje istotnej korzyści (limity MF odnawiają się codziennie).
+
+**Uzasadnienie:** jedno publiczne źródło urzędowe, które oprócz danych rejestrowych zwraca status VAT i rachunki
+(wykorzystane też do weryfikacji rachunków na fakturach otrzymanych), bez rejestracji i kluczy. Pamięć podręczna
+i limity chronią wspólny limit MF w modelu wielu użytkowników.

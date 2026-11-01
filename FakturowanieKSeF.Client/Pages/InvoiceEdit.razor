@@ -74,14 +74,16 @@ else
                 @if (model.CustomerId is null && model.Buyer is not null)
                 {
                     <div class="row g-2 mb-2">
-                        <div class="col-md-8">
+                        <div class="col-md-6">
                             <label class="form-label" for="buyer-name">Nazwa / imię i nazwisko</label>
                             <InputTextLive id="buyer-name" class="form-control" @bind-Value="model.Buyer.Name" />
                             <ValidationMessage For="() => model.Buyer.Name" />
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label" for="buyer-nip">NIP (puste dla osoby prywatnej)</label>
-                            <InputTextLive id="buyer-nip" class="form-control" @bind-Value="model.Buyer.Nip" />
+                            <VatRegistryLookup Nip="@model.Buyer.Nip" OnFound="FillBuyerFromRegistry" Revalidate="[model.Buyer, model.Buyer.Address]">
+                                <InputTextLive id="buyer-nip" class="form-control" @bind-Value="model.Buyer.Nip" />
+                            </VatRegistryLookup>
                             <ValidationMessage For="() => model.Buyer.Nip" />
                         </div>
                     </div>
@@ -320,6 +322,12 @@ else
     {
         model!.CustomerId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
         model.Buyer = model.CustomerId is null ? NewBuyer() : null;
+    }
+
+    private void FillBuyerFromRegistry(VatRegistryEntryDto entry)
+    {
+        model!.Buyer!.Name = entry.Name;
+        VatRegistryLookup.CopyAddress(entry, model.Buyer.Address);
     }
 
     private void AddItem()

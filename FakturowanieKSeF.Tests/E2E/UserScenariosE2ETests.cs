@@ -247,4 +247,40 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(b.Locator(".alert-danger")).ToContainTextAsync("Nie znaleziono");
         await Expect(b.GetByText("Tajny Kontrahent")).Not.ToBeVisibleAsync();
     }
+
+    [E2EFact]
+    public async Task DaneKontrahentaZWykazuVat_UzupelnianePoNip()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+
+        // Formularz kontrahenta: przycisk aktywny dopiero przy poprawnym NIP
+        await page.GotoAsync("/kontrahenci/nowy");
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.GetByText("Podaj miejscowość.")).ToBeVisibleAsync();
+        await page.FillAsync("#nip", "1234567890");
+        await Expect(page.Locator("[data-testid=vat-lookup]")).ToBeDisabledAsync();
+
+        // Podmiot z wykazu (atrapa API MF): nazwa i adres rozbity na pola, stare komunikaty błędów znikają
+        await page.FillAsync("#nip", "123-456-32-18");
+        await page.ClickAsync("[data-testid=vat-lookup]");
+        await Expect(page.Locator("[data-testid=vat-lookup-status]")).ToContainTextAsync("czynny podatnik VAT");
+        await Expect(page.Locator("#name")).ToHaveValueAsync("PRZYKŁADOWA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ");
+        await Expect(page.Locator("#customer-street")).ToHaveValueAsync("ul. Jana Pawła II 15/3");
+        await Expect(page.Locator("#customer-postal")).ToHaveValueAsync("61-139");
+        await Expect(page.Locator("#customer-city")).ToHaveValueAsync("Poznań");
+        await Expect(page.GetByText("Podaj miejscowość.")).Not.ToBeVisibleAsync();
+        await E2EFixture.ScreenshotAsync(page, "15-kontrahent-z-wykazu-vat");
+
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/kontrahenci$"));
+        await Expect(page.Locator("tbody")).ToContainTextAsync("PRZYKŁADOWA SPÓŁKA");
+
+        // NIP spoza wykazu - komunikat, dane wpisywane ręcznie
+        await page.GotoAsync("/faktury/nowa");
+        await page.FillAsync("#buyer-nip", TestUsers.RandomNip());
+        await page.ClickAsync("[data-testid=vat-lookup]");
+        await Expect(page.Locator("[data-testid=vat-lookup-status]")).ToContainTextAsync("nie ma w wykazie podatników VAT");
+        await Expect(page.Locator("#buyer-name")).ToHaveValueAsync("");
+    }
 }
