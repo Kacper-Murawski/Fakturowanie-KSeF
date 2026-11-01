@@ -38,6 +38,13 @@ public class Invoice : BaseEntity
     [MaxLength(34)]
     public string? BankAccountNumber { get; set; }
 
+    /// <summary>
+    /// Podstawa prawna zwolnienia z VAT (FA(3): P_19A), np. „art. 113 ust. 1 ustawy o VAT”.
+    /// Wymagana, gdy faktura zawiera pozycje ze stawką „zw”.
+    /// </summary>
+    [MaxLength(256)]
+    public string? ExemptionBasis { get; set; }
+
     // --- Strony faktury (kopie danych z chwili wystawienia) ---
 
     public InvoiceParty Seller { get; set; } = new();

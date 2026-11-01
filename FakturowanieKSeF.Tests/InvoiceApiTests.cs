@@ -224,6 +224,9 @@ public class DataIsolationTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, (await userB.PutAsJsonAsync($"/api/invoices/{invoiceA.Id}", edit)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await userB.DeleteAsync($"/api/invoices/{invoiceA.Id}")).StatusCode);
 
+        // XML FA(3) cudzej faktury - 404
+        Assert.Equal(HttpStatusCode.NotFound, (await userB.GetAsync($"/api/invoices/{invoiceA.Id}/xml")).StatusCode);
+
         // Użycie cudzego kontrahenta na własnej fakturze - odrzucone
         var stolen = await userB.PostAsJsonAsync("/api/invoices", TestUsers.SampleInvoice(customerA.Id));
         Assert.Equal(HttpStatusCode.BadRequest, stolen.StatusCode);

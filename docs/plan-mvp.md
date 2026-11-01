@@ -31,7 +31,7 @@ i numer KSeF, a także widzi faktury, które inni wystawili na jego NIP. Aplikac
 | 2. Model danych v2 ✅ | Snapshot sprzedawcy/nabywcy na fakturze, stawki VAT jako enum (zgodne z FA(3)), sumy per stawka, `DateOnly`, `Restrict` na relacjach, unikalne indeksy, soft delete z filtrem, `UpdatedAt`, encje: dane KSeF firmy, faktury otrzymane | Migracja, diagram ERD |
 | 3. Backend ✅ | DTO (osobny projekt `Contracts`), endpointy CRUD (firma, kontrahenci, faktury), izolacja danych po `OwnerId`, walidacja (NIP z sumą kontrolną), serwis obliczania sum, numeracja faktur, obsługa błędów (ProblemDetails) | Testy jednostkowe obliczeń i testy integracyjne izolacji danych |
 | 4. Frontend ✅ | Logowanie/rejestracja, przechowywanie tokenu, layout, strony: profil firmy, kontrahenci, lista faktur (filtry, statusy), formularz faktury z sumami na żywo, podgląd | Pełny przepływ w przeglądarce bez KSeF |
-| 5. XML FA(3) | Mapowanie faktury na XML FA(3), walidacja XSD, testy na przykładach MF | Wygenerowany XML przechodzi walidację |
+| 5. XML FA(3) ✅ | Mapowanie faktury na XML FA(3), walidacja XSD, testy na przykładach MF | Wygenerowany XML przechodzi walidację |
 | 6. Wysyłka do KSeF | Bezpieczne przechowywanie tokenu KSeF (szyfrowanie Data Protection), wysyłka w sesji interaktywnej, BackgroundService odpytujący o status i UPO, aktualizacja statusu faktury, obsługa odrzuceń | Faktura z aplikacji ma numer KSeF z testowego KSeF |
 | 7. Odbiór z KSeF | Okresowe pobieranie metadanych faktur zakupowych, pobranie XML, parsowanie, lista i podgląd | Faktura wystawiona na nasz NIP pojawia się w aplikacji |
 | 8. PDF | Wizualizacja faktury (np. QuestPDF) z numerem KSeF i kodem QR weryfikacji | Pobieranie PDF z listy faktur |

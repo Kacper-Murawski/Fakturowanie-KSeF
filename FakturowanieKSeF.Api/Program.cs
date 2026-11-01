@@ -4,6 +4,7 @@ using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Endpoints;
 using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Services;
+using FakturowanieKSeF.Ksef.Fa3;
 using FakturowanieKSeF.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,6 +54,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CurrentCompany>();
 builder.Services.AddScoped<InvoiceNumbering>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<Fa3XmlGenerator>();
+builder.Services.AddSingleton<Fa3SchemaValidator>();
 
 // Walidacja żądań na podstawie atrybutów DataAnnotations i IValidatableObject w DTO (wbudowana w .NET 10);
 // błędy zwracane jako ValidationProblemDetails (400). Te same reguły działają w formularzach Blazor.

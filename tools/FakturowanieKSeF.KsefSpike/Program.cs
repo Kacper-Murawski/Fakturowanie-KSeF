@@ -1,4 +1,4 @@
-﻿// =====================================================================================================
+// =====================================================================================================
 //  Spike KSeF (etap 1) - prototyp pełnego przepływu wysyłki faktury do ŚRODOWISKA TESTOWEGO KSeF 2.0
 // =====================================================================================================
 //  Kroki:
@@ -17,7 +17,11 @@
 using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using FakturowanieKSeF.Contracts;
+using FakturowanieKSeF.Contracts.Calculation;
 using FakturowanieKSeF.Ksef;
+using FakturowanieKSeF.Ksef.Fa3;
+using FakturowanieKSeF.Models;
 using KSeF.Client.Api.Builders.Auth;
 using KSeF.Client.Api.Builders.Online;
 using KSeF.Client.Api.Builders.X509Certificates;
@@ -113,16 +117,31 @@ var session = await ksefClient.OpenOnlineSessionAsync(openRequest, accessToken);
 Krok($"Otwarto sesję interaktywną: {session.ReferenceNumber}");
 
 // --- 4. Faktura FA(3) ----------------------------------------------------------------------------------
-var templatePath = Path.Combine(AppContext.BaseDirectory, "Templates", "faktura-fa3-szablon.xml");
-var dzis = DateTime.UtcNow.ToString("yyyy-MM-dd");
-var xml = File.ReadAllText(templatePath, Encoding.UTF8)
-    .Replace("#nip#", nip)
-    .Replace("#invoice_number#", Guid.NewGuid().ToString("N")[..8])
-    .Replace("2025-09-01T00:00:00Z", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))
-    .Replace("<P_1>2025-09-01</P_1>", $"<P_1>{dzis}</P_1>");
-File.WriteAllText(Path.Combine(outputDir, "faktura.xml"), xml, Encoding.UTF8);
+// Tryb domyślny: przykładowa faktura z repozytorium MF. Tryb --generated: faktura zbudowana przez generator
+// aplikacji (Fa3XmlGenerator) - weryfikuje, że KSeF przyjmuje XML wytwarzany przez naszą aplikację.
+byte[] invoiceBytes;
+if (args.Contains("--generated"))
+{
+    var invoice = SampleInvoice.Create(nip);
+    invoiceBytes = new Fa3XmlGenerator().GenerateBytes(invoice);
+    var validation = new Fa3SchemaValidator().Validate(invoiceBytes);
+    if (!validation.IsValid)
+        throw new InvalidOperationException("XML niezgodny ze schematem: " + string.Join("; ", validation.Errors));
+    Krok($"Wygenerowano fakturę {invoice.Number} generatorem aplikacji (zgodna ze schematem FA(3)).");
+}
+else
+{
+    var templatePath = Path.Combine(AppContext.BaseDirectory, "Templates", "faktura-fa3-szablon.xml");
+    var dzis = DateTime.UtcNow.ToString("yyyy-MM-dd");
+    var xml = File.ReadAllText(templatePath, Encoding.UTF8)
+        .Replace("#nip#", nip)
+        .Replace("#invoice_number#", Guid.NewGuid().ToString("N")[..8])
+        .Replace("2025-09-01T00:00:00Z", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))
+        .Replace("<P_1>2025-09-01</P_1>", $"<P_1>{dzis}</P_1>");
+    invoiceBytes = new UTF8Encoding(false).GetBytes(xml);
+}
+File.WriteAllBytes(Path.Combine(outputDir, "faktura.xml"), invoiceBytes);
 
-var invoiceBytes = Encoding.UTF8.GetBytes(xml);
 var encryptedInvoice = crypto.EncryptBytesWithAES256(invoiceBytes, encryption.CipherKey, encryption.CipherIv);
 var invoiceMeta = crypto.GetMetaData(invoiceBytes);
 var encryptedMeta = crypto.GetMetaData(encryptedInvoice);
@@ -218,5 +237,55 @@ static class TestNip
 
             return string.Concat(cyfry) + kontrolna;
         }
+    }
+}
+
+/// <summary>Przykładowa faktura (encja aplikacji) z różnymi stawkami, nabywcą B2B i płatnością przelewem.</summary>
+static class SampleInvoice
+{
+    public static Invoice Create(string sellerNip)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var items = new List<InvoiceItem>
+        {
+            Item(1, "Usługa programistyczna", "godz.", 10, 150m, VatRate.Rate23),
+            Item(2, "Książka „Wzorce projektowe”", "szt.", 1, 49.90m, VatRate.Rate5),
+            Item(3, "Szkolenie zwolnione z VAT", "usł.", 1, 500m, VatRate.Exempt)
+        };
+        var totals = InvoiceCalculator.Calculate(items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)));
+
+        return new Invoice
+        {
+            Number = $"FV/{Random.Shared.Next(1000, 9999)}/{today:MM}/{today:yyyy}",
+            IssueDate = today,
+            IssuePlace = "Warszawa",
+            Currency = "PLN",
+            PaymentMethod = PaymentMethod.Transfer,
+            DueDate = today.AddDays(14),
+            BankAccountNumber = "61109010140000071219812874",
+            ExemptionBasis = "art. 43 ust. 1 pkt 29 lit. c ustawy o VAT",
+            Seller = new InvoiceParty
+            {
+                Name = "Pracownia Testowa (dane testowe)", Nip = sellerNip,
+                Address = new Address { Street = "ul. Testowa 1", PostalCode = "00-001", City = "Warszawa", CountryCode = "PL" }
+            },
+            Buyer = new InvoiceParty
+            {
+                Name = "Kontrahent Testowy S.A.", Nip = "1234563218",
+                Address = new Address { Street = "ul. Polna 5", PostalCode = "30-001", City = "Kraków", CountryCode = "PL" }
+            },
+            Items = items,
+            TotalNet = totals.TotalNet, TotalVat = totals.TotalVat, TotalGross = totals.TotalGross
+        };
+    }
+
+    private static InvoiceItem Item(int position, string name, string unit, decimal qty, decimal price, VatRate rate)
+    {
+        var line = InvoiceCalculator.CalculateLine(new LineInput(qty, price, rate));
+        return new InvoiceItem
+        {
+            Position = position, Name = name, Unit = unit, Quantity = qty, UnitNetPrice = price, VatRate = rate,
+            NetAmount = line.NetAmount, VatAmount = line.VatAmount, GrossAmount = line.GrossAmount
+        };
     }
 }

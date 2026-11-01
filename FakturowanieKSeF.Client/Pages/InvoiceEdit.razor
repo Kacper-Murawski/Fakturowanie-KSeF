@@ -31,7 +31,7 @@ else
             <div class="card-body row g-3">
                 <div class="col-md-4">
                     <label class="form-label" for="number">Numer faktury</label>
-                    <InputText id="number" class="form-control" @bind-Value="model.Number" placeholder="@suggestedNumber" />
+                    <InputTextLive id="number" class="form-control" @bind-Value="model.Number" placeholder="@suggestedNumber" />
                     <div class="form-text">@(Id is null ? "Puste - numer zostanie nadany automatycznie." : "")</div>
                     <ValidationMessage For="() => model.Number" />
                 </div>
@@ -46,12 +46,11 @@ else
                 </div>
                 <div class="col-md-2">
                     <label class="form-label" for="place">Miejsce wystawienia</label>
-                    <InputText id="place" class="form-control" @bind-Value="model.IssuePlace" />
+                    <InputTextLive id="place" class="form-control" @bind-Value="model.IssuePlace" />
                 </div>
                 <div class="col-md-2">
                     <label class="form-label" for="currency">Waluta</label>
-                    <InputText id="currency" class="form-control" @bind-Value="model.Currency" maxlength="3" />
-                    <ValidationMessage For="() => model.Currency" />
+                    <input id="currency" class="form-control" value="PLN" readonly title="W obecnej wersji obsługiwane są wyłącznie faktury w PLN" />
                 </div>
             </div>
         </section>
@@ -77,12 +76,12 @@ else
                     <div class="row g-2 mb-2">
                         <div class="col-md-8">
                             <label class="form-label" for="buyer-name">Nazwa / imię i nazwisko</label>
-                            <InputText id="buyer-name" class="form-control" @bind-Value="model.Buyer.Name" />
+                            <InputTextLive id="buyer-name" class="form-control" @bind-Value="model.Buyer.Name" />
                             <ValidationMessage For="() => model.Buyer.Name" />
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="buyer-nip">NIP (puste dla osoby prywatnej)</label>
-                            <InputText id="buyer-nip" class="form-control" @bind-Value="model.Buyer.Nip" />
+                            <InputTextLive id="buyer-nip" class="form-control" @bind-Value="model.Buyer.Nip" />
                             <ValidationMessage For="() => model.Buyer.Nip" />
                         </div>
                     </div>
@@ -123,10 +122,10 @@ else
                                 <tr>
                                     <td>@(n + 1)</td>
                                     <td>
-                                        <InputText class="form-control" @bind-Value="item.Name" aria-label="@($"Nazwa pozycji {n + 1}")" />
+                                        <InputTextLive class="form-control" @bind-Value="item.Name" aria-label="@($"Nazwa pozycji {n + 1}")" />
                                         <ValidationMessage For="() => item.Name" />
                                     </td>
-                                    <td><InputText class="form-control" @bind-Value="item.Unit" aria-label="Jednostka miary" /></td>
+                                    <td><InputTextLive class="form-control" @bind-Value="item.Unit" aria-label="Jednostka miary" /></td>
                                     <td>
                                         <InputNumber class="form-control" @bind-Value="item.Quantity" @bind-Value:after="Recalculate" step="any" aria-label="Ilość" />
                                         <ValidationMessage For="() => item.Quantity" />
@@ -137,7 +136,7 @@ else
                                     </td>
                                     <td>
                                         <InputSelect class="form-select" @bind-Value="item.VatRate" @bind-Value:after="Recalculate" aria-label="Stawka VAT">
-                                            @foreach (var rate in Enum.GetValues<VatRate>())
+                                            @foreach (var rate in VatRateExtensions.Selectable)
                                             {
                                                 <option value="@rate">@rate.ToDisplayName()</option>
                                             }
@@ -155,6 +154,16 @@ else
                     </table>
                 </div>
                 <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddItem">+ Dodaj pozycję</button>
+
+                @if (model.Items.Any(i => i.VatRate == VatRate.Exempt))
+                {
+                    <div class="mt-3 form-narrow">
+                        <label class="form-label" for="exemption">Podstawa prawna zwolnienia z VAT</label>
+                        <InputTextLive id="exemption" class="form-control" @bind-Value="model.ExemptionBasis" placeholder="np. art. 113 ust. 1 ustawy o VAT" />
+                        <div class="form-text">Wymagana na fakturze z pozycjami „zw” (pole P_19A struktury FA(3)).</div>
+                        <ValidationMessage For="() => model.ExemptionBasis" />
+                    </div>
+                }
 
                 @* Podsumowanie liczone tym samym kalkulatorem co na serwerze *@
                 <div class="row justify-content-end mt-3">
@@ -211,7 +220,7 @@ else
                 {
                     <div class="col-md-6">
                         <label class="form-label" for="bank">Numer rachunku</label>
-                        <InputText id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="@(companyAccount ?? "")" />
+                        <InputTextLive id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="@(companyAccount ?? "")" />
                         <div class="form-text">Puste - zostanie użyty rachunek z danych firmy.</div>
                         <ValidationMessage For="() => model.BankAccountNumber" />
                     </div>
@@ -280,6 +289,7 @@ else
                 Number = i.Number, IssueDate = i.IssueDate, IssuePlace = i.IssuePlace, SaleDate = i.SaleDate,
                 Currency = i.Currency, PaymentMethod = i.PaymentMethod, DueDate = i.DueDate,
                 BankAccountNumber = i.BankAccountNumber, CustomerId = i.CustomerId, Version = i.Version,
+                ExemptionBasis = i.ExemptionBasis,
                 Buyer = i.CustomerId is null
                     ? new SaveInvoiceBuyerRequest
                     {

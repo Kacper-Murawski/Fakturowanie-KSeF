@@ -308,3 +308,41 @@ działał poprawnie, w przeglądarce z kulturą `pl-PL` (przecinek) - rzucał wy
 Poprawka: `ParseLimitsInInvariantCulture` i `ConvertValueInInvariantCulture`, oraz test regresyjny uruchamiany
 w kulturach pl-PL, en-US i de-DE. Wniosek: testy API nie zastąpią testów interfejsu - automatyczne testy E2E
 są zaplanowane w etapie 10.
+
+---
+
+## D21. Generowanie XML FA(3): własny generator na `XmlWriter` + walidacja XSD przed każdym wydaniem
+
+**Decyzja:** XML faktury tworzy `Fa3XmlGenerator` strumieniowo przez `XmlWriter`, w kolejności elementów
+zgodnej z sekwencjami schematu. Każdy wynik jest sprawdzany przez `Fa3SchemaValidator` względem oficjalnego
+schematu FA(3) osadzonego w aplikacji (wraz ze schematami bazowymi MF). Szczegóły i mapowanie: [`docs/fa3-xml.md`](fa3-xml.md).
+
+**Alternatywy:**
+- klasy wygenerowane ze schematu (`xsd.exe`/`XmlSerializer`) - schemat FA(3) ma kilkaset typów, wygenerowany
+  kod byłby ogromny i nieczytelny, a aplikacja używa niewielkiego podzbioru pól,
+- szablon XML z podmianą tekstu - podatny na błędy kodowania znaków specjalnych i wstrzyknięcie znaczników,
+- biblioteka MF nie dostarcza modelu FA(3) (tylko ogólny serializer).
+
+**Uzasadnienie:** jawne, czytelne mapowanie pól (łatwe do opisania i zweryfikowania), poprawne kodowanie
+znaków przez `XmlWriter`, pełna kontrola nad wymaganiami technicznymi KSeF (UTF-8 bez BOM).
+
+**Weryfikacja:** testy automatyczne każdego wariantu (stawki, B2C, płatności, znaki specjalne) względem XSD,
+oraz wysyłka wygenerowanej faktury do testowego KSeF zakończona nadaniem numeru KSeF i UPO.
+
+**Ograniczenia MVP wynikające ze struktury FA(3):** tylko PLN (waluta obca wymaga kwot VAT w PLN i kursu),
+bez stawek 4% i 3% (wyłącznie ryczałt dla taksówek), bez mechanizmu podzielonej płatności; dla stawki „zw”
+wymagana podstawa prawna zwolnienia (nowe pole `ExemptionBasis`, P_19A). Ograniczenia egzekwowane są
+w walidacji formularza i API, w generatorze oraz w interfejsie.
+
+## D22. Pola formularzy walidowane podczas pisania (`InputTextLive`)
+
+**Kontekst:** test E2E wykrył, że po poprawieniu błędnego pola i natychmiastowym kliknięciu „Zapisz” formularz
+„nie reagował”. Standardowe pole Blazor (`InputText`) przyjmuje wartość dopiero po opuszczeniu pola; komunikat
+błędu znikał w chwili kliknięcia, układ strony przesuwał się i kliknięcie trafiało obok przycisku.
+
+**Decyzja:** komponent `InputTextLive` aktualizuje model przy każdym naciśnięciu klawisza (`oninput`), więc
+walidacja i komunikaty aktualizują się na bieżąco, zanim użytkownik sięgnie po przycisk. Stosowany we wszystkich
+formularzach danych.
+
+**Wniosek:** kolejny błąd interfejsu, którego nie wykrywają testy API (por. D20) - argument za automatycznymi
+testami E2E (etap 10).

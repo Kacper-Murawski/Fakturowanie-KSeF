@@ -232,6 +232,10 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("ExemptionBasis")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 

@@ -49,7 +49,7 @@ public static class Mapping
 
         return new InvoiceDto(
             i.Id, i.Number, i.IssueDate, i.IssuePlace, i.SaleDate, i.Currency, i.PaymentMethod, i.DueDate,
-            i.BankAccountNumber, i.Seller.ToDto(), i.Buyer.ToDto(), i.CustomerId,
+            i.BankAccountNumber, i.ExemptionBasis, i.Seller.ToDto(), i.Buyer.ToDto(), i.CustomerId,
             items.Select(x => new InvoiceItemDto(x.Position, x.Name, x.Unit, x.Quantity, x.UnitNetPrice, x.VatRate,
                 x.NetAmount, x.VatAmount, x.GrossAmount)).ToList(),
             totals.ByVatRate, i.TotalNet, i.TotalVat, i.TotalGross,

@@ -3,6 +3,7 @@ using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Services;
 using FakturowanieKSeF.Contracts.Calculation;
 using FakturowanieKSeF.Contracts.Dtos;
+using FakturowanieKSeF.Ksef.Fa3;
 using FakturowanieKSeF.Models;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -62,6 +63,38 @@ public static class InvoiceEndpoints
                 return invoice is null ? ApiErrors.NotFound("faktura") : Results.Ok(invoice.ToDto());
             })
             .WithSummary("Szczegóły faktury");
+
+        group.MapGet("/{id:int}/xml", async (int id, CurrentCompany current, AppDbContext db,
+                Fa3XmlGenerator generator, Fa3SchemaValidator validator, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+
+                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items)
+                    .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
+                if (invoice is null) return ApiErrors.NotFound("faktura");
+
+                byte[] xml;
+                try
+                {
+                    xml = generator.GenerateBytes(invoice);
+                }
+                catch (Fa3GenerationException ex)
+                {
+                    return Results.Problem(title: "Faktury nie można przedstawić w strukturze FA(3).", detail: ex.Message,
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+
+                // Każdy wygenerowany dokument jest sprawdzany względem oficjalnego schematu przed wydaniem
+                var validation = validator.Validate(xml);
+                if (!validation.IsValid)
+                    return Results.Problem(title: "Wygenerowany XML nie jest zgodny ze schematem FA(3).",
+                        detail: string.Join(Environment.NewLine, validation.Errors),
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+
+                var fileName = string.Concat(invoice.Number.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + ".xml";
+                return Results.File(xml, "application/xml", fileName);
+            })
+            .WithSummary("XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD");
 
         group.MapGet("/next-number", async (DateOnly? issueDate, CurrentCompany current, InvoiceNumbering numbering, CancellationToken ct) =>
             {
@@ -176,6 +209,9 @@ public static class InvoiceEndpoints
         invoice.Currency = request.Currency;
         invoice.PaymentMethod = request.PaymentMethod;
         invoice.DueDate = request.DueDate;
+        invoice.ExemptionBasis = request.Items.Any(i => i.VatRate == VatRate.Exempt)
+            ? Mapping.EmptyToNull(request.ExemptionBasis)
+            : null;
         invoice.BankAccountNumber = Mapping.NormalizeBankAccount(request.BankAccountNumber)
                                     ?? (request.PaymentMethod == PaymentMethod.Transfer ? company.BankAccountNumber : null);
 
