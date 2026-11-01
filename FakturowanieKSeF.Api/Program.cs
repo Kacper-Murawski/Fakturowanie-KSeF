@@ -30,6 +30,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // 4. Uruchomienie gotowych endpointów do logowania i rejestracji
-app.MapIdentityApi<IdentityUser>();
+app.MapIdentityApi<ApplicationUser>();
 
 app.Run();
