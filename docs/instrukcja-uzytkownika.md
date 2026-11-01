@@ -56,6 +56,14 @@ Wybierz **Nowa faktura**:
 
 ![Nowa faktura](zrzuty/06-nowa-faktura.png)
 
+**Wystaw podobną.** W podglądzie dowolnej faktury przycisk **Wystaw podobną** otwiera formularz nowej faktury
+wypełniony danymi wzoru: nabywcą, pozycjami, podstawą zwolnienia i warunkami płatności. Numer zostanie nadany
+nowy, data wystawienia to dzisiaj, a termin płatności zachowuje ten sam odstęp dni co we wzorze. Przydaje się przy
+fakturach powtarzalnych, np. comiesięcznym abonamencie. Nic nie jest zapisywane, dopóki nie wybierzesz
+**Zapisz fakturę**.
+
+![Wystaw podobną](zrzuty/18-wystaw-podobna.png)
+
 ## 5. Wysyłka do KSeF
 
 W podglądzie szkicu wybierz **Wyślij do KSeF** i potwierdź. Faktura otrzyma status „Wysłana do KSeF”,

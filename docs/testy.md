@@ -9,7 +9,7 @@ Strategię uzasadnia decyzja D7.
 ```mermaid
 flowchart TB
     L["Testy na żywo z testowym KSeF (2)<br/>prawdziwa bramka: token, wysyłka, numer KSeF, UPO, odbiór A→B"]
-    E["Testy E2E w przeglądarce (7)<br/>Playwright + Chromium pl-PL, cały stos, atrapa KSeF"]
+    E["Testy E2E w przeglądarce (8)<br/>Playwright + Chromium pl-PL, cały stos, atrapa KSeF"]
     I["Testy integracyjne (ok. 85)<br/>API + PostgreSQL + Identity + usługi w tle, atrapa KSeF"]
     U["Testy jednostkowe (ok. 75)<br/>NIP, kalkulator, stawki VAT, XML FA(3) + XSD, QR, blokada produkcji, wykaz VAT"]
     L --> E --> I --> U
@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **170 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **171 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres

@@ -37,6 +37,7 @@ else
             {
                 <a class="btn btn-outline-success" href="api/invoices/@invoice.Id/upo" download>Pobierz UPO</a>
             }
+            <a class="btn btn-outline-primary" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami">Wystaw podobną</a>
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/pdf" download>Pobierz PDF</a>
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>
             <a class="btn btn-outline-secondary" href="faktury">Wróć do listy</a>

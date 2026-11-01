@@ -317,4 +317,54 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator("[data-testid=vat-lookup-status]")).ToContainTextAsync("nie ma w wykazie podatników VAT");
         await Expect(page.Locator("#buyer-name")).ToHaveValueAsync("");
     }
+
+    [E2EFact]
+    public async Task WystawPodobna_KopiujeNabywcePozycjeIWarunki_ZNowymNumerem()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+
+        // Faktura-wzór: nabywca wpisany ręcznie, dwie pozycje (w tym zwolniona), termin 7 dni
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Stały Klient sp. z o.o.", "1234563218");
+        await FillItemAsync(page, 0, "Abonament serwisowy", "1", "500");
+        await page.ClickAsync("text=+ Dodaj pozycję");
+        await FillItemAsync(page, 1, "Szkolenie", "2", "300", "Exempt");
+        await page.FillAsync("#exemption", "art. 43 ust. 1 pkt 29 ustawy o VAT");
+        await page.ClickAsync("button:has-text('7 dni')");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        var templateUrl = page.Url;
+        var templateNumber = await page.Locator("h1").InnerTextAsync();
+
+        await page.ClickAsync("text=Wystaw podobną");
+        await page.WaitForURLAsync(new Regex("/faktury/nowa\\?wzor=\\d+$"));
+        await Expect(page.Locator("[data-testid=template-info]")).ToContainTextAsync(templateNumber.Replace("Faktura VAT ", ""));
+        await Expect(page.Locator("#buyer-name")).ToHaveValueAsync("Stały Klient sp. z o.o.");
+        await Expect(page.Locator("#buyer-nip")).ToHaveValueAsync("1234563218");
+        await Expect(page.Locator(".items-table tbody tr")).ToHaveCountAsync(2);
+        await Expect(Row(page, 1).Locator("input[aria-label^='Nazwa pozycji']")).ToHaveValueAsync("Szkolenie");
+        await Expect(page.Locator("#exemption")).ToHaveValueAsync("art. 43 ust. 1 pkt 29 ustawy o VAT");
+        await Expect(page.Locator("[data-testid=total-gross]")).ToContainTextAsync("1 215,00");
+        await Expect(page.Locator("#number")).ToHaveValueAsync(""); // numer nadany automatycznie przy zapisie
+
+        // Termin zachowuje odstęp 7 dni od daty wystawienia
+        var issue = DateOnly.Parse(await page.Locator("#issue").InputValueAsync());
+        var due = DateOnly.Parse(await page.Locator("#due").InputValueAsync());
+        Assert.Equal(7, due.DayNumber - issue.DayNumber);
+        await E2EFixture.ScreenshotAsync(page, "18-wystaw-podobna");
+
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        Assert.NotEqual(templateUrl, page.Url);
+        await Expect(page.Locator("h1")).Not.ToHaveTextAsync(templateNumber);
+        await Expect(page.Locator(".fs-5.text-end")).ToContainTextAsync("1 215,00 PLN");
+
+        // Zwykła „Nowa faktura” po „Wystaw podobną” jest pusta
+        await page.ClickAsync("text=Wystaw podobną");
+        await Expect(page.Locator("[data-testid=template-info]")).ToBeVisibleAsync();
+        await page.ClickAsync("nav >> text=Nowa faktura");
+        await Expect(page.Locator("[data-testid=template-info]")).Not.ToBeVisibleAsync();
+        await Expect(page.Locator("#buyer-name")).ToHaveValueAsync("");
+    }
 }
