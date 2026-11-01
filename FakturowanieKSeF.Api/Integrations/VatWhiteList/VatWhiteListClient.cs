@@ -13,7 +13,16 @@ public interface IVatWhiteListClient
 {
     /// <summary>Dane podmiotu o podanym NIP według stanu na dzień <paramref name="date"/>; <c>null</c>, gdy nie ma go w wykazie.</summary>
     Task<WhiteListSubject?> FindByNipAsync(string nip, DateOnly date, CancellationToken ct = default);
+
+    /// <summary>
+    /// Czy rachunek (NRB, 26 cyfr) jest przypisany do podmiotu o podanym NIP w wykazie na dzień <paramref name="date"/>.
+    /// Metoda MF uwzględnia rachunki wirtualne (maski), których nie da się sprawdzić porównaniem z listą rachunków.
+    /// </summary>
+    Task<WhiteListAccountCheck> CheckBankAccountAsync(string nip, string account, DateOnly date, CancellationToken ct = default);
 }
+
+/// <summary>Wynik metody <c>check</c> wykazu: rachunek przypisany („TAK”) lub nie („NIE”).</summary>
+public sealed record WhiteListAccountCheck(bool Assigned, string? RequestId);
 
 /// <summary>Podmiot z wykazu podatników VAT (pola w postaci zwracanej przez API MF).</summary>
 public sealed record WhiteListSubject(
@@ -30,7 +39,7 @@ public sealed record WhiteListSubject(
 /// <summary>Błąd komunikacji z wykazem lub błąd zgłoszony przez API MF (komunikat do wyświetlenia użytkownikowi).</summary>
 public sealed class VatWhiteListException(string message, Exception? inner = null) : Exception(message, inner);
 
-/// <summary>Klient HTTP API wykazu podatników VAT (metoda <c>search/nip</c>).</summary>
+/// <summary>Klient HTTP API wykazu podatników VAT (metody <c>search/nip</c> i <c>check/nip/.../bank-account</c>).</summary>
 public sealed class VatWhiteListClient(HttpClient http) : IVatWhiteListClient
 {
     /// <summary>Adres produkcyjnego API wykazu. Wykaz ma tylko jedną wersję - dane publiczne, wyłącznie do odczytu.</summary>
@@ -55,6 +64,19 @@ public sealed class VatWhiteListClient(HttpClient http) : IVatWhiteListClient
             s.ResidenceAddress,
             s.AccountNumbers ?? [],
             body!.Result!.RequestId);
+    }
+
+    public async Task<WhiteListAccountCheck> CheckBankAccountAsync(string nip, string account, DateOnly date, CancellationToken ct = default)
+    {
+        var url = $"api/check/nip/{Uri.EscapeDataString(nip)}/bank-account/{Uri.EscapeDataString(account)}" +
+                  $"?date={date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+        var body = await GetAsync<CheckResponse>(url, ct);
+        return body?.Result?.AccountAssigned switch
+        {
+            "TAK" => new WhiteListAccountCheck(true, body.Result.RequestId),
+            "NIE" => new WhiteListAccountCheck(false, body.Result.RequestId),
+            _ => throw new VatWhiteListException("Nieoczekiwana odpowiedź wykazu podatników VAT.")
+        };
     }
 
     private async Task<T?> GetAsync<T>(string url, CancellationToken ct)
@@ -106,5 +128,7 @@ public sealed class VatWhiteListClient(HttpClient http) : IVatWhiteListClient
     private sealed record SubjectPayload(
         string? Name, string? Nip, string? StatusVat, string? Regon, string? Krs,
         string? WorkingAddress, string? ResidenceAddress, List<string>? AccountNumbers);
+    private sealed record CheckResponse(CheckResult? Result);
+    private sealed record CheckResult(string? AccountAssigned, string? RequestId);
     private sealed record ErrorResponse(string? Code, string? Message);
 }

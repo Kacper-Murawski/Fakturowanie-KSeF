@@ -227,6 +227,12 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.ClickAsync("tbody tr a");
         await Expect(page.Locator("h1")).ToContainTextAsync("FV/E2E/10/2026");
         await Expect(page.Locator(".invoice-sheet")).ToContainTextAsync("Papier A4");
+
+        // Weryfikacja rachunku sprzedawcy na białej liście (atrapa API MF)
+        await page.ClickAsync("text=Sprawdź rachunek na białej liście");
+        await Expect(page.Locator("[data-testid=bank-check] .alert-success")).ToContainTextAsync("Rachunek jest na białej liście");
+        await Expect(page.Locator("[data-testid=bank-check]")).ToContainTextAsync("identyfikator zapytania MF");
+        await E2EFixture.ScreenshotAsync(page, "16-faktura-otrzymana-biala-lista");
     }
 
     [E2EFact]
