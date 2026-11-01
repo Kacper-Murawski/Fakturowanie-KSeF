@@ -26,6 +26,7 @@ Wymagania: .NET 10 SDK, Docker.
 git clone --recursive <adres-repozytorium>                  # --recursive pobiera też klienta KSeF MF
 git submodule update --init                                # (jeśli sklonowano bez --recursive)
 docker compose up -d                                       # baza PostgreSQL
+dotnet build                                               # pobranie pakietów i kompilacja (wymagane przed dotnet ef)
 dotnet tool install --global dotnet-ef                     # jednorazowo
 dotnet ef database update --project FakturowanieKSeF.Api   # migracje
 dotnet run --project FakturowanieKSeF.Api                  # aplikacja + API
