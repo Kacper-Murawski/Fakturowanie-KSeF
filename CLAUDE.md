@@ -27,4 +27,6 @@
   wspólne modele (`FakturowanieKSeF.Models`).
 - PostgreSQL 16 + EF Core 8 (Npgsql), ASP.NET Core Identity (`MapIdentityApi`, tokeny Bearer).
 - Wszystkie pakiety Microsoft przypięte do tej samej wersji 8.0.x.
+- Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).
+- API pod prefiksem `/api`; klient Blazor serwowany przez API (fallback do `index.html`).
 - Migracje: `dotnet ef migrations add <Nazwa> --project FakturowanieKSeF.Api --output-dir Data/Migrations`.

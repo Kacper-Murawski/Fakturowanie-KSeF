@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ksef_user
+          POSTGRES_PASSWORD: ksef_password
+          POSTGRES_DB: ksef_database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ksef_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Testy tworzą na tym serwerze własne tymczasowe bazy ksef_test_*
+      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=ksef_database;Username=ksef_user;Password=ksef_password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --logger "console;verbosity=normal"

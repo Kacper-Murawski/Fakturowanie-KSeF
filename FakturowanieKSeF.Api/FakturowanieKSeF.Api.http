@@ -1,6 +1,16 @@
-@FakturowanieKSeF.Api_HostAddress = http://localhost:5085
+@host = http://localhost:5085
 
-GET {{FakturowanieKSeF.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Rejestracja
+POST {{host}}/api/auth/register
+Content-Type: application/json
 
-###
+{ "email": "test@example.com", "password": "Haslo123!" }
+
+### Logowanie
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "test@example.com", "password": "Haslo123!" }
+
+### Kontrola stanu aplikacji
+GET {{host}}/api/health
