@@ -1,9 +1,24 @@
 namespace FakturowanieKSeF.Models;
 
+/// <summary>
+/// Cykl życia faktury sprzedażowej:
+/// <code>
+/// Draft ──wyślij──▶ Pending ──KSeF: 200──▶ Accepted (numer KSeF, UPO)
+///   ▲                  │
+///   └──── popraw ◀── Rejected (KSeF odrzucił, np. błąd walidacji)
+/// </code>
+/// </summary>
 public enum InvoiceStatus
 {
-    Draft,      // Robocza
-    Sent,       // Wysłana do KSeF
-    Accepted,   // Zaakceptowana
-    Rejected    // Odrzucona przez KSeF
+    /// <summary>Szkic - można edytować i usunąć.</summary>
+    Draft,
+
+    /// <summary>Wysłana do KSeF, oczekuje na przetworzenie (KSeF działa asynchronicznie). Edycja zablokowana.</summary>
+    Pending,
+
+    /// <summary>Przyjęta przez KSeF - ma numer KSeF. Dokument ostateczny, bez możliwości edycji i usunięcia.</summary>
+    Accepted,
+
+    /// <summary>Odrzucona przez KSeF - przyczyna w ostatniej próbie wysyłki; po poprawie można wysłać ponownie.</summary>
+    Rejected
 }
