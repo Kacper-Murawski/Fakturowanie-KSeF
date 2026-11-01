@@ -45,6 +45,11 @@
   jako submoduł `external/ksef-client-csharp` przypięty do tagu - aktualizacja tylko świadomie (RELEASE_NOTES + testy).
 - XML FA(3): `Fa3XmlGenerator` + `Fa3SchemaValidator` (`FakturowanieKSeF.Ksef/Fa3`, schematy XSD osadzone jako zasoby).
   Każdy XML przed wydaniem/wysyłką MUSI przejść walidację XSD. Mapowanie pól: `docs/fa3-xml.md`.
+- Wysyłka do KSeF: `IKsefGateway` (prawdziwa `KsefGateway`, w testach `FakeKsefGateway`), stan w `KsefSubmissions`,
+  przetwarzanie `KsefSubmissionProcessor` (usługa w tle). ZASADA: po przyjęciu faktury do przetwarzania przez KSeF
+  nigdy nie oznaczaj jej jako `Rejected` z powodu własnego błędu komunikacji (ryzyko duplikatu). Opis: `docs/integracja-ksef.md`.
+  Token KSeF tylko zaszyfrowany (`KsefTokenProtector`), nigdy w odpowiedziach API ani logach.
+  Test na żywo z testowym KSeF: `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests`.
 - Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).
 - API pod prefiksem `/api`; klient Blazor serwowany przez API (fallback do `index.html`).

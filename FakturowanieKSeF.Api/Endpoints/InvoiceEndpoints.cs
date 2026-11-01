@@ -58,7 +58,7 @@ public static class InvoiceEndpoints
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items)
+                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 return invoice is null ? ApiErrors.NotFound("faktura") : Results.Ok(invoice.ToDto());
             })
@@ -69,9 +69,16 @@ public static class InvoiceEndpoints
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items)
+                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
+
+                var fileName = string.Concat(invoice.Number.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + ".xml";
+
+                // Faktura wysłana do KSeF: zwracamy DOKŁADNIE wysłany dokument (to on ma moc prawną), a nie nowo wygenerowany
+                if (invoice.Status is InvoiceStatus.Pending or InvoiceStatus.Accepted
+                    && invoice.KsefSubmissions.OrderByDescending(x => x.Id).FirstOrDefault() is { } submitted)
+                    return Results.File(System.Text.Encoding.UTF8.GetBytes(submitted.SentXml), "application/xml", fileName);
 
                 byte[] xml;
                 try
@@ -91,10 +98,77 @@ public static class InvoiceEndpoints
                         detail: string.Join(Environment.NewLine, validation.Errors),
                         statusCode: StatusCodes.Status422UnprocessableEntity);
 
-                var fileName = string.Concat(invoice.Number.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + ".xml";
                 return Results.File(xml, "application/xml", fileName);
             })
             .WithSummary("XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD");
+
+        group.MapPost("/{id:int}/send", async (int id, SendInvoiceRequest request, CurrentCompany current, AppDbContext db,
+                Fa3XmlGenerator generator, Fa3SchemaValidator validator, KsefWorkSignal signal, TimeProvider time, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+
+                var invoice = await db.Invoices.Include(i => i.Items).Include(i => i.KsefSubmissions)
+                    .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
+                if (invoice is null) return ApiErrors.NotFound("faktura");
+
+                if (invoice.Status is not (InvoiceStatus.Draft or InvoiceStatus.Rejected))
+                    return ApiErrors.Conflict("Faktura została już wysłana do KSeF.");
+
+                if (company.KsefTokenEncrypted is null)
+                    return ApiErrors.Conflict("Najpierw skonfiguruj token KSeF w ustawieniach firmy.");
+
+                // Kontrola współbieżności: chroni przed podwójną wysyłką (np. dwukrotne kliknięcie, dwie karty)
+                db.Entry(invoice).Property(i => i.Version).OriginalValue = request.Version;
+
+                // Chwila wysyłki = chwila wystawienia: utrwalamy aktualne dane sprzedawcy
+                invoice.Seller = new InvoiceParty { Name = company.Name, Nip = company.Nip, Address = company.Address.Copy() };
+
+                byte[] xml;
+                try
+                {
+                    xml = generator.GenerateBytes(invoice);
+                }
+                catch (Fa3GenerationException ex)
+                {
+                    return Results.Problem(title: "Faktury nie można przedstawić w strukturze FA(3).", detail: ex.Message,
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+
+                var validation = validator.Validate(xml);
+                if (!validation.IsValid)
+                    return Results.Problem(title: "Wygenerowany XML nie jest zgodny ze schematem FA(3).",
+                        detail: string.Join(Environment.NewLine, validation.Errors), statusCode: StatusCodes.Status422UnprocessableEntity);
+
+                invoice.KsefSubmissions.Add(new KsefSubmission
+                {
+                    SentAt = time.GetUtcNow().UtcDateTime,
+                    SentXml = System.Text.Encoding.UTF8.GetString(xml),
+                    InvoiceHash = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(xml))
+                });
+                invoice.Status = InvoiceStatus.Pending;
+
+                await db.SaveChangesAsync(ct);
+                signal.Pulse(); // usługa w tle wysyła fakturę od razu
+
+                return Results.Accepted($"/api/invoices/{invoice.Id}", invoice.ToDto());
+            })
+            .WithSummary("Wysłanie faktury do KSeF (asynchronicznie; status Pending do czasu odpowiedzi KSeF)");
+
+        group.MapGet("/{id:int}/upo", async (int id, CurrentCompany current, AppDbContext db, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+
+                var upo = await db.KsefSubmissions.AsNoTracking()
+                    .Where(s => s.InvoiceId == id && s.Invoice.CompanyId == company.Id && s.UpoXml != null)
+                    .OrderByDescending(s => s.Id)
+                    .Select(s => new { s.UpoXml, s.KsefNumber })
+                    .FirstOrDefaultAsync(ct);
+
+                return upo is null
+                    ? ApiErrors.NotFound("UPO (faktura nie została jeszcze przyjęta przez KSeF lub UPO nie jest jeszcze dostępne)")
+                    : Results.File(System.Text.Encoding.UTF8.GetBytes(upo.UpoXml!), "application/xml", $"UPO_{upo.KsefNumber}.xml");
+            })
+            .WithSummary("UPO - urzędowe poświadczenie odbioru faktury przez KSeF");
 
         group.MapGet("/next-number", async (DateOnly? issueDate, CurrentCompany current, InvoiceNumbering numbering, CancellationToken ct) =>
             {
@@ -139,7 +213,7 @@ public static class InvoiceEndpoints
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.Include(i => i.Items)
+                var invoice = await db.Invoices.Include(i => i.Items).Include(i => i.KsefSubmissions)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
 

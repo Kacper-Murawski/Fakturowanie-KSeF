@@ -4,7 +4,9 @@ using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Endpoints;
 using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Services;
+using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Ksef.Fa3;
+using Microsoft.AspNetCore.DataProtection;
 using FakturowanieKSeF.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -58,6 +60,18 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<Fa3XmlGenerator>();
 builder.Services.AddSingleton<Fa3SchemaValidator>();
 
+// Integracja z KSeF - WYŁĄCZNIE środowisko testowe (D8): klient MF + bramka + usługa wysyłki w tle
+builder.Services.AddKsefTestClient();
+builder.Services.AddScoped<KsefSubmissionProcessor>();
+builder.Services.AddSingleton<KsefWorkSignal>();
+builder.Services.AddHostedService<KsefSubmissionWorker>();
+builder.Services.AddSingleton<KsefTokenProtector>();
+
+// Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji
+builder.Services.AddDataProtection()
+    .SetApplicationName("FakturowanieKSeF")
+    .PersistKeysToDbContext<AppDbContext>();
+
 // Walidacja żądań na podstawie atrybutów DataAnnotations i IValidatableObject w DTO (wbudowana w .NET 10);
 // błędy zwracane jako ValidationProblemDetails (400). Te same reguły działają w formularzach Blazor.
 builder.Services.AddValidation();
@@ -107,6 +121,7 @@ api.MapHealthChecks("/health");
 api.MapCompanyEndpoints();
 api.MapCustomerEndpoints();
 api.MapInvoiceEndpoints();
+api.MapKsefSettingsEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

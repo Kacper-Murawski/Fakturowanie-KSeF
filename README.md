@@ -45,6 +45,8 @@ dotnet test
 ```
 
 Testy integracyjne tworzą własną tymczasową bazę (`ksef_test_*`) na serwerze PostgreSQL i usuwają ją po zakończeniu.
+Komunikacja z KSeF jest w nich zastąpiona atrapą. Test na żywo z **testowym** KSeF (wymaga dostępu do
+`api-test.ksef.mf.gov.pl`): `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests`.
 
 ## Prototyp KSeF (środowisko testowe)
 

@@ -346,3 +346,48 @@ formularzach danych.
 
 **Wniosek:** kolejny błąd interfejsu, którego nie wykrywają testy API (por. D20) - argument za automatycznymi
 testami E2E (etap 10).
+
+---
+
+## D23. Przechowywanie tokenów KSeF: ASP.NET Core Data Protection, klucze w bazie
+
+**Decyzja:** token KSeF firmy jest szyfrowany przez Data Protection (AES-256-CBC + HMAC-SHA256, osobny cel
+kryptograficzny) i zapisywany w bazie wyłącznie w postaci zaszyfrowanej. Odszyfrowanie następuje tylko w pamięci
+serwera w chwili komunikacji z KSeF. Token nie jest nigdy zwracany przez API ani zapisywany w logach.
+Klucze Data Protection są przechowywane w bazie (`DataProtectionKeys`), więc przetrwają restart i wdrożenie.
+
+**Alternatywy:** zapis jawny (niedopuszczalne - token daje pełny dostęp do faktur firmy w KSeF); własne
+szyfrowanie AES z kluczem w konfiguracji (ręczne zarządzanie kluczem i jego rotacją, łatwo o błąd);
+zewnętrzny magazyn sekretów (np. Azure Key Vault) - najlepsza ochrona, ale dodatkowa infrastruktura.
+
+**Ograniczenie i kierunek rozwoju:** klucze i zaszyfrowane dane leżą w tej samej bazie - przejęcie kopii bazy
+wraz z kluczami pozwoliłoby odszyfrować tokeny. Na produkcji klucze należy dodatkowo chronić
+(`ProtectKeysWithCertificate` lub magazyn sekretów).
+
+## D24. Token testowy generowany przez aplikację (tylko środowisko testowe)
+
+**Decyzja:** obok wklejenia tokenu (sposób docelowy - token z Aplikacji Podatnika) aplikacja oferuje przycisk
+„Wygeneruj token testowy”: uwierzytelnia się w testowym KSeF samopodpisanym certyfikatem dla NIP firmy
+(dopuszczalnym wyłącznie na środowisku testowym) i generuje token z uprawnieniami `InvoiceWrite` i `InvoiceRead`.
+
+**Uzasadnienie:** umożliwia pełne przetestowanie aplikacji bez dostępu do prawdziwego konta podatnika, przy
+zachowaniu docelowego mechanizmu (uwierzytelnianie tokenem). Ponieważ środowisko testowe jest współdzielone przez
+integratorów, aplikacja ostrzega przed używaniem prawdziwych danych firmy.
+
+## D25. Asynchroniczna wysyłka do KSeF jako trwała maszyna stanów
+
+**Decyzja:** kliknięcie „Wyślij” tylko przygotowuje i zapisuje wysyłkę (XML + skrót, status `Pending`); wysyłkę,
+odpytywanie o status i pobranie UPO realizuje usługa w tle, zapisując stan każdego kroku w bazie.
+Szczegóły: [`docs/integracja-ksef.md`](integracja-ksef.md).
+
+**Alternatywa:** wysyłka i oczekiwanie na wynik w ramach żądania HTTP - KSeF przetwarza faktury asynchronicznie
+(sekundy, w okresach obciążenia dłużej), żądanie mogłoby przekroczyć limit czasu, a jego przerwanie zostawiłoby
+fakturę w nieznanym stanie.
+
+**Kluczowa reguła poprawności:** faktura, która mogła już trafić do KSeF (ma numer referencyjny), nigdy nie jest
+oznaczana jako odrzucona z powodu błędu komunikacji - tylko ponawiane jest odpytanie o status. Ponowna wysyłka
+faktury przyjętej przez KSeF utworzyłaby duplikat dokumentu podatkowego. Przerwanie wysyłki (po 10 próbach lub
+przy nieprawidłowym tokenie) jest dopuszczalne wyłącznie, gdy faktura na pewno nie dotarła do KSeF.
+
+**Testowalność:** bramka `IKsefGateway` z atrapą pozwala w CI sprawdzić wszystkie ścieżki (przyjęcie, odrzucenie,
+awarie przed i po wysyłce, podwójna wysyłka); prawdziwą bramkę sprawdza test na żywo i test E2E z testowym KSeF.

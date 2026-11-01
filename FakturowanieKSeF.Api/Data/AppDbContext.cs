@@ -1,10 +1,11 @@
 using FakturowanieKSeF.Models;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace FakturowanieKSeF.Api.Data;
 
-public class AppDbContext : IdentityDbContext<ApplicationUser>
+public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionKeyContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -20,6 +21,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<KsefSubmission> KsefSubmissions => Set<KsefSubmission>();
     public DbSet<ReceivedInvoice> ReceivedInvoices => Set<ReceivedInvoice>();
+
+    /// <summary>Klucze ASP.NET Core Data Protection (szyfrowanie tokenów KSeF, ciasteczka sesji) - D23.</summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -108,6 +112,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             e.HasIndex(s => s.InvoiceId);
             e.HasIndex(s => s.InvoiceReferenceNumber);
+            e.HasIndex(s => s.CompletedAt); // wyszukiwanie wysyłek w toku przez usługę w tle
 
             // Historii wysyłek do KSeF nie wolno usuwać razem z fakturą
             e.HasOne(s => s.Invoice)

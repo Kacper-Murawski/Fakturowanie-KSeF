@@ -123,6 +123,8 @@ erDiagram
         timestamptz KsefAssignedAt
         text UpoXml
         timestamptz CompletedAt
+        int FailedAttempts "błędy komunikacji"
+        string LastError
     }
 
     ReceivedInvoices {
@@ -153,6 +155,7 @@ erDiagram
 | `Invoices` | Faktury sprzedażowe: nagłówek, kopie danych stron, sumy, status i numer KSeF. |
 | `InvoiceItems` | Pozycje faktury (FaWiersz). |
 | `KsefSubmissions` | Historia prób wysyłki faktury do KSeF: wysłany XML, skrót, numery referencyjne, status, numer KSeF, UPO. |
+| `DataProtectionKeys` | Klucze ASP.NET Core Data Protection (szyfrowanie tokenów KSeF i ciasteczek sesji), rotowane automatycznie. |
 | `ReceivedInvoices` | Faktury zakupowe pobrane z KSeF (tylko do odczytu), z pełnym XML. |
 
 ## Kluczowe reguły

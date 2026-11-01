@@ -1,0 +1,109 @@
+@* Integracja z KSeF - osadzana na stronie „Moja firma” *@
+@inject ApiClient Api
+@inject IJSRuntime JS
+
+<section class="card mt-4 form-narrow">
+    <div class="card-body">
+        <h2 class="h5">Integracja z KSeF <span class="badge bg-warning text-dark align-middle">środowisko testowe</span></h2>
+
+        <div class="alert alert-warning small">
+            Środowisko testowe KSeF jest <strong>współdzielone przez wszystkich integratorów</strong> - wysyłane faktury mogą być
+            widoczne dla innych. Używaj wyłącznie <strong>fikcyjnych danych</strong> (np. losowego NIP), nigdy danych rzeczywistej firmy.
+        </div>
+
+        <ProblemAlert Problem="problem" />
+
+        @if (settings is null)
+        {
+            <p class="text-muted mb-0">Wczytywanie…</p>
+        }
+        else
+        {
+            <p>
+                Token KSeF:
+                @if (settings.HasToken)
+                {
+                    <strong class="text-success">skonfigurowany</strong>
+                    <span class="text-muted small">(zapisano @Format.DateTime(settings.TokenUpdatedAt), przechowywany w postaci zaszyfrowanej)</span>
+                }
+                else
+                {
+                    <strong class="text-danger">brak</strong>
+                    <span class="text-muted small"> - bez tokenu nie można wysyłać faktur do KSeF</span>
+                }
+            </p>
+
+            <div class="mb-3">
+                <label class="form-label" for="ksef-token">Token KSeF</label>
+                <div class="input-group">
+                    <input id="ksef-token" type="password" class="form-control" autocomplete="off" placeholder="Wklej token wygenerowany w Aplikacji Podatnika KSeF"
+                           @bind="token" @bind:event="oninput" />
+                    <button class="btn btn-outline-primary" @onclick="SaveTokenAsync" disabled="@(busy || string.IsNullOrWhiteSpace(token))">Zapisz token</button>
+                </div>
+                <div class="form-text">Token jest sprawdzany w KSeF przed zapisaniem.</div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary" @onclick="GenerateTestTokenAsync" disabled="@busy">
+                    @(busy ? "Trwa komunikacja z KSeF…" : "Wygeneruj token testowy")
+                </button>
+                @if (settings.HasToken)
+                {
+                    <button class="btn btn-outline-danger" @onclick="DeleteTokenAsync" disabled="@busy">Usuń token</button>
+                }
+            </div>
+            <div class="form-text">
+                Token testowy: aplikacja loguje się do testowego KSeF certyfikatem testowym wystawionym dla NIP firmy
+                i generuje token z uprawnieniem do wystawiania i odczytu faktur (możliwe tylko na środowisku testowym).
+            </div>
+            @if (message is not null)
+            {
+                <div class="alert alert-success mt-3 mb-0" role="status">@message</div>
+            }
+        }
+    </div>
+</section>
+
+@code {
+    private KsefSettingsDto? settings;
+    private ApiProblem? problem;
+    private string token = string.Empty;
+    private string? message;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.GetAsync<KsefSettingsDto>("api/company/ksef");
+        settings = result.Value;
+        problem = result.Problem?.Status == 409 ? null : result.Problem; // brak firmy - formularz powyżej
+    }
+
+    private Task SaveTokenAsync() => RunAsync(() => Api.PutAsync<KsefSettingsDto>("api/company/ksef/token", new SaveKsefTokenRequest { Token = token }), "Token zapisany i zweryfikowany w KSeF.");
+
+    private Task GenerateTestTokenAsync() => RunAsync(() => Api.PostAsync<KsefSettingsDto>("api/company/ksef/test-token", new { }), "Wygenerowano token w testowym KSeF.");
+
+    private async Task DeleteTokenAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Usunąć token KSeF? Wysyłanie faktur nie będzie możliwe do czasu podania nowego.")) return;
+        await RunAsync(async () => { var r = await Api.DeleteAsync("api/company/ksef/token"); return new ApiResult<KsefSettingsDto> { Problem = r.Problem }; }, "Token usunięty.");
+    }
+
+    private async Task RunAsync(Func<Task<ApiResult<KsefSettingsDto>>> action, string successMessage)
+    {
+        busy = true;
+        message = null;
+        var result = await action();
+        problem = result.Problem is { Errors.Count: > 0 } p
+            ? new ApiProblem { Status = p.Status, Title = string.Join(" ", p.Errors.SelectMany(e => e.Value)) }
+            : result.Problem;
+        if (problem is null)
+        {
+            message = successMessage;
+            token = string.Empty;
+            await LoadAsync();
+        }
+        busy = false;
+    }
+}
