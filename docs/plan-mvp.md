@@ -26,7 +26,7 @@ i numer KSeF, a także widzi faktury, które inni wystawili na jego NIP. Aplikac
 
 | Etap | Zakres | Rezultat (kryterium ukończenia) |
 |---|---|---|
-| 0. Fundamenty | Hosting klienta Blazor z API (jedna domena, brak CORS), projekt testów xUnit, CI w GitHub Actions (build + testy), seed danych dev | `dotnet run` API serwuje frontend, CI zielone |
+| 0. Fundamenty ✅ | Hosting klienta Blazor z API (jedna domena, brak CORS), projekt testów xUnit, CI w GitHub Actions (build + testy), seed danych dev | `dotnet run` API serwuje frontend, CI zielone |
 | 1. Spike KSeF | Proof of concept w środowisku testowym: uwierzytelnienie, otwarcie sesji, wysłanie przykładowego XML, odebranie numeru KSeF i UPO. Wybór: oficjalny klient .NET MF vs własna implementacja | Działający prototyp konsolowy + decyzja w `decyzje-projektowe.md` |
 | 2. Model danych v2 | Snapshot sprzedawcy/nabywcy na fakturze, stawki VAT jako enum (zgodne z FA(3)), sumy per stawka, `DateOnly`, `Restrict` na relacjach, unikalne indeksy, soft delete z filtrem, `UpdatedAt`, encje: dane KSeF firmy, faktury otrzymane | Migracja, diagram ERD |
 | 3. Backend | DTO (osobny projekt `Contracts`), endpointy CRUD (firma, kontrahenci, faktury), izolacja danych po `OwnerId`, walidacja (NIP z sumą kontrolną), serwis obliczania sum, numeracja faktur, obsługa błędów (ProblemDetails) | Testy jednostkowe obliczeń i testy integracyjne izolacji danych |
