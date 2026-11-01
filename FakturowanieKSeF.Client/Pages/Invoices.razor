@@ -1,0 +1,146 @@
+@page "/faktury"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Faktury - Fakturowanie KSeF</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Faktury</h1>
+    <a class="btn btn-primary" href="faktury/nowa">Nowa faktura</a>
+</div>
+
+<ProblemAlert Problem="problem" />
+
+<div class="row g-2 mb-3 align-items-end">
+    <div class="col-md-4">
+        <label class="form-label small" for="q">Szukaj</label>
+        <input id="q" class="form-control" placeholder="Numer, nabywca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small" for="status">Status</label>
+        <select id="status" class="form-select" @bind="Status" @bind:after="ApplyFiltersAsync">
+            <option value="">Wszystkie</option>
+            @foreach (var s in Enum.GetValues<InvoiceStatus>())
+            {
+                <option value="@s">@Format.Status(s)</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small" for="from">Wystawione od</label>
+        <input id="from" type="date" class="form-control" @bind="From" @bind:after="ApplyFiltersAsync" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small" for="to">do</label>
+        <input id="to" type="date" class="form-control" @bind="To" @bind:after="ApplyFiltersAsync" />
+    </div>
+</div>
+
+@if (data is null)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+else if (data.TotalCount == 0)
+{
+    <p class="text-muted">Brak faktur spełniających kryteria.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Numer</th><th>Data wystawienia</th><th>Nabywca</th>
+                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Status</th><th>Numer KSeF</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var i in data.Items)
+                {
+                    <tr role="button" @onclick="() => Open(i.Id)">
+                        <td><a href="faktury/@i.Id">@i.Number</a></td>
+                        <td>@Format.Date(i.IssueDate)</td>
+                        <td>@i.BuyerName<div class="small text-muted">@(i.BuyerNip is null ? "" : "NIP " + Format.Nip(i.BuyerNip))</div></td>
+                        <td class="text-end text-nowrap">@Format.Money(i.TotalNet, i.Currency)</td>
+                        <td class="text-end text-nowrap">@Format.Money(i.TotalGross, i.Currency)</td>
+                        <td><StatusBadge Status="i.Status" /></td>
+                        <td class="small">@(i.KsefNumber ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="d-flex justify-content-between align-items-center" aria-label="Stronicowanie">
+        <span class="text-muted small">Faktury @((data.Page - 1) * data.PageSize + 1)–@Math.Min(data.Page * data.PageSize, data.TotalCount) z @data.TotalCount</span>
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page <= 1)" @onclick="() => GoToPageAsync(data.Page - 1)">‹ Poprzednia</button>
+            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page * data.PageSize >= data.TotalCount)" @onclick="() => GoToPageAsync(data.Page + 1)">Następna ›</button>
+        </div>
+    </nav>
+}
+
+@code {
+    // Filtry w adresie strony - można je zapisać w zakładkach i wracać przyciskiem „wstecz”
+    [SupplyParameterFromQuery(Name = "status")] public string? Status { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "from")] public DateOnly? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public DateOnly? To { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? PageNumber { get; set; }
+
+    private PagedResult<InvoiceListItemDto>? data;
+    private ApiProblem? problem;
+    private CancellationTokenSource? debounce;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var query = new List<string> { $"page={PageNumber ?? 1}", "pageSize=20" };
+        if (!string.IsNullOrEmpty(Status)) query.Add($"status={Status}");
+        if (!string.IsNullOrWhiteSpace(Q)) query.Add($"q={Uri.EscapeDataString(Q)}");
+        if (From is not null) query.Add($"from={From:yyyy-MM-dd}");
+        if (To is not null) query.Add($"to={To:yyyy-MM-dd}");
+
+        var result = await Api.GetAsync<PagedResult<InvoiceListItemDto>>($"api/invoices?{string.Join('&', query)}");
+        problem = result.Problem;
+        data = result.Value ?? new PagedResult<InvoiceListItemDto>([], 0, 1, 20);
+    }
+
+    private async Task SearchAsync()
+    {
+        debounce?.Cancel();
+        debounce = new CancellationTokenSource();
+        try { await Task.Delay(300, debounce.Token); } catch (TaskCanceledException) { return; }
+        await ApplyFiltersAsync();
+    }
+
+    private Task ApplyFiltersAsync()
+    {
+        PageNumber = 1;
+        UpdateUrl();
+        return Task.CompletedTask;
+    }
+
+    private Task GoToPageAsync(int number)
+    {
+        PageNumber = number;
+        UpdateUrl();
+        return Task.CompletedTask;
+    }
+
+    private void Open(int id) => Navigation.NavigateTo($"faktury/{id}");
+
+    private void UpdateUrl()
+    {
+        var url = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["status"] = string.IsNullOrEmpty(Status) ? null : Status,
+            ["q"] = string.IsNullOrWhiteSpace(Q) ? null : Q,
+            ["from"] = From?.ToString("yyyy-MM-dd"),
+            ["to"] = To?.ToString("yyyy-MM-dd"),
+            ["page"] = PageNumber is > 1 ? PageNumber : null
+        });
+        Navigation.NavigateTo(url);
+    }
+}

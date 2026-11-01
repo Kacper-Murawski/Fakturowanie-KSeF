@@ -65,10 +65,13 @@ public sealed class SaveInvoiceItemRequest
     [MaxLength(50)]
     public string? Unit { get; set; }
 
-    [Range(typeof(decimal), "0.000001", "999999999999", ErrorMessage = "Ilość musi być większa od zera.")]
+    // Granice zakresu zapisane z kropką - parsowane niezależnie od języka (w pl-PL separatorem jest przecinek)
+    [Range(typeof(decimal), "0.000001", "999999999999", ErrorMessage = "Ilość musi być większa od zera.",
+        ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true)]
     public decimal Quantity { get; set; } = 1;
 
-    [Range(typeof(decimal), "0", "99999999999999", ErrorMessage = "Cena nie może być ujemna.")]
+    [Range(typeof(decimal), "0", "99999999999999", ErrorMessage = "Cena nie może być ujemna.",
+        ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true)]
     public decimal UnitNetPrice { get; set; }
 
     [EnumDataType(typeof(VatRate), ErrorMessage = "Nieznana stawka VAT.")]

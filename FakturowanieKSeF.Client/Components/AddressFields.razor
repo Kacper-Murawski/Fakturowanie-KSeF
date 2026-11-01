@@ -1,0 +1,28 @@
+@* Pola adresu - używane w formularzu firmy, kontrahenta i nabywcy na fakturze *@
+<div class="row g-2">
+    <div class="col-12">
+        <label class="form-label" for="@($"{IdPrefix}-street")">Ulica i numer</label>
+        <InputText id="@($"{IdPrefix}-street")" class="form-control" @bind-Value="Address.Street" placeholder="ul. Kwiatowa 1/2" />
+        <ValidationMessage For="() => Address.Street" />
+    </div>
+    <div class="col-sm-4">
+        <label class="form-label" for="@($"{IdPrefix}-postal")">Kod pocztowy</label>
+        <InputText id="@($"{IdPrefix}-postal")" class="form-control" @bind-Value="Address.PostalCode" placeholder="00-000" />
+        <ValidationMessage For="() => Address.PostalCode" />
+    </div>
+    <div class="col-sm-6">
+        <label class="form-label" for="@($"{IdPrefix}-city")">Miejscowość</label>
+        <InputText id="@($"{IdPrefix}-city")" class="form-control" @bind-Value="Address.City" />
+        <ValidationMessage For="() => Address.City" />
+    </div>
+    <div class="col-sm-2">
+        <label class="form-label" for="@($"{IdPrefix}-country")">Kraj</label>
+        <InputText id="@($"{IdPrefix}-country")" class="form-control" @bind-Value="Address.CountryCode" maxlength="2" />
+        <ValidationMessage For="() => Address.CountryCode" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AddressDto Address { get; set; } = null!;
+    [Parameter] public string IdPrefix { get; set; } = "addr";
+}

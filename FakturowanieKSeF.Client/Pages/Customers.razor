@@ -1,0 +1,71 @@
+@page "/kontrahenci"
+@inject ApiClient Api
+
+<PageTitle>Kontrahenci - Fakturowanie KSeF</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Kontrahenci</h1>
+    <a class="btn btn-primary" href="kontrahenci/nowy">Dodaj kontrahenta</a>
+</div>
+
+<ProblemAlert Problem="problem" />
+
+<div class="mb-3">
+    <input class="form-control" placeholder="Szukaj po nazwie lub NIP…" aria-label="Szukaj kontrahenta"
+           @bind="query" @bind:event="oninput" @bind:after="SearchAsync" />
+</div>
+
+@if (customers is null)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+else if (customers.Count == 0)
+{
+    <p class="text-muted">@(string.IsNullOrWhiteSpace(query) ? "Nie masz jeszcze żadnych kontrahentów." : "Brak wyników.")</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr><th>Nazwa</th><th>NIP</th><th>Adres</th><th>E-mail</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in customers)
+                {
+                    <tr>
+                        <td><a href="kontrahenci/@c.Id">@c.Name</a> @if (!c.IsCompany) { <span class="badge bg-light text-dark">osoba prywatna</span> }</td>
+                        <td>@Format.Nip(c.Nip)</td>
+                        <td>@c.Address.Street, @c.Address.PostalCode @c.Address.City</td>
+                        <td>@c.Email</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<CustomerDto>? customers;
+    private ApiProblem? problem;
+    private string query = string.Empty;
+    private CancellationTokenSource? debounce;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task SearchAsync()
+    {
+        // Krótkie opóźnienie, żeby nie wysyłać zapytania po każdym naciśnięciu klawisza
+        debounce?.Cancel();
+        debounce = new CancellationTokenSource();
+        try { await Task.Delay(300, debounce.Token); } catch (TaskCanceledException) { return; }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.GetAsync<List<CustomerDto>>($"api/customers?q={Uri.EscapeDataString(query)}");
+        problem = result.Problem;
+        customers = result.Value ?? [];
+    }
+}

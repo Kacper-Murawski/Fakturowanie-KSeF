@@ -1,0 +1,15 @@
+@* Komunikat błędu zwróconego przez API (ogólny - błędy pól wyświetlane są przy polach) *@
+@if (Problem is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        <strong>@Problem.Title</strong>
+        @if (!string.IsNullOrEmpty(Problem.Detail))
+        {
+            <div>@Problem.Detail</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public ApiProblem? Problem { get; set; }
+}

@@ -1,5 +1,8 @@
 using FakturowanieKSeF.Api.Services;
 using FakturowanieKSeF.Contracts.Calculation;
+using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using FakturowanieKSeF.Contracts.Dtos;
 using FakturowanieKSeF.Contracts.Validation;
 
 namespace FakturowanieKSeF.Tests;
@@ -92,4 +95,35 @@ public class InvoiceCalculatorTests
     [Fact]
     public void NumerFaktury_MaFormatFvNumerMiesiacRok() =>
         Assert.Equal("FV/7/03/2026", InvoiceNumbering.Format(7, new DateOnly(2026, 3, 15)));
+}
+
+public class ValidationCultureTests
+{
+    /// <summary>
+    /// Regresja: walidacja pozycji faktury w przeglądarce (kultura pl-PL, przecinek dziesiętny) rzucała wyjątek,
+    /// bo granice [Range] zapisane z kropką były parsowane według bieżącej kultury.
+    /// </summary>
+    [Theory]
+    [InlineData("pl-PL")]
+    [InlineData("en-US")]
+    [InlineData("de-DE")]
+    public void WalidacjaPozycji_DzialaNiezaleznieOdKultury(string culture)
+    {
+        var original = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+        try
+        {
+            var item = new SaveInvoiceItemRequest { Name = "Usługa", Quantity = 0.5m, UnitNetPrice = 10.99m };
+            var results = new List<ValidationResult>();
+            Assert.True(Validator.TryValidateObject(item, new ValidationContext(item), results, true));
+
+            item.Quantity = 0;
+            Assert.False(Validator.TryValidateObject(item, new ValidationContext(item), results, true));
+            Assert.Contains(results, r => r.ErrorMessage == "Ilość musi być większa od zera.");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
 }

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace FakturowanieKSeF.Contracts;
 
 /// <summary>
@@ -5,6 +7,7 @@ namespace FakturowanieKSeF.Contracts;
 /// Nie jest to liczba: część „stawek” (zw, oo, np) oznacza brak naliczania podatku z różnych przyczyn prawnych,
 /// a 0% występuje w trzech wariantach (kraj, WDT, eksport) raportowanych osobno.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<VatRate>))]
 public enum VatRate
 {
     Rate23,

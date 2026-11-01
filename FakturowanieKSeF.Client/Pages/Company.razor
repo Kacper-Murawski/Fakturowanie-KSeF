@@ -1,0 +1,89 @@
+@page "/firma"
+@inject ApiClient Api
+
+<PageTitle>Moja firma - Fakturowanie KSeF</PageTitle>
+
+<h1>Moja firma</h1>
+<p class="text-muted">Te dane pojawiają się jako sprzedawca na wystawianych fakturach.</p>
+
+@if (model is null)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="company" class="form-narrow">
+        <DeepValidator @ref="validator" />
+        <ProblemAlert Problem="problem" />
+        @if (saved)
+        {
+            <div class="alert alert-success" role="status">Zapisano dane firmy.</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label" for="name">Nazwa firmy</label>
+            <InputText id="name" class="form-control" @bind-Value="model.Name" />
+            <ValidationMessage For="() => model.Name" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="nip">NIP</label>
+            <InputText id="nip" class="form-control" @bind-Value="model.Nip" placeholder="1234567890" />
+            <ValidationMessage For="() => model.Nip" />
+        </div>
+
+        <fieldset class="mb-3">
+            <legend class="h6">Adres</legend>
+            <AddressFields Address="model.Address" IdPrefix="company" />
+        </fieldset>
+
+        <div class="row g-2 mb-3">
+            <div class="col-sm-6">
+                <label class="form-label" for="email">E-mail</label>
+                <InputText id="email" class="form-control" @bind-Value="model.Email" />
+                <ValidationMessage For="() => model.Email" />
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="phone">Telefon</label>
+                <InputText id="phone" class="form-control" @bind-Value="model.Phone" />
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="bank">Numer rachunku bankowego</label>
+            <InputText id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="00 0000 0000 0000 0000 0000 0000" />
+            <div class="form-text">Podpowiadany na fakturach płatnych przelewem.</div>
+            <ValidationMessage For="() => model.BankAccountNumber" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@busy">Zapisz</button>
+    </EditForm>
+}
+
+@code {
+    private SaveCompanyRequest? model;
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private bool busy, saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<CompanyDto>("api/company");
+        model = result.Value is { } c
+            ? new SaveCompanyRequest
+            {
+                Name = c.Name, Nip = c.Nip, Email = c.Email, Phone = c.Phone, BankAccountNumber = c.BankAccountNumber,
+                Address = new AddressDto { Street = c.Address.Street, PostalCode = c.Address.PostalCode, City = c.Address.City, CountryCode = c.Address.CountryCode }
+            }
+            : new SaveCompanyRequest();
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        saved = false;
+        var result = await Api.PutAsync<CompanyDto>("api/company", model!);
+        problem = result.Problem;
+        if (problem is not null) validator?.ShowServerErrors(problem);
+        else saved = true;
+        busy = false;
+    }
+}

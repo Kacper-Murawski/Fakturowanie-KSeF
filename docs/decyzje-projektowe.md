@@ -271,3 +271,40 @@ przed zmanipulowanymi kwotami z przeglądarki.
 - edycja faktury wymaga przesłania wersji z ostatniego odczytu (`xmin`). Nieaktualna wersja daje 409
   (optymistyczna kontrola współbieżności - bez blokad w bazie),
 - faktury w statusie `Pending` i `Accepted` nie mogą być edytowane ani usuwane.
+
+---
+
+## D18. Uwierzytelnianie przeglądarki ciasteczkiem sesji zamiast tokenu w JavaScripcie
+
+**Decyzja:** aplikacja Blazor loguje się przez `/api/auth/login?useCookies=true`. Serwer ustawia ciasteczko
+`HttpOnly` (niedostępne dla skryptów) z `SameSite=Strict` (niewysyłane przy żądaniach z innych witryn)
+i `Secure` w środowisku produkcyjnym. Kod klienta nie ma dostępu do żadnych danych uwierzytelniających;
+stan zalogowania ustala zapytaniem do serwera (`/api/auth/manage/info`).
+
+**Alternatywa:** token Bearer (JWT) przechowywany w `localStorage` i dołączany do żądań przez klienta.
+
+**Uzasadnienie:** token w `localStorage` może zostać wykradziony przez dowolny skrypt w razie podatności XSS;
+ciasteczko HttpOnly - nie. Możliwe dzięki temu, że klient i API działają w jednej domenie (D6). `SameSite=Strict`
+oraz wymaganie treści JSON (żądanie z innej witryny wymagałoby zgody CORS, której API nie udziela) chronią przed CSRF.
+Dodatkowo: polityka haseł (min. 8 znaków, różne klasy znaków), blokada konta po 5 nieudanych próbach,
+polskie komunikaty błędów, ochrona przed przekierowaniem na obcą stronę po zalogowaniu (`returnUrl` tylko względny).
+
+## D19. Walidacja formularzy w przeglądarce tymi samymi regułami co w API
+
+**Decyzja:** formularze używają komponentu `DeepValidator`, który stosuje atrybuty DataAnnotations z projektu
+`Contracts` (D13, D14) również do obiektów zagnieżdżonych (adres, nabywca) i elementów list (pozycje faktury)
+- czego standardowy `DataAnnotationsValidator` nie robi. Ten sam komponent przypina do pól formularza błędy
+zwrócone przez serwer (np. `Items[1].Quantity`, konflikt numeru faktury), więc użytkownik widzi je przy właściwym polu.
+
+**Uzasadnienie:** natychmiastowa informacja zwrotna bez wysyłania formularza, jedno źródło reguł; serwer pozostaje
+ostateczną instancją walidacji (klient może zostać zmodyfikowany).
+
+## D20. Wnioski z testów w przeglądarce: kultura pl-PL
+
+Test całego scenariusza w prawdziwej przeglądarce (rejestracja → firma → kontrahent → faktura → edycja → lista
+→ wylogowanie) wykrył błąd niewidoczny w testach API: atrybut `[Range(typeof(decimal), "0.000001", ...)]` parsował
+granice zakresu według bieżących ustawień regionalnych. Na serwerze (kultura niezmienna, kropka dziesiętna)
+działał poprawnie, w przeglądarce z kulturą `pl-PL` (przecinek) - rzucał wyjątek przy walidacji ilości.
+Poprawka: `ParseLimitsInInvariantCulture` i `ConvertValueInInvariantCulture`, oraz test regresyjny uruchamiany
+w kulturach pl-PL, en-US i de-DE. Wniosek: testy API nie zastąpią testów interfejsu - automatyczne testy E2E
+są zaplanowane w etapie 10.

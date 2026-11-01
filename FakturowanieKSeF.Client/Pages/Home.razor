@@ -1,7 +1,74 @@
 ﻿@page "/"
+@inject ApiClient Api
 
-<PageTitle>Fakturowanie KSeF</PageTitle>
+<PageTitle>Pulpit - Fakturowanie KSeF</PageTitle>
 
-<h1>Fakturowanie KSeF</h1>
+<h1>Pulpit</h1>
 
-<p>Aplikacja do wystawiania i odbierania faktur w Krajowym Systemie e-Faktur.</p>
+@if (loading)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+else if (company is null)
+{
+    <div class="card border-primary">
+        <div class="card-body">
+            <h2 class="h5">Witaj! Zacznij od danych swojej firmy</h2>
+            <p class="mb-3">Dane firmy (nazwa, NIP, adres) pojawią się jako sprzedawca na każdej wystawianej fakturze.</p>
+            <a class="btn btn-primary" href="firma">Uzupełnij dane firmy</a>
+        </div>
+    </div>
+}
+else
+{
+    <p class="text-muted">@company.Name, NIP @Format.Nip(company.Nip)</p>
+
+    <div class="row g-3 mb-4">
+        @foreach (var (label, status, count) in counters)
+        {
+            <div class="col-sm-6 col-lg-3">
+                <a class="card text-decoration-none h-100" href="faktury?status=@status">
+                    <div class="card-body">
+                        <div class="text-muted small">@label</div>
+                        <div class="fs-3 fw-semibold">@count</div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+
+    <div class="d-flex gap-2">
+        <a class="btn btn-primary" href="faktury/nowa">Wystaw fakturę</a>
+        <a class="btn btn-outline-secondary" href="kontrahenci/nowy">Dodaj kontrahenta</a>
+    </div>
+}
+
+@code {
+    private bool loading = true;
+    private CompanyDto? company;
+    private List<(string label, InvoiceStatus status, int count)> counters = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<CompanyDto>("api/company");
+        company = result.Value;
+
+        if (company is not null)
+        {
+            (string, InvoiceStatus)[] statuses =
+            [
+                ("Szkice", InvoiceStatus.Draft),
+                ("Oczekujące w KSeF", InvoiceStatus.Pending),
+                ("Przyjęte w KSeF", InvoiceStatus.Accepted),
+                ("Odrzucone", InvoiceStatus.Rejected)
+            ];
+            foreach (var (label, status) in statuses)
+            {
+                var page = await Api.GetAsync<PagedResult<InvoiceListItemDto>>($"api/invoices?status={status}&pageSize=1");
+                counters.Add((label, status, page.Value?.TotalCount ?? 0));
+            }
+        }
+
+        loading = false;
+    }
+}

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Endpoints;
@@ -14,9 +15,35 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
     options.UseNpgsql(services.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")));
 
 // 2. Konfiguracja Systemu Użytkowników (Identity)
-builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
-    .AddEntityFrameworkStores<AppDbContext>();
+builder.Services.AddIdentityApiEndpoints<ApplicationUser>(options =>
+    {
+        options.Password.RequiredLength = 8;
+        options.User.RequireUniqueEmail = true;
+        // Blokada konta po 5 nieudanych próbach logowania na 15 minut (ochrona przed zgadywaniem haseł)
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddErrorDescriber<PolishIdentityErrorDescriber>();
 builder.Services.AddAuthorization();
+
+// Przeglądarka loguje się ciasteczkiem (/api/auth/login?useCookies=true): HttpOnly - niedostępne dla JavaScriptu
+// (ochrona sesji przed XSS), SameSite=Strict - niewysyłane z innych witryn (ochrona przed CSRF).
+// Tokeny Bearer pozostają dostępne dla innych klientów (testy, ewentualna aplikacja mobilna).
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = "ksef.auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+    // API zwraca kody HTTP zamiast przekierowań na stronę logowania
+    options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
+    options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+});
 
 // 3. Podstawowe usługi API (Swagger do testowania)
 builder.Services.AddEndpointsApiExplorer();
@@ -63,7 +90,15 @@ app.UseAuthorization();
 
 // 7. Endpointy API - wszystkie pod prefiksem /api, żeby nie kolidowały z adresami stron klienta
 var api = app.MapGroup("/api");
-api.MapGroup("/auth").WithTags("Auth").MapIdentityApi<ApplicationUser>();
+var auth = api.MapGroup("/auth").WithTags("Auth");
+auth.MapIdentityApi<ApplicationUser>();
+auth.MapPost("/logout", async (SignInManager<ApplicationUser> signInManager) =>
+    {
+        await signInManager.SignOutAsync();
+        return Results.NoContent();
+    })
+    .RequireAuthorization()
+    .WithSummary("Wylogowanie (usunięcie ciasteczka sesji)");
 api.MapHealthChecks("/health");
 api.MapCompanyEndpoints();
 api.MapCustomerEndpoints();

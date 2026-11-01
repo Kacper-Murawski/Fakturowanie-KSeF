@@ -1,0 +1,5 @@
+<span class="badge @Format.StatusCss(Status)">@Format.Status(Status)</span>
+
+@code {
+    [Parameter, EditorRequired] public InvoiceStatus Status { get; set; }
+}

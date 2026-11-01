@@ -26,6 +26,9 @@
   w `DataIsolationTests`.
 - DTO, enumy, walidacja i kalkulator kwot są w `FakturowanieKSeF.Contracts` (bez zależności od EF) - współdzielone
   przez API i klienta Blazor. Klient NIE może referencjonować `FakturowanieKSeF.Models`.
+- Frontend (Blazor WASM): logowanie ciasteczkiem sesji (`AuthService`, bez tokenów w JS), wywołania API przez
+  `ApiClient`, formularze z `DeepValidator` (walidacja zagnieżdżona + błędy serwera przy polach). Teksty UI po polsku.
+  Pamiętaj o kulturze pl-PL w przeglądarce (przecinek dziesiętny) - np. `[Range]` z `ParseLimitsInInvariantCulture`.
 - Opis API: `docs/api.md` - aktualizuj przy każdej zmianie endpointów.
 - Model danych opisany w `docs/model-danych.md` (diagram ERD) - aktualizuj go przy każdej zmianie modelu.
 - Sekrety (hasło do bazy, tokeny i certyfikaty KSeF) nie mogą trafiać do repozytorium w konfiguracji produkcyjnej:
