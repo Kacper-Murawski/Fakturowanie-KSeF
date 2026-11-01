@@ -82,6 +82,7 @@ public sealed class ReceivedInvoiceSync(
                             TotalGross = meta.GrossAmount,
                             KsefAcceptedAt = meta.AcquisitionDate.UtcDateTime, // data nadania numeru KSeF = data otrzymania
                             Xml = xml,
+                            InvoiceHash = meta.InvoiceHash,
                             DownloadedAt = time.GetUtcNow().UtcDateTime
                         });
                         await db.SaveChangesAsync(ct); // każda faktura zapisana trwale - przerwanie niczego nie gubi

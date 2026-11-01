@@ -40,7 +40,8 @@ public sealed record KsefInvoiceMetadata(
     decimal NetAmount,
     decimal VatAmount,
     decimal GrossAmount,
-    string Currency);
+    string Currency,
+    string? InvoiceHash = null);
 
 /// <summary>
 /// Strona wyników wyszukiwania. <see cref="PermanentStorageHwmDate"/> (High Water Mark) - moment, do którego KSeF
@@ -230,7 +231,8 @@ public sealed class KsefGateway(
             i.NetAmount,
             i.VatAmount,
             i.GrossAmount,
-            i.Currency ?? "PLN")).ToList();
+            i.Currency ?? "PLN",
+            i.InvoiceHash)).ToList();
 
         return new KsefMetadataPage(invoices, page.HasMore, page.IsTruncated, page.PermanentStorageHwmDate);
     }

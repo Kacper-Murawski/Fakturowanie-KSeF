@@ -67,6 +67,7 @@ builder.Services.AddSingleton<KsefWorkSignal>();
 builder.Services.AddHostedService<KsefSubmissionWorker>();
 builder.Services.AddSingleton<KsefTokenProtector>();
 builder.Services.AddScoped<ReceivedInvoiceSync>();
+builder.Services.AddSingleton<InvoicePdfRenderer>();
 builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 
 // Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji

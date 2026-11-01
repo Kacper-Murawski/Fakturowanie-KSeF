@@ -455,6 +455,10 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Property<DateTime>("DownloadedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("InvoiceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("InvoiceNumber")
                         .IsRequired()
                         .HasMaxLength(256)

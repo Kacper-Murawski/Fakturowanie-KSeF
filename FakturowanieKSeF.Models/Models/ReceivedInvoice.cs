@@ -46,6 +46,10 @@ public class ReceivedInvoice
     /// <summary>Data przyjęcia faktury w KSeF (nadania numeru KSeF).</summary>
     public DateTime KsefAcceptedAt { get; set; }
 
+    /// <summary>Skrót SHA-256 pliku faktury (Base64) z metadanych KSeF - do kodu QR weryfikacji na wydruku.</summary>
+    [MaxLength(64)]
+    public string? InvoiceHash { get; set; }
+
     /// <summary>Pełny XML faktury pobrany z KSeF.</summary>
     [Required]
     public string Xml { get; set; } = string.Empty;

@@ -3,6 +3,7 @@ using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Services;
 using FakturowanieKSeF.Contracts.Calculation;
 using FakturowanieKSeF.Contracts.Dtos;
+using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Ksef.Fa3;
 using FakturowanieKSeF.Models;
 using Microsoft.EntityFrameworkCore;
@@ -169,6 +170,53 @@ public static class InvoiceEndpoints
                     : Results.File(System.Text.Encoding.UTF8.GetBytes(upo.UpoXml!), "application/xml", $"UPO_{upo.KsefNumber}.xml");
             })
             .WithSummary("UPO - urzędowe poświadczenie odbioru faktury przez KSeF");
+
+        group.MapGet("/{id:int}/pdf", async (int id, CurrentCompany current, AppDbContext db, Fa3XmlGenerator generator,
+                InvoicePdfRenderer renderer, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+
+                var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions)
+                    .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
+                if (invoice is null) return ApiErrors.NotFound("faktura");
+
+                var submitted = invoice.Status is InvoiceStatus.Pending or InvoiceStatus.Accepted
+                    ? invoice.KsefSubmissions.OrderByDescending(s => s.Id).FirstOrDefault()
+                    : null;
+
+                InvoiceDocumentDto document;
+                PdfVerificationQr? qr = null;
+                string? notice = null;
+
+                if (submitted is not null)
+                {
+                    // Wydruk dokładnie wysłanego dokumentu + KOD I (pod kodem numer KSeF albo OFFLINE, gdy jeszcze go nie ma)
+                    document = Fa3InvoiceReader.Read(submitted.SentXml);
+                    qr = new PdfVerificationQr(
+                        KsefQr.InvoiceVerificationUrl(invoice.Seller.Nip!, invoice.IssueDate, submitted.InvoiceHash),
+                        submitted.KsefNumber ?? KsefQr.OfflineLabel);
+                }
+                else
+                {
+                    try
+                    {
+                        document = Fa3InvoiceReader.Read(generator.Generate(invoice));
+                    }
+                    catch (Fa3GenerationException ex)
+                    {
+                        return Results.Problem(title: "Nie można przygotować wydruku faktury.", detail: ex.Message,
+                            statusCode: StatusCodes.Status422UnprocessableEntity);
+                    }
+                    notice = invoice.Status == InvoiceStatus.Rejected
+                        ? "FAKTURA ODRZUCONA PRZEZ KSeF - dokument nie ma mocy prawnej faktury."
+                        : "SZKIC - dokument nie został wysłany do KSeF i nie jest fakturą.";
+                }
+
+                var pdf = renderer.Render(document, qr, notice);
+                var fileName = string.Concat(invoice.Number.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + ".pdf";
+                return Results.File(pdf, "application/pdf", fileName);
+            })
+            .WithSummary("Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych)");
 
         group.MapGet("/next-number", async (DateOnly? issueDate, CurrentCompany current, InvoiceNumbering numbering, CancellationToken ct) =>
             {

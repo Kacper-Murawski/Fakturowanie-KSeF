@@ -142,6 +142,7 @@ erDiagram
         numeric TotalVat
         numeric TotalGross
         timestamptz KsefAcceptedAt
+        string InvoiceHash "SHA-256 (do kodu QR)"
         text Xml "pełny XML z KSeF"
         timestamptz DownloadedAt
     }

@@ -418,3 +418,19 @@ wielokrotnego sprawdzania (HWM), odporność na przerwania (punkt kontrolny prze
 w bazie), ochrona przed przekroczeniem limitów API.
 
 **Obserwacja z testów na żywo:** faktura była dostępna do pobrania ok. 2 minut po nadaniu numeru KSeF.
+
+---
+
+## D27. Wydruk PDF z dokumentu XML i kod QR weryfikacji KSeF
+
+**Decyzja:** PDF faktury jest generowany biblioteką QuestPDF z treści dokumentu XML FA (a nie bezpośrednio z bazy) -
+jednym rendererem dla faktur wystawionych i otrzymanych. Faktury przekazane do KSeF mają kod QR weryfikacji (KOD I)
+z numerem KSeF (lub „OFFLINE” przed jego nadaniem); szkice i faktury odrzucone są wyraźnie oznaczone jako niebędące fakturą.
+
+**Alternatywy:** generowanie HTML i konwersja do PDF przeglądarką bezgłowicową (cięższe wdrożenie - przeglądarka na
+serwerze); wydruk z przeglądarki użytkownika (brak kontroli nad układem, brak pliku do wysłania); biblioteki
+niskopoziomowe (PdfSharp/iText - więcej kodu; iText na licencji AGPL).
+
+**Uzasadnienie:** wydruk odpowiada dokładnie dokumentowi w KSeF (jedno źródło prawdy - XML), deklaratywny układ
+w C#, licencja QuestPDF Community bezpłatna dla projektu akademickiego (oraz firm z przychodem < 1 mln USD).
+Poprawność kodu QR potwierdzona zgodnością linku z klientem MF i skrótu dokumentu z UPO wystawionym przez KSeF.
