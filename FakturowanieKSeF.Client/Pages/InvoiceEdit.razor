@@ -6,6 +6,13 @@
 <PageTitle>@(Id is null ? "Nowa faktura" : "Edycja faktury") - Fakturowanie KSeF</PageTitle>
 
 <h1>@(Id is null ? "Nowa faktura" : $"Edycja faktury {originalNumber}")</h1>
+@if (templateNumber is not null)
+{
+    <div class="alert alert-info" role="status" data-testid="template-info">
+        Nowa faktura na podstawie <strong>@templateNumber</strong>: skopiowano nabywcę, pozycje i warunki płatności.
+        Numer i daty są nowe - sprawdź dane przed zapisaniem.
+    </div>
+}
 
 @if (companyMissing)
 {
@@ -240,12 +247,15 @@ else
 @code {
     [Parameter] public int? Id { get; set; }
 
+    /// <summary>Faktura-wzór dla „Wystaw podobną” (adres /faktury/nowa?wzor=5).</summary>
+    [SupplyParameterFromQuery(Name = "wzor")] public int? TemplateId { get; set; }
+
     private SaveInvoiceRequest? model;
     private List<CustomerDto> customers = [];
     private InvoiceTotals totals = InvoiceCalculator.Calculate([]);
     private DeepValidator? validator;
     private ApiProblem? problem;
-    private string? suggestedNumber, originalNumber, companyAccount;
+    private string? suggestedNumber, originalNumber, companyAccount, templateNumber;
     private bool busy, companyMissing;
 
     private CustomerDto? SelectedCustomer => customers.FirstOrDefault(c => c.Id == model?.CustomerId);
@@ -271,6 +281,8 @@ else
                 Buyer = NewBuyer(),
                 Items = [new SaveInvoiceItemRequest()]
             };
+            templateNumber = null; // przejście z „Wystaw podobną” do pustej „Nowej faktury” (ten sam komponent)
+            if (TemplateId is not null) await CopyFromTemplateAsync(TemplateId.Value, today);
             await SuggestNumberAsync();
         }
         else
@@ -310,6 +322,47 @@ else
     }
 
     private static SaveInvoiceBuyerRequest NewBuyer() => new();
+
+    /// <summary>
+    /// „Wystaw podobną”: nowy szkic z nabywcą, pozycjami i warunkami płatności faktury-wzoru. Numer jest nadawany
+    /// od nowa, data wystawienia to dzisiaj, a termin płatności zachowuje odstęp dni z wzoru.
+    /// </summary>
+    private async Task CopyFromTemplateAsync(int templateId, DateOnly today)
+    {
+        var result = await Api.GetAsync<InvoiceDto>($"api/invoices/{templateId}");
+        if (result.Value is not { } t)
+        {
+            problem = result.Problem;
+            return;
+        }
+
+        templateNumber = t.Number;
+        model!.IssuePlace = t.IssuePlace;
+        model.PaymentMethod = t.PaymentMethod;
+        model.DueDate = t.DueDate is { } due ? today.AddDays(due.DayNumber - t.IssueDate.DayNumber) : null;
+        model.BankAccountNumber = t.BankAccountNumber;
+        model.ExemptionBasis = t.ExemptionBasis;
+
+        // Kontrahent z książki adresowej (aktualne dane), a gdy został usunięty - kopia danych nabywcy z wzoru
+        if (t.CustomerId is { } customerId && customers.Any(c => c.Id == customerId))
+        {
+            model.CustomerId = customerId;
+            model.Buyer = null;
+        }
+        else
+        {
+            model.Buyer = new SaveInvoiceBuyerRequest
+            {
+                Name = t.Buyer.Name, Nip = t.Buyer.Nip,
+                Address = new AddressDto { Street = t.Buyer.Address.Street, PostalCode = t.Buyer.Address.PostalCode, City = t.Buyer.Address.City, CountryCode = t.Buyer.Address.CountryCode }
+            };
+        }
+
+        model.Items = t.Items.Select(x => new SaveInvoiceItemRequest
+        {
+            Name = x.Name, Unit = x.Unit, Quantity = x.Quantity, UnitNetPrice = x.UnitNetPrice, VatRate = x.VatRate
+        }).ToList();
+    }
 
     private async Task SuggestNumberAsync()
     {

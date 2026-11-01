@@ -517,3 +517,19 @@ podczas pobierania z KSeF (z XML), a dla faktur pobranych wcześniej uzupełnion
 **Uzasadnienie:** model odpowiada rzeczywistości (wpłaty częściowe, historia, możliwość korekty pomyłki), stan
 zawsze zgodny z danymi (wyliczany), zaległość aktualna bez zadań w tle. Przy skali MVP wyliczanie sumy w podzapytaniu
 jest wystarczająco szybkie (indeksy na kluczach obcych).
+
+---
+
+## D31. „Wystaw podobną” jako wypełnienie formularza w przeglądarce
+
+**Decyzja:** kopiowanie faktury odbywa się w kliencie: formularz nowej faktury pobiera fakturę-wzór istniejącym
+endpointem `GET /api/invoices/{id}` i wypełnia pola. Na serwerze nic nie powstaje, dopóki użytkownik nie zapisze
+faktury zwykłym `POST /api/invoices` - z pełną walidacją, numeracją i kontrolą dostępu. Numer i data wystawienia są
+nowe, termin płatności zachowuje odstęp dni z wzoru. Kontrahent jest wskazywany z książki adresowej, jeśli nadal
+istnieje (aktualne dane), a w przeciwnym razie kopiowane są dane nabywcy z wzoru.
+
+**Alternatywy:** endpoint `POST /api/invoices/{id}/copy` tworzący od razu szkic na serwerze - prostszy w użyciu
+z innych klientów, ale zostawia niechciane szkice, gdy użytkownik zrezygnuje, i zajmuje kolejny numer faktury.
+
+**Uzasadnienie:** brak nowego endpointu i reguł po stronie serwera (mniej kodu do zabezpieczenia), brak „śmieciowych”
+szkiców i luk w numeracji, użytkownik widzi i poprawia dane przed zapisem.

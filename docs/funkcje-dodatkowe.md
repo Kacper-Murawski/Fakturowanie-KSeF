@@ -25,7 +25,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 1 | Dane kontrahenta z wykazu podatników VAT po NIP (D28) | wysoki | ✅ |
 | 2 | Weryfikacja rachunku na białej liście (faktury otrzymane) (D29) | wysoki | ✅ |
 | 3 | Status płatności faktur wystawionych i otrzymanych (D30) | wysoki | ✅ |
-| 4 | „Wystaw podobną” - kopia faktury jako nowy szkic | wysoki | planowana |
+| 4 | „Wystaw podobną” - kopia faktury jako nowy szkic (D31) | wysoki | ✅ |
 | 5 | Faktury korygujące | wysoki | planowana |
 | 6 | Wysyłka faktury e-mailem | średni | do decyzji |
 | 7 | Faktury cykliczne | średni | do decyzji |
@@ -81,6 +81,13 @@ Użytkownik rejestruje wpłaty za faktury wystawione i zapłaty za faktury otrzy
 rozliczenia (*nieopłacona*, *częściowo opłacona*, *opłacona*, *po terminie*) jest wyliczany z sumy płatności
 i terminu z faktury. Listy faktur mają filtr rozliczenia, a pulpit pokazuje należności i zobowiązania, w tym kwoty
 po terminie. Szczegóły: D30.
+
+## 4. Wystaw podobną
+
+Przycisk w podglądzie faktury otwiera formularz nowej faktury (`/faktury/nowa?wzor={id}`) wypełniony nabywcą,
+pozycjami i warunkami płatności wzoru. Numer i data wystawienia są nowe, termin płatności zachowuje odstęp dni.
+Jeśli kontrahent wzoru nadal istnieje, faktura wskazuje go w książce adresowej (aktualne dane), w przeciwnym razie
+kopiowane są dane nabywcy z wzoru. Szczegóły: D31.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).
