@@ -49,6 +49,8 @@
   przetwarzanie `KsefSubmissionProcessor` (usługa w tle). ZASADA: po przyjęciu faktury do przetwarzania przez KSeF
   nigdy nie oznaczaj jej jako `Rejected` z powodu własnego błędu komunikacji (ryzyko duplikatu). Opis: `docs/integracja-ksef.md`.
   Token KSeF tylko zaszyfrowany (`KsefTokenProtector`), nigdy w odpowiedziach API ani logach.
+  Odbiór faktur: `ReceivedInvoiceSync` (przyrostowo do HWM, punkt kontrolny w `Company`), odczyty tylko z lokalnej bazy,
+  szanuj limity API KSeF (budżet zapytań na synchronizację, ręczna synchronizacja max raz/min, cyklicznie min. 15 min).
   Test na żywo z testowym KSeF: `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests`.
 - Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).

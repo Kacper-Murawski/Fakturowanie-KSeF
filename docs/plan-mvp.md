@@ -33,7 +33,7 @@ i numer KSeF, a także widzi faktury, które inni wystawili na jego NIP. Aplikac
 | 4. Frontend ✅ | Logowanie/rejestracja, przechowywanie tokenu, layout, strony: profil firmy, kontrahenci, lista faktur (filtry, statusy), formularz faktury z sumami na żywo, podgląd | Pełny przepływ w przeglądarce bez KSeF |
 | 5. XML FA(3) ✅ | Mapowanie faktury na XML FA(3), walidacja XSD, testy na przykładach MF | Wygenerowany XML przechodzi walidację |
 | 6. Wysyłka do KSeF ✅ | Bezpieczne przechowywanie tokenu KSeF (szyfrowanie Data Protection), wysyłka w sesji interaktywnej, BackgroundService odpytujący o status i UPO, aktualizacja statusu faktury, obsługa odrzuceń | Faktura z aplikacji ma numer KSeF z testowego KSeF |
-| 7. Odbiór z KSeF | Okresowe pobieranie metadanych faktur zakupowych, pobranie XML, parsowanie, lista i podgląd | Faktura wystawiona na nasz NIP pojawia się w aplikacji |
+| 7. Odbiór z KSeF ✅ | Okresowe pobieranie metadanych faktur zakupowych, pobranie XML, parsowanie, lista i podgląd | Faktura wystawiona na nasz NIP pojawia się w aplikacji |
 | 8. PDF | Wizualizacja faktury (np. QuestPDF) z numerem KSeF i kodem QR weryfikacji | Pobieranie PDF z listy faktur |
 | 9. Wdrożenie | Dockerfile, docker-compose produkcyjny, reverse proxy z automatycznym HTTPS (Caddy), sekrety w zmiennych środowiskowych, backup bazy, VPS + domena | Aplikacja dostępna publicznie pod HTTPS |
 | 10. Testy i dokumentacja | Testy E2E głównych scenariuszy (Playwright), testy bezpieczeństwa izolacji danych, dokumentacja do pracy | Komplet rozdziałów technicznych pracy |

@@ -28,6 +28,30 @@ public sealed record KsefInvoiceStatus(int Code, string Description, IReadOnlyLi
     public bool IsAccepted => Code == Accepted && KsefNumber is not null;
 }
 
+/// <summary>Metadane faktury z KSeF (wynik wyszukiwania - bez treści faktury).</summary>
+public sealed record KsefInvoiceMetadata(
+    string KsefNumber,
+    string InvoiceNumber,
+    DateOnly IssueDate,
+    DateTimeOffset AcquisitionDate,
+    DateTimeOffset PermanentStorageDate,
+    string SellerNip,
+    string SellerName,
+    decimal NetAmount,
+    decimal VatAmount,
+    decimal GrossAmount,
+    string Currency);
+
+/// <summary>
+/// Strona wyników wyszukiwania. <see cref="PermanentStorageHwmDate"/> (High Water Mark) - moment, do którego KSeF
+/// gwarantuje kompletność: żadna nowa faktura z datą trwałego zapisu ≤ HWM już się nie pojawi.
+/// </summary>
+public sealed record KsefMetadataPage(
+    IReadOnlyList<KsefInvoiceMetadata> Invoices,
+    bool HasMore,
+    bool IsTruncated,
+    DateTimeOffset? PermanentStorageHwmDate);
+
 /// <summary>Nieprawidłowy, nieaktywny lub cofnięty token KSeF.</summary>
 public sealed class KsefAuthenticationException(string message, Exception? inner = null) : Exception(message, inner);
 
@@ -56,6 +80,15 @@ public interface IKsefGateway
 
     /// <summary>UPO faktury albo null, jeśli jeszcze nie zostało wygenerowane.</summary>
     Task<string?> GetUpoAsync(string nip, string ksefToken, string sessionReferenceNumber, string ksefNumber, CancellationToken ct = default);
+
+    /// <summary>
+    /// Metadane faktur, w których firma jest nabywcą (Podmiot2), trwale zapisanych w KSeF od <paramref name="from"/>,
+    /// rosnąco według daty trwałego zapisu, ograniczone do HWM (synchronizacja przyrostowa wg zaleceń MF).
+    /// </summary>
+    Task<KsefMetadataPage> QueryReceivedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from, int pageOffset, int pageSize, CancellationToken ct = default);
+
+    /// <summary>Pełny XML faktury o podanym numerze KSeF.</summary>
+    Task<string> DownloadInvoiceAsync(string nip, string ksefToken, string ksefNumber, CancellationToken ct = default);
 }
 
 /// <summary>Implementacja <see cref="IKsefGateway"/> na oficjalnym kliencie KSeF Ministerstwa Finansów.</summary>
@@ -169,6 +202,43 @@ public sealed class KsefGateway(
         {
             return null; // UPO jeszcze niewygenerowane - KSeF tworzy je po zamknięciu sesji
         }
+    }
+
+    public async Task<KsefMetadataPage> QueryReceivedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from,
+        int pageOffset, int pageSize, CancellationToken ct = default)
+    {
+        var accessToken = await GetAccessTokenAsync(nip, ksefToken, ct);
+        var page = await ksefClient.QueryInvoiceMetadataAsync(new InvoiceQueryFilters
+        {
+            SubjectType = InvoiceSubjectType.Subject2, // faktury, w których firma jest nabywcą
+            DateRange = new DateRange
+            {
+                DateType = DateType.PermanentStorage,
+                From = from,
+                RestrictToPermanentStorageHwmDate = true
+            }
+        }, accessToken, pageOffset, pageSize, SortOrder.Asc, ct);
+
+        var invoices = (page.Invoices ?? []).Select(i => new KsefInvoiceMetadata(
+            i.KsefNumber,
+            i.InvoiceNumber,
+            DateOnly.FromDateTime(i.IssueDate.Date),
+            i.AcquisitionDate,
+            i.PermanentStorageDate,
+            i.Seller?.Nip ?? "",
+            i.Seller?.Name ?? "",
+            i.NetAmount,
+            i.VatAmount,
+            i.GrossAmount,
+            i.Currency ?? "PLN")).ToList();
+
+        return new KsefMetadataPage(invoices, page.HasMore, page.IsTruncated, page.PermanentStorageHwmDate);
+    }
+
+    public async Task<string> DownloadInvoiceAsync(string nip, string ksefToken, string ksefNumber, CancellationToken ct = default)
+    {
+        var accessToken = await GetAccessTokenAsync(nip, ksefToken, ct);
+        return await ksefClient.GetInvoiceAsync(ksefNumber, accessToken, ct);
     }
 
     // ------------------------------------------------------------------ uwierzytelnianie

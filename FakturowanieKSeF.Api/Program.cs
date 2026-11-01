@@ -66,6 +66,8 @@ builder.Services.AddScoped<KsefSubmissionProcessor>();
 builder.Services.AddSingleton<KsefWorkSignal>();
 builder.Services.AddHostedService<KsefSubmissionWorker>();
 builder.Services.AddSingleton<KsefTokenProtector>();
+builder.Services.AddScoped<ReceivedInvoiceSync>();
+builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 
 // Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji
 builder.Services.AddDataProtection()
@@ -122,6 +124,7 @@ api.MapCompanyEndpoints();
 api.MapCustomerEndpoints();
 api.MapInvoiceEndpoints();
 api.MapKsefSettingsEndpoints();
+api.MapReceivedInvoiceEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

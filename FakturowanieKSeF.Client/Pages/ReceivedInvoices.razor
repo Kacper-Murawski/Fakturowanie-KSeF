@@ -1,0 +1,177 @@
+@page "/faktury-otrzymane"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Faktury otrzymane - Fakturowanie KSeF</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+    <h1 class="mb-0">Faktury otrzymane</h1>
+    <button class="btn btn-primary" @onclick="SyncAsync" disabled="@(syncing || status is { HasToken: false })">
+        @if (syncing)
+        {
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+        }
+        Pobierz z KSeF
+    </button>
+</div>
+
+<p class="text-muted small">
+    Faktury wystawione na NIP Twojej firmy, pobrane z KSeF (środowisko testowe). Aplikacja pobiera nowe faktury automatycznie
+    co 15 minut; możesz też uruchomić pobieranie ręcznie. Nowa faktura jest dostępna do pobrania z KSeF po jej trwałym zapisaniu
+    w systemie - zwykle kilka minut po wystawieniu.
+</p>
+
+@if (status is { HasToken: false })
+{
+    <div class="alert alert-info">Aby pobierać faktury z KSeF, <a href="firma">skonfiguruj token KSeF</a> w ustawieniach firmy.</div>
+}
+else if (status is not null)
+{
+    <p class="small mb-3">
+        Ostatnia synchronizacja: <strong>@Format.DateTime(status.LastSyncAt)</strong>
+        @if (status.SyncedUntil is not null)
+        {
+            <span class="text-muted"> · kompletne dane do @Format.DateTime(status.SyncedUntil)</span>
+        }
+        @if (status.LastError is not null)
+        {
+            <br /><span class="text-danger">Błąd ostatniej synchronizacji: @status.LastError</span>
+        }
+    </p>
+}
+
+@if (syncMessage is not null)
+{
+    <div class="alert alert-success" role="status">@syncMessage</div>
+}
+<ProblemAlert Problem="problem" />
+
+<div class="row g-2 mb-3 align-items-end">
+    <div class="col-md-5">
+        <label class="form-label small" for="q">Szukaj</label>
+        <input id="q" class="form-control" placeholder="Numer faktury, sprzedawca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small" for="from">Wystawione od</label>
+        <input id="from" type="date" class="form-control" @bind="From" @bind:after="ApplyFilters" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small" for="to">do</label>
+        <input id="to" type="date" class="form-control" @bind="To" @bind:after="ApplyFilters" />
+    </div>
+</div>
+
+@if (data is null)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+else if (data.TotalCount == 0)
+{
+    <p class="text-muted">Brak faktur otrzymanych@(string.IsNullOrWhiteSpace(Q) && From is null && To is null ? "" : " spełniających kryteria").</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Numer faktury</th><th>Sprzedawca</th><th>Data wystawienia</th><th>Otrzymana (KSeF)</th>
+                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Numer KSeF</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in data.Items)
+                {
+                    <tr role="button" @onclick="() => Open(r.Id)">
+                        <td><a href="faktury-otrzymane/@r.Id">@r.InvoiceNumber</a></td>
+                        <td>@r.SellerName<div class="small text-muted">NIP @Format.Nip(r.SellerNip)</div></td>
+                        <td>@Format.Date(r.IssueDate)</td>
+                        <td>@Format.DateTime(r.KsefAcceptedAt)</td>
+                        <td class="text-end text-nowrap">@Format.Money(r.TotalNet, r.Currency)</td>
+                        <td class="text-end text-nowrap">@Format.Money(r.TotalGross, r.Currency)</td>
+                        <td class="small">@r.KsefNumber</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="d-flex justify-content-between align-items-center" aria-label="Stronicowanie">
+        <span class="text-muted small">Faktury @((data.Page - 1) * data.PageSize + 1)–@Math.Min(data.Page * data.PageSize, data.TotalCount) z @data.TotalCount</span>
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page <= 1)" @onclick="() => GoTo(data.Page - 1)">‹ Poprzednia</button>
+            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page * data.PageSize >= data.TotalCount)" @onclick="() => GoTo(data.Page + 1)">Następna ›</button>
+        </div>
+    </nav>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "from")] public DateOnly? From { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public DateOnly? To { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? PageNumber { get; set; }
+
+    private PagedResult<ReceivedInvoiceListItemDto>? data;
+    private ReceivedSyncStatusDto? status;
+    private ApiProblem? problem;
+    private string? syncMessage;
+    private bool syncing;
+    private CancellationTokenSource? debounce;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        status = (await Api.GetAsync<ReceivedSyncStatusDto>("api/received-invoices/sync-status")).Value;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var query = new List<string> { $"page={PageNumber ?? 1}", "pageSize=20" };
+        if (!string.IsNullOrWhiteSpace(Q)) query.Add($"q={Uri.EscapeDataString(Q)}");
+        if (From is not null) query.Add($"from={From:yyyy-MM-dd}");
+        if (To is not null) query.Add($"to={To:yyyy-MM-dd}");
+
+        var result = await Api.GetAsync<PagedResult<ReceivedInvoiceListItemDto>>($"api/received-invoices?{string.Join('&', query)}");
+        problem = result.Problem;
+        data = result.Value ?? new PagedResult<ReceivedInvoiceListItemDto>([], 0, 1, 20);
+    }
+
+    private async Task SyncAsync()
+    {
+        syncing = true;
+        syncMessage = null;
+        var result = await Api.PostAsync<SyncResultDto>("api/received-invoices/sync", new { });
+        syncing = false;
+
+        problem = result.Problem;
+        if (result.Value is { } r)
+            syncMessage = r.Downloaded == 0
+                ? "Brak nowych faktur w KSeF."
+                : $"Pobrano nowe faktury: {r.Downloaded}." + (r.Complete ? "" : " Pozostałe zostaną pobrane w kolejnym przebiegu (limity KSeF).");
+
+        status = (await Api.GetAsync<ReceivedSyncStatusDto>("api/received-invoices/sync-status")).Value;
+        await LoadAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        debounce?.Cancel();
+        debounce = new CancellationTokenSource();
+        try { await Task.Delay(300, debounce.Token); } catch (TaskCanceledException) { return; }
+        ApplyFilters();
+    }
+
+    private void ApplyFilters() { PageNumber = 1; UpdateUrl(); }
+
+    private void GoTo(int page) { PageNumber = page; UpdateUrl(); }
+
+    private void Open(int id) => Navigation.NavigateTo($"faktury-otrzymane/{id}");
+
+    private void UpdateUrl() => Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+    {
+        ["q"] = string.IsNullOrWhiteSpace(Q) ? null : Q,
+        ["from"] = From?.ToString("yyyy-MM-dd"),
+        ["to"] = To?.ToString("yyyy-MM-dd"),
+        ["page"] = PageNumber is > 1 ? PageNumber : null
+    }));
+}

@@ -1,0 +1,131 @@
+@page "/faktury-otrzymane/{Id:int}"
+@inject ApiClient Api
+
+<PageTitle>Faktura otrzymana - Fakturowanie KSeF</PageTitle>
+
+<ProblemAlert Problem="problem" />
+
+@if (invoice is null)
+{
+    @if (problem is null)
+    {
+        <p class="text-muted">Wczytywanie…</p>
+    }
+}
+else
+{
+    var doc = invoice.Document;
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h1 class="mb-1">Faktura @(doc?.InvoiceType ?? "VAT") @doc?.InvoiceNumber</h1>
+            <span class="badge bg-info text-dark">Otrzymana z KSeF</span>
+            <span class="ms-2 small">Numer KSeF: <strong>@invoice.KsefNumber</strong> (otrzymana @Format.DateTime(invoice.KsefAcceptedAt))</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary" href="api/received-invoices/@invoice.Id/xml" download>Pobierz XML</a>
+            <a class="btn btn-outline-secondary" href="faktury-otrzymane">Wróć do listy</a>
+        </div>
+    </div>
+
+    @if (invoice.DocumentError is not null)
+    {
+        <div class="alert alert-warning">@invoice.DocumentError Pełna treść faktury jest dostępna w pliku XML.</div>
+    }
+
+    @if (doc is not null)
+    {
+        <div class="invoice-sheet card">
+            <div class="card-body">
+                <div class="small mb-4">
+                    Data wystawienia: <strong>@Format.Date(doc.IssueDate)</strong><br />
+                    Data sprzedaży: <strong>@Format.Date(doc.SaleDate ?? doc.IssueDate)</strong>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-sm-6">
+                        <h2 class="h6 text-muted text-uppercase">Sprzedawca</h2>
+                        <DocumentParty Data="doc.Seller" />
+                    </div>
+                    <div class="col-sm-6">
+                        <h2 class="h6 text-muted text-uppercase">Nabywca</h2>
+                        <DocumentParty Data="doc.Buyer" />
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Lp.</th><th>Nazwa</th><th>J.m.</th><th class="text-end">Ilość</th><th class="text-end">Cena netto</th><th class="text-end">Wartość netto</th><th>VAT</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in doc.Lines)
+                            {
+                                <tr>
+                                    <td>@l.Number</td>
+                                    <td>@l.Name</td>
+                                    <td>@l.Unit</td>
+                                    <td class="text-end">@(l.Quantity is { } q ? Format.Quantity(q) : "")</td>
+                                    <td class="text-end">@(l.UnitNetPrice is { } p ? Format.Amount(p) : "")</td>
+                                    <td class="text-end">@(l.NetAmount is { } n ? Format.Amount(n) : "")</td>
+                                    <td>@VatLabel(l.VatRate)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row justify-content-end">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th></tr></thead>
+                            <tbody>
+                                @foreach (var s in doc.VatSummary)
+                                {
+                                    <tr><td>@s.Label</td><td class="text-end">@Format.Amount(s.Net)</td><td class="text-end">@(s.Vat is { } v ? Format.Amount(v) : "—")</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                        <p class="fs-5 text-end">Do zapłaty: <strong>@Format.Money(doc.TotalGross, doc.Currency)</strong></p>
+                    </div>
+                </div>
+
+                <div class="small">
+                    @if (doc.PaymentMethod is not null)
+                    {
+                        <span>Forma płatności: <strong>@doc.PaymentMethod</strong></span>
+                    }
+                    @if (doc.DueDate is not null)
+                    {
+                        <span>, termin: <strong>@Format.Date(doc.DueDate)</strong></span>
+                    }
+                    @if (doc.BankAccount is not null)
+                    {
+                        <br /><span>Rachunek: <strong>@Format.BankAccount(doc.BankAccount)</strong></span>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ReceivedInvoiceDto? invoice;
+    private ApiProblem? problem;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var result = await Api.GetAsync<ReceivedInvoiceDto>($"api/received-invoices/{Id}");
+        invoice = result.Value;
+        problem = result.Problem;
+    }
+
+    private static string VatLabel(string? code) => code switch
+    {
+        null => "",
+        "zw" or "oo" or "np I" or "np II" => code,
+        _ when code.StartsWith("0 ") => "0% " + code[2..],
+        _ => code + "%"
+    };
+}

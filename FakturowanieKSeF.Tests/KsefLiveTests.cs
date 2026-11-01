@@ -81,6 +81,66 @@ public class KsefLiveTests
         Assert.Contains("środowisko testowe", upo);
     }
 
+    [LiveKsefFact]
+    public async Task FakturaWystawionaPrzezFirmeA_JestOdbieranaPrzezFirmeB()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddKsefTestClient();
+        await using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var gateway = scope.ServiceProvider.GetRequiredService<IKsefGateway>();
+
+        var nipA = RandomNip();
+        var nipB = RandomNip();
+        var tokenA = await gateway.GenerateTestTokenAsync(nipA);
+        var tokenB = await gateway.GenerateTestTokenAsync(nipB);
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+
+        // Firma A wystawia fakturę na NIP firmy B
+        var items = new List<InvoiceItem> { Line(1, "Materiały biurowe", 4, 37.5m, VatRate.Rate23) };
+        var totals = InvoiceCalculator.Calculate(items.Select(i => new LineInput(i.Quantity, i.UnitNetPrice, i.VatRate)));
+        var number = $"FV/B2B/{Random.Shared.Next(100000, 999999)}";
+        var invoice = new Invoice
+        {
+            Number = number, IssueDate = DateOnly.FromDateTime(DateTime.UtcNow), Currency = "PLN", PaymentMethod = PaymentMethod.Cash,
+            Seller = new InvoiceParty { Name = "Firma A (test)", Nip = nipA, Address = Addr() },
+            Buyer = new InvoiceParty { Name = "Firma B (test)", Nip = nipB, Address = Addr() },
+            Items = items, TotalNet = totals.TotalNet, TotalVat = totals.TotalVat, TotalGross = totals.TotalGross
+        };
+        var sent = await gateway.SendInvoiceAsync(nipA, tokenA, new Fa3XmlGenerator().GenerateBytes(invoice));
+        KsefInvoiceStatus status;
+        var attempts = 0;
+        do
+        {
+            await Task.Delay(1000);
+            status = await gateway.GetInvoiceStatusAsync(nipA, tokenA, sent.SessionReferenceNumber, sent.InvoiceReferenceNumber);
+        } while (status.IsProcessing && ++attempts < 60);
+        Assert.True(status.IsAccepted, $"{status.Code} {status.Description}");
+        await gateway.CloseSessionAsync(nipA, tokenA, sent.SessionReferenceNumber);
+
+        // Firma B wyszukuje faktury otrzymane (do HWM) - czekamy, aż HWM obejmie nową fakturę
+        KsefInvoiceMetadata? found = null;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        for (var i = 0; i < 10 && found is null; i++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(15));
+            var page = await gateway.QueryReceivedInvoicesAsync(nipB, tokenB, startedAt, 0, 100);
+            found = page.Invoices.FirstOrDefault(x => x.KsefNumber == status.KsefNumber);
+            Console.WriteLine($"[{sw.Elapsed:mm\\:ss}] HWM={page.PermanentStorageHwmDate:O}, faktur={page.Invoices.Count}, znaleziono={found is not null}");
+        }
+
+        Assert.NotNull(found);
+        Assert.Equal(number, found.InvoiceNumber);
+        Assert.Equal(nipA, found.SellerNip);
+        Assert.Equal(totals.TotalGross, found.GrossAmount);
+
+        var xml = await gateway.DownloadInvoiceAsync(nipB, tokenB, found.KsefNumber);
+        var document = Fa3InvoiceReader.Read(xml);
+        Assert.Equal(number, document.InvoiceNumber);
+        Assert.Equal(nipB, document.Buyer.Nip);
+    }
+
     private static Address Addr() => new() { Street = "ul. Testowa 1", PostalCode = "00-001", City = "Warszawa", CountryCode = "PL" };
 
     private static InvoiceItem Line(int pos, string name, decimal qty, decimal price, VatRate rate)

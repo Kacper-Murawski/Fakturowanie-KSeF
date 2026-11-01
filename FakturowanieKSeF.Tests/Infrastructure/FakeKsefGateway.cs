@@ -24,6 +24,17 @@ public sealed class FakeKsefGateway : IKsefGateway
     public bool UpoReady { get; set; } = true;
 
     public List<(string Nip, byte[] Xml)> SentInvoices { get; } = [];
+
+    /// <summary>Faktury „wystawione przez innych” na dany NIP nabywcy: metadane + XML.</summary>
+    public Dictionary<string, List<(KsefInvoiceMetadata Meta, string Xml)>> Received { get; } = [];
+
+    /// <summary>HWM zwracany przez KSeF (null - brak).</summary>
+    public DateTimeOffset? Hwm { get; set; }
+
+    public Exception? DownloadFailure { get; set; }
+
+    public List<(string Nip, DateTimeOffset From, int Page)> Queries { get; } = [];
+    public int Downloads { get; private set; }
     public List<string> ClosedSessions { get; } = [];
 
     public Task VerifyTokenAsync(string nip, string ksefToken, CancellationToken ct = default) =>
@@ -57,6 +68,26 @@ public sealed class FakeKsefGateway : IKsefGateway
     {
         ClosedSessions.Add(sessionReferenceNumber);
         return Task.CompletedTask;
+    }
+
+    public Task<KsefMetadataPage> QueryReceivedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from, int pageOffset,
+        int pageSize, CancellationToken ct = default)
+    {
+        lock (Queries) Queries.Add((nip, from, pageOffset));
+        var all = (Received.TryGetValue(nip, out var list) ? list : [])
+            .Where(x => x.Meta.PermanentStorageDate >= from && (Hwm is null || x.Meta.PermanentStorageDate <= Hwm))
+            .OrderBy(x => x.Meta.PermanentStorageDate)
+            .Select(x => x.Meta)
+            .ToList();
+        var page = all.Skip(pageOffset * pageSize).Take(pageSize).ToList();
+        return Task.FromResult(new KsefMetadataPage(page, all.Count > (pageOffset + 1) * pageSize, false, Hwm));
+    }
+
+    public Task<string> DownloadInvoiceAsync(string nip, string ksefToken, string ksefNumber, CancellationToken ct = default)
+    {
+        if (DownloadFailure is not null) throw DownloadFailure;
+        Downloads++;
+        return Task.FromResult(Received[nip].Single(x => x.Meta.KsefNumber == ksefNumber).Xml);
     }
 
     public Task<string?> GetUpoAsync(string nip, string ksefToken, string sessionReferenceNumber, string ksefNumber,

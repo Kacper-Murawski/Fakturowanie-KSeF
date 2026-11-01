@@ -41,7 +41,9 @@ erDiagram
         string BankAccountNumber
         text KsefTokenEncrypted "tylko zaszyfrowany"
         timestamptz KsefTokenUpdatedAt
-        timestamptz ReceivedInvoicesSyncedUntil
+        timestamptz ReceivedInvoicesSyncedUntil "punkt kontrolny (HWM)"
+        timestamptz ReceivedInvoicesLastSyncAt
+        string ReceivedInvoicesLastSyncError
         timestamptz CreatedAt
         timestamptz UpdatedAt
         bool IsDeleted

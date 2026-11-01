@@ -34,11 +34,23 @@ public static class TestUsers
     };
 
     /// <summary>Zalogowany użytkownik z utworzoną firmą.</summary>
-    public static async Task<HttpClient> CreateClientWithCompanyAsync(this ApiFactory factory)
+    public static async Task<HttpClient> CreateClientWithCompanyAsync(this ApiFactory factory, string nip = "5260250274")
     {
         var client = await factory.CreateLoggedInClientAsync();
-        (await client.PutAsJsonAsync("/api/company", SampleCompany())).EnsureSuccessStatusCode();
+        (await client.PutAsJsonAsync("/api/company", SampleCompany(nip))).EnsureSuccessStatusCode();
         return client;
+    }
+
+    /// <summary>Losowy, poprawny (z sumą kontrolną) NIP - do testów wymagających unikalnej firmy.</summary>
+    public static string RandomNip()
+    {
+        int[] w = [6, 5, 7, 2, 3, 4, 5, 6, 7];
+        while (true)
+        {
+            var d = Enumerable.Range(0, 9).Select(i => i < 2 ? Random.Shared.Next(1, 10) : Random.Shared.Next(0, 10)).ToArray();
+            var c = d.Select((x, i) => x * w[i]).Sum() % 11;
+            if (c < 10) return string.Concat(d) + c;
+        }
     }
 
     public static SaveCustomerRequest SampleCustomer(string nip = "1234563218", string name = "Kontrahent S.A.") => new()

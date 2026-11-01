@@ -98,6 +98,42 @@ utworzyłaby duplikat dokumentu podatkowego.
 Wynik testu E2E: numer KSeF `2423594858-20261101-51150D000000-BA`, UPO wystawione przez
 „Ministerstwo Finansów - środowisko testowe (TE)”.
 
+## Odbiór faktur (faktury otrzymane)
+
+Faktury wystawione na NIP firmy przez innych podatników są pobierane z KSeF i zapisywane w lokalnej bazie
+(`ReceivedInvoices`, `ReceivedInvoiceSync`). Mechanizm odpowiada zaleceniom MF dla niskiego wolumenu faktur
+(dokumentacja KSeF 2.0: *Przyrostowe pobieranie faktur*, *High Water Mark*, *Limity API*).
+
+**Synchronizacja przyrostowa „do HWM”:**
+1. zapytanie `POST /invoices/query/metadata`:
+   - faktury, w których firma jest nabywcą (Podmiot2),
+   - typ daty `PermanentStorage` (data trwałego zapisu), od punktu kontrolnego firmy,
+   - `restrictToPermanentStorageHwmDate = true`, sortowanie rosnąco;
+2. dla każdej nowej faktury (deduplikacja po numerze KSeF, indeks unikalny w bazie): `GET /invoices/ksef/{numer}`
+   i zapis XML z metadanymi; każda faktura zapisywana jest od razu, więc przerwanie niczego nie gubi;
+3. nowy punkt kontrolny:
+   - po pełnym przejściu: **HWM**. To moment, do którego KSeF gwarantuje kompletność, więc tego okresu nie trzeba
+     sprawdzać ponownie i nie powstają duplikaty;
+   - po przerwaniu (limit, błąd): data ostatniej przetworzonej faktury.
+
+**Tryb mieszany:** cyklicznie co 15 minut dla wszystkich firm z tokenem (minimalny odstęp zalecany przez MF)
+oraz ręcznie przyciskiem „Pobierz z KSeF”, nie częściej niż raz na minutę (odpowiedź 429).
+
+**Limity:** jedna synchronizacja wykonuje maksymalnie 3 zapytania o metadane i 40 pobrań faktur.
+Limity KSeF to 20 zapytań i 64 pobrania na godzinę. Pozostałe faktury są pobierane w kolejnym przebiegu.
+
+**Odczyt:** listy, wyszukiwanie i podgląd korzystają wyłącznie z lokalnej bazy. MF wprost odradza wywołania KSeF
+przy każdej akcji użytkownika. Treść faktury do podglądu odczytuje z XML `Fa3InvoiceReader`.
+Czytnik szuka elementów po nazwach lokalnych, więc obsługuje FA(3) i FA(2), a przetwarzanie DTD jest wyłączone (XXE).
+Datą otrzymania faktury jest data nadania numeru KSeF (`AcquisitionDate`).
+
+**Weryfikacja na testowym KSeF:**
+- test automatyczny na żywo i scenariusz w przeglądarce z dwiema firmami: firma A wysyła fakturę na NIP firmy B,
+  a firma B ją pobiera i wyświetla;
+- **obserwacja:** faktura stała się dostępna do pobrania ok. **2 minuty** po nadaniu numeru KSeF, mimo że HWM
+  przesuwał się na bieżąco (KSeF potrzebuje chwili na trwały zapis). Potwierdza to zasadność synchronizacji
+  cyklicznej zamiast oczekiwania na natychmiastową dostępność.
+
 ## Uwaga o danych testowych
 
 Środowisko testowe KSeF jest **współdzielone przez integratorów** i okresowo czyszczone (dokumentacja MF).

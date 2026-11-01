@@ -36,8 +36,18 @@ public class Company : BaseEntity
 
     public DateTime? KsefTokenUpdatedAt { get; set; }
 
-    /// <summary>Moment, do którego pobrano już faktury zakupowe z KSeF (pobieranie przyrostowe, etap 7).</summary>
+    /// <summary>
+    /// Punkt kontrolny synchronizacji faktur otrzymanych: data trwałego zapisu w KSeF, do której pobrano już
+    /// wszystkie faktury (wartość HWM z KSeF). Kolejna synchronizacja zaczyna się od tego momentu.
+    /// </summary>
     public DateTime? ReceivedInvoicesSyncedUntil { get; set; }
+
+    /// <summary>Moment ostatniej próby synchronizacji (także ograniczenie częstotliwości synchronizacji ręcznej).</summary>
+    public DateTime? ReceivedInvoicesLastSyncAt { get; set; }
+
+    /// <summary>Błąd ostatniej synchronizacji (null - zakończona poprawnie).</summary>
+    [MaxLength(1000)]
+    public string? ReceivedInvoicesLastSyncError { get; set; }
 
     // --- Właściciel i relacje ---
 

@@ -40,6 +40,11 @@ po polsku.
 | PUT | `/api/company/ksef/token` | Zapis tokenu KSeF po weryfikacji w KSeF (400, jeśli KSeF go odrzuci) |
 | POST | `/api/company/ksef/test-token` | Wygenerowanie tokenu w testowym KSeF dla NIP firmy (502 przy błędzie KSeF) |
 | DELETE | `/api/company/ksef/token` | Usunięcie tokenu |
+| GET | `/api/received-invoices?q=&from=&to=&page=&pageSize=` | Lista faktur otrzymanych (z lokalnej bazy) |
+| GET | `/api/received-invoices/{id}` | Faktura otrzymana z treścią odczytaną z XML |
+| GET | `/api/received-invoices/{id}/xml` | XML faktury otrzymanej (w postaci pobranej z KSeF) |
+| GET | `/api/received-invoices/sync-status` | Stan synchronizacji (ostatnia synchronizacja, punkt kontrolny, błąd) |
+| POST | `/api/received-invoices/sync` | Ręczna synchronizacja z KSeF (409 bez tokenu, 429 częściej niż raz na minutę, 502 przy błędzie KSeF) |
 | GET | `/api/health` | Stan aplikacji i bazy danych (bez uwierzytelniania) |
 
 ## Kody odpowiedzi
