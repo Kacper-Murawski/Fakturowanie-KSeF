@@ -104,6 +104,41 @@ else
                         <br /><span>Rachunek: <strong>@Format.BankAccount(doc.BankAccount)</strong></span>
                     }
                 </div>
+
+                @if (doc.BankAccount is not null)
+                {
+                    <div class="mt-3" data-testid="bank-check">
+                        @if (invoice.BankAccountCheck is { } check)
+                        {
+                            <div class="alert @(check.OnWhiteList ? "alert-success" : "alert-danger") mb-2" role="status">
+                                @if (check.OnWhiteList)
+                                {
+                                    <strong>Rachunek jest na białej liście</strong>
+                                    <span>- przypisany do sprzedawcy w wykazie podatników VAT.</span>
+                                }
+                                else
+                                {
+                                    <strong>Rachunku nie ma na białej liście dla tego sprzedawcy.</strong>
+                                    <span>Przed zapłatą wyjaśnij to ze sprzedawcą - zapłata powyżej 15 000 zł na rachunek spoza wykazu
+                                        pozbawia prawa do zaliczenia wydatku do kosztów i grozi solidarną odpowiedzialnością za VAT.</span>
+                                }
+                                <div class="small mt-1">
+                                    Stan na @Format.Date(check.CheckedOn)@(check.RequestId is null ? "" : $", identyfikator zapytania MF: {check.RequestId}").
+                                </div>
+                            </div>
+                        }
+                        else if (doc.Currency == "PLN" && doc.TotalGross > BankAccountCheckDto.ThresholdGross)
+                        {
+                            <div class="alert alert-info mb-2">
+                                Kwota przekracza 15 000 zł - przed przelewem sprawdź, czy rachunek jest na białej liście.
+                            </div>
+                        }
+                        <button type="button" class="btn btn-sm btn-outline-primary" disabled="@checking" @onclick="CheckBankAccountAsync">
+                            @(checking ? "Sprawdzanie…" : invoice.BankAccountCheck is null ? "Sprawdź rachunek na białej liście" : "Sprawdź ponownie (stan na dziś)")
+                        </button>
+                        <ProblemAlert Problem="checkProblem" />
+                    </div>
+                }
             </div>
         </div>
     }
@@ -113,13 +148,23 @@ else
     [Parameter] public int Id { get; set; }
 
     private ReceivedInvoiceDto? invoice;
-    private ApiProblem? problem;
+    private ApiProblem? problem, checkProblem;
+    private bool checking;
 
     protected override async Task OnParametersSetAsync()
     {
         var result = await Api.GetAsync<ReceivedInvoiceDto>($"api/received-invoices/{Id}");
         invoice = result.Value;
         problem = result.Problem;
+    }
+
+    private async Task CheckBankAccountAsync()
+    {
+        checking = true;
+        var result = await Api.PostAsync<BankAccountCheckDto>($"api/received-invoices/{Id}/bank-account-check", new { });
+        checking = false;
+        checkProblem = result.Problem;
+        if (result.Value is { } check) invoice = invoice! with { BankAccountCheck = check };
     }
 
     private static string VatLabel(string? code) => code switch

@@ -145,6 +145,9 @@ erDiagram
         string InvoiceHash "SHA-256 (do kodu QR)"
         text Xml "pełny XML z KSeF"
         timestamptz DownloadedAt
+        bool BankAccountOnWhiteList "wynik sprawdzenia rachunku (null - nie sprawdzano)"
+        date BankAccountCheckedOn "stan wykazu na dzień"
+        string BankAccountCheckRequestId "identyfikator zapytania MF"
     }
 ```
 
@@ -159,7 +162,7 @@ erDiagram
 | `InvoiceItems` | Pozycje faktury (FaWiersz). |
 | `KsefSubmissions` | Historia prób wysyłki faktury do KSeF: wysłany XML, skrót, numery referencyjne, status, numer KSeF, UPO. |
 | `DataProtectionKeys` | Klucze ASP.NET Core Data Protection (szyfrowanie tokenów KSeF i ciasteczek sesji), rotowane automatycznie. |
-| `ReceivedInvoices` | Faktury zakupowe pobrane z KSeF (tylko do odczytu), z pełnym XML. |
+| `ReceivedInvoices` | Faktury zakupowe pobrane z KSeF (tylko do odczytu), z pełnym XML. Jedyne pola zmieniane przez użytkownika to wynik sprawdzenia rachunku na białej liście (D29). |
 
 ## Kluczowe reguły
 

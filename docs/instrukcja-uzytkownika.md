@@ -102,6 +102,16 @@ Podgląd faktury otrzymanej pokazuje jej pełną treść, a także umożliwia po
 
 ![Faktura otrzymana](zrzuty/13-faktura-otrzymana.png)
 
+**Sprawdzenie rachunku na białej liście.** Przed zapłatą wybierz **Sprawdź rachunek na białej liście** pod danymi
+płatności. Aplikacja sprawdzi w wykazie podatników VAT Ministerstwa Finansów, czy rachunek z faktury należy do
+sprzedawcy, i zapisze wynik z datą oraz identyfikatorem zapytania MF (warto go zachować jako potwierdzenie).
+Przy kwotach powyżej 15 000 zł aplikacja przypomina o sprawdzeniu: zapłata na rachunek spoza wykazu pozbawia prawa
+do zaliczenia wydatku do kosztów i grozi solidarną odpowiedzialnością za VAT sprzedawcy. Faktury z rachunkiem
+spoza wykazu są oznaczone na liście czerwoną etykietą. Sprawdzenie dotyczy stanu wykazu na dany dzień, dlatego
+najlepiej wykonać je w dniu zlecenia przelewu („Sprawdź ponownie”).
+
+![Rachunek sprawdzony na białej liście](zrzuty/16-faktura-otrzymana-biala-lista.png)
+
 ## Najczęstsze komunikaty
 
 | Komunikat | Znaczenie i rozwiązanie |

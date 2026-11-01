@@ -97,6 +97,22 @@ public class VatWhiteListClientTests
         Assert.Contains("Pole 'NIP' ma nieprawidłową długość.", e.Message);
     }
 
+    [Theory]
+    [InlineData("TAK", true)]
+    [InlineData("NIE", false)]
+    public async Task SprawdzenieRachunku_OdpowiedzMF(string answer, bool assigned)
+    {
+        var (client, handler) = Create(HttpStatusCode.OK,
+            $$$"""{"result":{"accountAssigned":"{{{answer}}}","requestDateTime":"01-11-2026 10:00:00","requestId":"chk-1"}}""");
+
+        var check = await client.CheckBankAccountAsync("1234563218", "61109010140000071219812874", new DateOnly(2026, 11, 1));
+
+        Assert.Equal("https://wl-api.mf.gov.pl/api/check/nip/1234563218/bank-account/61109010140000071219812874?date=2026-11-01",
+            handler.RequestUri!.ToString());
+        Assert.Equal(assigned, check.Assigned);
+        Assert.Equal("chk-1", check.RequestId);
+    }
+
     [Fact]
     public async Task NieoczekiwanaOdpowiedz_ZamienianaNaWyjatek()
     {

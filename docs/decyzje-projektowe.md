@@ -463,3 +463,31 @@ dla adresu IP, a w modelu SaaS wszystkie zapytania wychodzą z jednego adresu se
 **Uzasadnienie:** jedno publiczne źródło urzędowe, które oprócz danych rejestrowych zwraca status VAT i rachunki
 (wykorzystane też do weryfikacji rachunków na fakturach otrzymanych), bez rejestracji i kluczy. Pamięć podręczna
 i limity chronią wspólny limit MF w modelu wielu użytkowników.
+
+---
+
+## D29. Weryfikacja rachunku z faktury otrzymanej na białej liście
+
+**Kontekst:** KSeF nie weryfikuje rachunku bankowego na fakturze. Za zapłatę powyżej 15 000 zł na rachunek spoza
+wykazu podatników VAT odpowiada nabywca (koszty uzyskania przychodu, solidarna odpowiedzialność za VAT), a liczy się
+stan wykazu z dnia zlecenia przelewu.
+
+**Decyzja:**
+- sprawdzenie wykonuje użytkownik przyciskiem w podglądzie faktury otrzymanej (najlepiej w dniu przelewu),
+- używana jest metoda `check` API MF (NIP + rachunek), a nie porównanie z listą rachunków z wyszukiwania:
+  metoda `check` uwzględnia rachunki wirtualne (maski), ma wyższy limit zapytań i zwraca jednoznaczną odpowiedź,
+- wynik (tak/nie, dzień, identyfikator zapytania MF) jest zapisywany przy fakturze jako potwierdzenie sprawdzenia
+  i widoczny na liście faktur; ponowne sprawdzenie tego samego dnia korzysta z pamięci podręcznej,
+- sprawdzane są tylko polskie numery NRB (26 cyfr, opcjonalnie z prefiksem PL) - wykaz nie obejmuje innych,
+- osobne dzienne limity dla sprawdzeń (`VatWhiteList:DailyCheckLimit`, `VatWhiteList:DailyCheckLimitPerUser`).
+
+**Alternatywy:**
+- automatyczne sprawdzanie każdej pobranej faktury podczas synchronizacji z KSeF: wygodne, ale wynik byłby
+  aktualny na dzień pobrania, a nie zapłaty, i zużywałby limit MF także dla faktur opłacanych gotówką lub kartą,
+- porównanie z listą `accountNumbers` z wyszukiwania podmiotu: zawodzi dla rachunków wirtualnych i zużywa
+  niższy limit metod wyszukujących,
+- pliki płaskie MF (codzienny wykaz skrótów NIP + rachunek do pobrania): sprawdzanie bez zapytań online
+  i bez limitów, ale wymaga pobierania i przechowywania dużego pliku codziennie - zasadne przy dużej skali.
+
+**Uzasadnienie:** sprawdzenie wykonywane świadomie w momencie istotnym prawnie (przed zapłatą), zapis
+identyfikatora zapytania MF jako dowodu, oszczędne gospodarowanie wspólnym limitem MF.

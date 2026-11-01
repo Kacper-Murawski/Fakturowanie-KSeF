@@ -24,13 +24,40 @@ public sealed class VatRegistryLookup(
         var key = $"vat-registry:{nip}:{today:yyyy-MM-dd}";
         if (cache.TryGetValue(key, out VatRegistryEntryDto? cached)) return cached;
 
-        limiter.Acquire(userId, today);
+        limiter.Acquire(VatRegistryLimiter.Search, userId, today);
         var subject = await client.FindByNipAsync(nip, today, ct);
         var entry = subject is null ? null : ToDto(subject, today);
 
         // Także brak podmiotu w wykazie - ponowne pytanie tego samego dnia dałoby ten sam wynik
         cache.Set(key, entry, TimeSpan.FromHours(12));
         return entry;
+    }
+
+    /// <summary>
+    /// Sprawdzenie rachunku w wykazie na dziś. Rachunek musi być polskim numerem NRB (26 cyfr, opcjonalnie z „PL”);
+    /// dla innych zwraca <c>null</c> - wykaz obejmuje wyłącznie rachunki prowadzone w Polsce.
+    /// </summary>
+    public async Task<BankAccountCheckDto?> CheckAccountAsync(string nip, string account, string userId, CancellationToken ct = default)
+    {
+        if (ToNrb(account) is not { } nrb) return null;
+
+        var today = PolishDate.Today(time);
+        var key = $"vat-registry-check:{nip}:{nrb}:{today:yyyy-MM-dd}";
+        if (cache.TryGetValue(key, out BankAccountCheckDto? cached)) return cached;
+
+        limiter.Acquire(VatRegistryLimiter.Check, userId, today);
+        var check = await client.CheckBankAccountAsync(nip, nrb, today, ct);
+        var result = new BankAccountCheckDto(nrb, check.Assigned, today, check.RequestId);
+        cache.Set(key, result, TimeSpan.FromHours(12));
+        return result;
+    }
+
+    /// <summary>„PL61 1090 1014 …” → „611090…” (26 cyfr) albo <c>null</c>, gdy to nie jest polski numer NRB.</summary>
+    public static string? ToNrb(string account)
+    {
+        var s = new string(account.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray()).ToUpperInvariant();
+        if (s.StartsWith("PL")) s = s[2..];
+        return s.Length == 26 && s.All(char.IsAsciiDigit) ? s : null;
     }
 
     public static VatRegistryEntryDto ToDto(WhiteListSubject s, DateOnly checkedOn)
@@ -46,38 +73,46 @@ public sealed class VatRegistryLookup(
     }
 }
 
-/// <summary>Dzienne limity zapytań wyszukujących do wykazu (w pamięci jednej instancji aplikacji).</summary>
+/// <summary>
+/// Dzienne limity zapytań do wykazu (w pamięci jednej instancji aplikacji), osobno dla wyszukiwania podmiotów
+/// i sprawdzania rachunków - MF stosuje dla tych metod różne limity.
+/// </summary>
 public sealed class VatRegistryLimiter(IConfiguration config)
 {
+    public const string Search = "Search";
+    public const string Check = "Check";
+
     private readonly Lock _lock = new();
-    private readonly Dictionary<string, int> _perUser = [];
+    private readonly Dictionary<(string Kind, string UserId), int> _perUser = [];
+    private readonly Dictionary<string, int> _total = [];
     private DateOnly _day;
-    private int _total;
 
-    private int DailyLimit => config.GetValue("VatWhiteList:DailyLimit", 90);
-    private int DailyLimitPerUser => config.GetValue("VatWhiteList:DailyLimitPerUser", 20);
+    private (int Total, int PerUser) Limits(string kind) => kind == Search
+        ? (config.GetValue("VatWhiteList:DailyLimit", 90), config.GetValue("VatWhiteList:DailyLimitPerUser", 20))
+        : (config.GetValue("VatWhiteList:DailyCheckLimit", 2000), config.GetValue("VatWhiteList:DailyCheckLimitPerUser", 200));
 
-    public void Acquire(string userId, DateOnly today)
+    public void Acquire(string kind, string userId, DateOnly today)
     {
+        var (totalLimit, userLimit) = Limits(kind);
         lock (_lock)
         {
             if (_day != today)
             {
                 _day = today;
-                _total = 0;
+                _total.Clear();
                 _perUser.Clear();
             }
 
-            var used = _perUser.GetValueOrDefault(userId);
-            if (used >= DailyLimitPerUser)
+            var used = _perUser.GetValueOrDefault((kind, userId));
+            if (used >= userLimit)
                 throw new VatRegistryLimitException(
                     "Wykorzystano dzienny limit sprawdzeń w wykazie podatników VAT. Uzupełnij dane ręcznie lub spróbuj jutro.");
-            if (_total >= DailyLimit)
+            if (_total.GetValueOrDefault(kind) >= totalLimit)
                 throw new VatRegistryLimitException(
-                    "Dzienny limit zapytań aplikacji do wykazu podatników VAT został wyczerpany. Uzupełnij dane ręcznie.");
+                    "Dzienny limit zapytań aplikacji do wykazu podatników VAT został wyczerpany. Spróbuj jutro.");
 
-            _perUser[userId] = used + 1;
-            _total++;
+            _perUser[(kind, userId)] = used + 1;
+            _total[kind] = _total.GetValueOrDefault(kind) + 1;
         }
     }
 }

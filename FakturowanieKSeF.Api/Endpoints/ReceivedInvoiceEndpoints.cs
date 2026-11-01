@@ -1,5 +1,6 @@
 using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Infrastructure;
+using FakturowanieKSeF.Api.Integrations.VatWhiteList;
 using FakturowanieKSeF.Api.Services;
 using FakturowanieKSeF.Contracts.Dtos;
 using FakturowanieKSeF.Ksef;
@@ -43,7 +44,7 @@ public static class ReceivedInvoiceEndpoints
                     .OrderByDescending(r => r.KsefAcceptedAt).ThenByDescending(r => r.Id)
                     .Skip((p - 1) * size).Take(size)
                     .Select(r => new ReceivedInvoiceListItemDto(r.Id, r.KsefNumber, r.InvoiceNumber, r.IssueDate, r.SellerNip,
-                        r.SellerName, r.TotalNet, r.TotalVat, r.TotalGross, r.Currency, r.KsefAcceptedAt))
+                        r.SellerName, r.TotalNet, r.TotalVat, r.TotalGross, r.Currency, r.KsefAcceptedAt, r.BankAccountOnWhiteList))
                     .ToListAsync(ct);
 
                 return Results.Ok(new PagedResult<ReceivedInvoiceListItemDto>(items, total, p, size));
@@ -68,9 +69,55 @@ public static class ReceivedInvoiceEndpoints
                     error = "Nie udało się odczytać treści faktury: " + ex.Message;
                 }
 
-                return Results.Ok(new ReceivedInvoiceDto(r.Id, r.KsefNumber, r.KsefAcceptedAt, r.DownloadedAt, document, error));
+                var check = document?.BankAccount is { } account && r is { BankAccountOnWhiteList: { } onList, BankAccountCheckedOn: { } on }
+                    ? new BankAccountCheckDto(VatRegistryLookup.ToNrb(account) ?? account, onList, on, r.BankAccountCheckRequestId)
+                    : null;
+                return Results.Ok(new ReceivedInvoiceDto(r.Id, r.KsefNumber, r.KsefAcceptedAt, r.DownloadedAt, document, error, check));
             })
             .WithSummary("Szczegóły faktury otrzymanej (treść odczytana z XML)");
+
+        group.MapPost("/{id:int}/bank-account-check", async (int id, CurrentCompany current, AppDbContext db,
+                VatRegistryLookup lookup, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+
+                var r = await db.ReceivedInvoices.SingleOrDefaultAsync(x => x.Id == id && x.CompanyId == company.Id, ct);
+                if (r is null) return ApiErrors.NotFound("faktura otrzymana");
+
+                string? account;
+                try
+                {
+                    account = Fa3InvoiceReader.Read(r.Xml).BankAccount;
+                }
+                catch (Exception ex) when (ex is FormatException or System.Xml.XmlException)
+                {
+                    account = null;
+                }
+                if (account is null) return ApiErrors.Conflict("Faktura nie zawiera numeru rachunku bankowego.");
+
+                try
+                {
+                    var check = await lookup.CheckAccountAsync(r.SellerNip, account, current.UserId, ct);
+                    if (check is null)
+                        return ApiErrors.Conflict("Wykaz podatników VAT obejmuje wyłącznie rachunki prowadzone w Polsce (numer NRB, 26 cyfr).");
+
+                    // Wynik zapisany przy fakturze - widoczny na liście i jako potwierdzenie sprawdzenia przed przelewem
+                    r.BankAccountOnWhiteList = check.OnWhiteList;
+                    r.BankAccountCheckedOn = check.CheckedOn;
+                    r.BankAccountCheckRequestId = check.RequestId;
+                    await db.SaveChangesAsync(ct);
+                    return Results.Ok(check);
+                }
+                catch (VatRegistryLimitException e)
+                {
+                    return Results.Problem(title: e.Message, statusCode: StatusCodes.Status429TooManyRequests);
+                }
+                catch (VatWhiteListException e)
+                {
+                    return Results.Problem(title: e.Message, statusCode: StatusCodes.Status502BadGateway);
+                }
+            })
+            .WithSummary("Sprawdzenie rachunku z faktury otrzymanej w wykazie podatników VAT (Biała lista MF) na dziś");
 
         group.MapGet("/{id:int}/xml", async (int id, CurrentCompany current, AppDbContext db, CancellationToken ct) =>
             {

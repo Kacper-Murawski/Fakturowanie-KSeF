@@ -444,6 +444,16 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BankAccountCheckRequestId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateOnly?>("BankAccountCheckedOn")
+                        .HasColumnType("date");
+
+                    b.Property<bool?>("BankAccountOnWhiteList")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("CompanyId")
                         .HasColumnType("integer");
 

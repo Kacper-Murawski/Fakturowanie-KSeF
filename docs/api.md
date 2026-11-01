@@ -45,6 +45,7 @@ po polsku.
 | GET | `/api/received-invoices/{id}` | Faktura otrzymana z treścią odczytaną z XML |
 | GET | `/api/received-invoices/{id}/xml` | XML faktury otrzymanej (w postaci pobranej z KSeF) |
 | GET | `/api/received-invoices/{id}/pdf` | Wizualizacja faktury otrzymanej w PDF z kodem QR weryfikacji |
+| POST | `/api/received-invoices/{id}/bank-account-check` | Sprawdzenie rachunku z faktury w wykazie podatników VAT na dziś; wynik zapisany przy fakturze (409 - brak rachunku lub rachunek zagraniczny, 429 - limit, 502 - błąd MF) (D29) |
 | GET | `/api/received-invoices/sync-status` | Stan synchronizacji (ostatnia synchronizacja, punkt kontrolny, błąd) |
 | POST | `/api/received-invoices/sync` | Ręczna synchronizacja z KSeF (409 bez tokenu, 429 częściej niż raz na minutę, 502 przy błędzie KSeF) |
 | GET | `/api/vat-registry/{nip}` | Dane podmiotu z wykazu podatników VAT (Biała lista MF): nazwa, adres rozbity na pola, status VAT, rachunki. 404 - brak w wykazie, 429 - dzienny limit zapytań, 502 - błąd API MF (D28) |

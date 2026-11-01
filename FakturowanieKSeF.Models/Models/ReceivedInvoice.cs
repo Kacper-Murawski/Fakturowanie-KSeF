@@ -56,4 +56,17 @@ public class ReceivedInvoice
 
     /// <summary>Moment pobrania faktury do aplikacji (UTC).</summary>
     public DateTime DownloadedAt { get; set; }
+
+    /// <summary>
+    /// Wynik ostatniego sprawdzenia rachunku z faktury w wykazie podatników VAT (Biała lista):
+    /// <c>true</c> - rachunek przypisany do sprzedawcy, <c>false</c> - nieprzypisany, <c>null</c> - niesprawdzany.
+    /// </summary>
+    public bool? BankAccountOnWhiteList { get; set; }
+
+    /// <summary>Dzień, na który sprawdzono rachunek (wykaz podaje stan na dzień).</summary>
+    public DateOnly? BankAccountCheckedOn { get; set; }
+
+    /// <summary>Identyfikator zapytania nadany przez MF - potwierdzenie dokonania sprawdzenia.</summary>
+    [MaxLength(64)]
+    public string? BankAccountCheckRequestId { get; set; }
 }

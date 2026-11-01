@@ -23,7 +23,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | # | Funkcja | Priorytet | Stan |
 |---|---|---|---|
 | 1 | Dane kontrahenta z wykazu podatników VAT po NIP (D28) | wysoki | ✅ |
-| 2 | Weryfikacja rachunku na białej liście (faktury otrzymane) | wysoki | w realizacji |
+| 2 | Weryfikacja rachunku na białej liście (faktury otrzymane) (D29) | wysoki | ✅ |
 | 3 | Status płatności faktur wystawionych i otrzymanych | wysoki | planowana |
 | 4 | „Wystaw podobną” - kopia faktury jako nowy szkic | wysoki | planowana |
 | 5 | Faktury korygujące | wysoki | planowana |
@@ -65,6 +65,15 @@ sequenceDiagram
     end
     A-->>U: nazwa, adres (pola), status VAT, rachunki
 ```
+
+## 2. Weryfikacja rachunku na białej liście
+
+KSeF nie sprawdza, czy rachunek na fakturze należy do sprzedawcy. Zapłata powyżej 15 000 zł na rachunek spoza
+wykazu podatników VAT pozbawia nabywcę prawa do zaliczenia wydatku do kosztów (art. 15d ustawy o CIT, art. 22p
+ustawy o PIT) i grozi solidarną odpowiedzialnością za VAT sprzedawcy (art. 117ba Ordynacji podatkowej).
+W podglądzie faktury otrzymanej przycisk **Sprawdź rachunek na białej liście** wywołuje metodę `check` API MF
+dla NIP sprzedawcy i rachunku z XML faktury. Wynik z datą i identyfikatorem zapytania MF jest zapisywany przy
+fakturze (potwierdzenie sprawdzenia), a faktury z rachunkiem spoza wykazu są oznaczone na liście. Szczegóły: D29.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).

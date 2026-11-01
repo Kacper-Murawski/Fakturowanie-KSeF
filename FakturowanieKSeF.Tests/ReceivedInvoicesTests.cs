@@ -251,5 +251,96 @@ public class ReceivedInvoicesTests(ApiFactory factory) : IClassFixture<ApiFactor
         Assert.Equal(0, (await clientB.GetFromJsonAsync<PagedResult<ReceivedInvoiceListItemDto>>("/api/received-invoices"))!.TotalCount);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync($"/api/received-invoices/{id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync($"/api/received-invoices/{id}/xml")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.PostAsync($"/api/received-invoices/{id}/bank-account-check", null)).StatusCode);
     }
+
+    // ------------------------------------------------------------------ weryfikacja rachunku (Biała lista)
+
+    /// <summary>Faktura otrzymana zapisana wprost w bazie, z podanym rachunkiem sprzedawcy 1234563218.</summary>
+    private async Task<int> InsertReceivedAsync(string buyerNip, string account)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var company = await db.Companies.SingleAsync(c => c.Nip == buyerNip);
+        var invoice = new ReceivedInvoice
+        {
+            CompanyId = company.Id,
+            KsefNumber = $"1234563218-20261030-{Guid.NewGuid():N}"[..37] + "-00",
+            InvoiceNumber = "FV/99/10/2026", SellerNip = "1234563218", SellerName = "Hurtownia Dostawca sp. z o.o.",
+            IssueDate = new DateOnly(2026, 10, 30), TotalNet = 115m, TotalVat = 19.25m, TotalGross = 134.25m,
+            KsefAcceptedAt = DateTime.UtcNow, DownloadedAt = DateTime.UtcNow,
+            Xml = ForeignInvoiceXml("1234563218", buyerNip, "FV/99/10/2026", 3).Replace("61109010140000071219812874", account)
+        };
+        db.ReceivedInvoices.Add(invoice);
+        await db.SaveChangesAsync();
+        return invoice.Id;
+    }
+
+    [Fact]
+    public async Task RachunekNaBialejLiscie_WynikZapisanyPrzyFakturze_IPonowneSprawdzenieZPamieciPodrecznej()
+    {
+        var nip = TestUsers.RandomNip();
+        var client = await factory.CreateClientWithCompanyAsync(nip);
+        var id = await InsertReceivedAsync(nip, "61109010140000071219812874");
+
+        // Przed sprawdzeniem - brak wyniku
+        Assert.Null((await client.GetFromJsonAsync<ReceivedInvoiceDto>($"/api/received-invoices/{id}"))!.BankAccountCheck);
+
+        var before = factory.VatWhiteList.AccountChecks;
+        var response = await client.PostAsync($"/api/received-invoices/{id}/bank-account-check", null);
+        response.EnsureSuccessStatusCode();
+        var check = (await response.Content.ReadFromJsonAsync<BankAccountCheckDto>())!;
+        Assert.True(check.OnWhiteList);
+        Assert.Equal("61109010140000071219812874", check.Account);
+        Assert.NotNull(check.RequestId);
+
+        // Wynik zapisany: szczegóły i lista
+        var details = await client.GetFromJsonAsync<ReceivedInvoiceDto>($"/api/received-invoices/{id}");
+        Assert.Equal(check.RequestId, details!.BankAccountCheck!.RequestId);
+        Assert.True(details.BankAccountCheck.OnWhiteList);
+        var list = await client.GetFromJsonAsync<PagedResult<ReceivedInvoiceListItemDto>>("/api/received-invoices");
+        Assert.True(list!.Items.Single(i => i.Id == id).BankAccountOnWhiteList);
+
+        // Ponowne sprawdzenie tego samego dnia - bez zapytania do MF
+        (await client.PostAsync($"/api/received-invoices/{id}/bank-account-check", null)).EnsureSuccessStatusCode();
+        Assert.Equal(1, factory.VatWhiteList.AccountChecks - before);
+    }
+
+    [Fact]
+    public async Task RachunekSpozaWykazu_OznaczonyNaLiscie()
+    {
+        var nip = TestUsers.RandomNip();
+        var client = await factory.CreateClientWithCompanyAsync(nip);
+        var id = await InsertReceivedAsync(nip, "10105000997603123456789123");
+
+        var check = await (await client.PostAsync($"/api/received-invoices/{id}/bank-account-check", null))
+            .Content.ReadFromJsonAsync<BankAccountCheckDto>();
+        Assert.False(check!.OnWhiteList);
+
+        var list = await client.GetFromJsonAsync<PagedResult<ReceivedInvoiceListItemDto>>("/api/received-invoices");
+        Assert.False(list!.Items.Single(i => i.Id == id).BankAccountOnWhiteList);
+    }
+
+    [Fact]
+    public async Task RachunekZagraniczny_409_BezZapytaniaDoMF()
+    {
+        var nip = TestUsers.RandomNip();
+        var client = await factory.CreateClientWithCompanyAsync(nip);
+        var id = await InsertReceivedAsync(nip, "DE89370400440532013000");
+
+        var before = factory.VatWhiteList.AccountChecks;
+        var response = await client.PostAsync($"/api/received-invoices/{id}/bank-account-check", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("wyłącznie rachunki prowadzone w Polsce", await response.Content.ReadAsStringAsync());
+        Assert.Equal(before, factory.VatWhiteList.AccountChecks);
+    }
+
+    [Theory]
+    [InlineData("61 1090 1014 0000 0712 1981 2874", "61109010140000071219812874")]
+    [InlineData("PL61109010140000071219812874", "61109010140000071219812874")]
+    [InlineData("DE89370400440532013000", null)]
+    [InlineData("6110901014000007121981287", null)]
+    public void NumerRachunku_NormalizowanyDoNrb(string account, string? expected) =>
+        Assert.Equal(expected, FakturowanieKSeF.Api.Integrations.VatWhiteList.VatRegistryLookup.ToNrb(account));
 }

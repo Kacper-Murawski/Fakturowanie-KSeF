@@ -83,7 +83,13 @@ else
                 @foreach (var r in data.Items)
                 {
                     <tr role="button" @onclick="() => Open(r.Id)">
-                        <td><a href="faktury-otrzymane/@r.Id">@r.InvoiceNumber</a></td>
+                        <td>
+                            <a href="faktury-otrzymane/@r.Id">@r.InvoiceNumber</a>
+                            @if (r.BankAccountOnWhiteList == false)
+                            {
+                                <div><span class="badge bg-danger" title="Rachunku z faktury nie ma w wykazie podatników VAT dla tego sprzedawcy">rachunek spoza białej listy</span></div>
+                            }
+                        </td>
                         <td>@r.SellerName<div class="small text-muted">NIP @Format.Nip(r.SellerNip)</div></td>
                         <td>@Format.Date(r.IssueDate)</td>
                         <td>@Format.DateTime(r.KsefAcceptedAt)</td>
