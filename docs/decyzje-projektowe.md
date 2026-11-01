@@ -171,3 +171,17 @@ zgodność także w mniejszych wydaniach, np. 2.8.0 i 2.9.0). Wyraźny podział 
   nie zgłasza podatności dla aplikacji. Ostrzeżenia NuGet z wewnętrznego restore biblioteki dla platform,
   których aplikacja nie używa (.NET 8/9, netstandard2.0), pozostają w logu budowania,
 - test automatyczny sprawdza, że potok HTTP klienta MF skonfigurowany przez `AddKsefTestClient()` blokuje produkcję.
+
+---
+
+## D11. Wynik spike'a KSeF: przepływ potwierdzony na środowisku testowym
+
+**Wynik:** prototyp przeszedł pełny przepływ (uwierzytelnienie XAdES, sesja online, faktura FA(3), numer KSeF, UPO)
+w ok. 7 s. Szczegóły i artefakty: [`docs/spike-ksef/`](spike-ksef/README.md).
+
+**Decyzje wynikające ze spike'a:**
+- wybór oficjalnego klienta MF (D10) potwierdzony w praktyce, bez potrzeby własnej implementacji protokołu,
+- model faktury zostanie rozszerzony o dane KSeF: numery referencyjne, numer KSeF, datę jego nadania,
+  skrót dokumentu, status ze szczegółami błędów, wysłany XML i UPO (etap 2),
+- obsługa statusów asynchronicznie, przez usługę w tle (etap 6),
+- docelowe uwierzytelnianie użytkowników tokenem KSeF przechowywanym w postaci zaszyfrowanej (etap 6).
