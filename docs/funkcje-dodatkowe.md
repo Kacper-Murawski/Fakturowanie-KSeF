@@ -33,7 +33,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 8 | Przypomnienia o płatności | średni | do decyzji |
 | 9 | Powiadomienie o nowej fakturze kosztowej | średni | do decyzji |
 | 10 | Pulpit z wykresami | średni | do decyzji |
-| 11 | Katalog produktów i usług | niski | do decyzji |
+| 11 | Katalog produktów i usług (D35) | niski | ✅ |
 | 12 | Waluty obce z kursem NBP | niski | do decyzji |
 | 13 | Eksport dla księgowej (CSV, paczka XML + UPO) (D34) | niski | ✅ |
 | 14 | Aplikacja mobilna (PWA) | niski | do decyzji |
@@ -105,6 +105,13 @@ jest oznaczenie w samej fakturze, że w chwili wystawienia jest już zapłacona 
 sprzedaży za gotówkę lub kartą. W formularzu faktury pole **Zapłacono przy wystawieniu** zapisuje to oznaczenie
 w XML, a przy wysyłce aplikacja rejestruje płatność w rozliczeniu, więc faktura od razu jest opłacona. Wpłaty
 po wystawieniu nadal rejestruje się w rozliczeniu (pkt 3). Szczegóły: D33.
+
+## 11. Katalog produktów i usług
+
+W menu **Katalog** użytkownik zapisuje towary i usługi (nazwa, jednostka, cena netto, stawka VAT). Na fakturze pole
+nazwy pozycji podpowiada nazwy z katalogu, a wybranie jednej z nich uzupełnia jednostkę, cenę i stawkę. Pozycję
+spoza katalogu można do niego dodać przyciskiem „zapisz w katalogu”. Dane są kopiowane do faktury, więc zmiana
+katalogu nie zmienia wystawionych faktur. Szczegóły: D35.
 
 ## 13. Eksport dla księgowej
 

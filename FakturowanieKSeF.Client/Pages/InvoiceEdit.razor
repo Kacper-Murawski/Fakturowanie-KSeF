@@ -174,8 +174,13 @@ else
                                 <tr>
                                     <td>@(n + 1)</td>
                                     <td>
-                                        <InputTextLive class="form-control" @bind-Value="item.Name" aria-label="@($"Nazwa pozycji {n + 1}")" />
+                                        <InputTextLive class="form-control" @bind-Value="item.Name" @bind-Value:after="() => FillFromCatalog(item)"
+                                                       list="product-catalog" aria-label="@($"Nazwa pozycji {n + 1}")" />
                                         <ValidationMessage For="() => item.Name" />
+                                        @if (!string.IsNullOrWhiteSpace(item.Name) && FindProduct(item.Name) is null)
+                                        {
+                                            <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => AddToCatalogAsync(item)">zapisz w katalogu</button>
+                                        }
                                     </td>
                                     <td><InputTextLive class="form-control" @bind-Value="item.Unit" aria-label="Jednostka miary" /></td>
                                     <td>
@@ -205,6 +210,12 @@ else
                         </tbody>
                     </table>
                 </div>
+                <datalist id="product-catalog">
+                    @foreach (var p in products)
+                    {
+                        <option value="@p.Name">@Format.Amount(p.UnitNetPrice) netto, VAT @p.VatRate.ToDisplayName()</option>
+                    }
+                </datalist>
                 <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddItem">+ Dodaj pozycję</button>
 
                 @if (model.Items.Any(i => i.VatRate == VatRate.Exempt))
@@ -342,6 +353,7 @@ else
 
     private SaveInvoiceRequest? model;
     private List<CustomerDto> customers = [];
+    private List<ProductDto> products = [];
     private InvoiceTotals totals = InvoiceCalculator.Calculate([]);
     private DeepValidator? validator;
     private ApiProblem? problem;
@@ -360,6 +372,7 @@ else
         }
         companyAccount = company.Value.BankAccountNumber;
         customers = (await Api.GetAsync<List<CustomerDto>>("api/customers")).Value ?? [];
+        products = (await Api.GetAsync<List<ProductDto>>("api/products")).Value ?? [];
 
         if (Id is null)
         {
@@ -566,5 +579,31 @@ else
     {
         model!.PaidOn = paid ? model.IssueDate : null;
         if (paid) model.DueDate = null;
+    }
+
+    // ---------------- katalog towarów i usług (D35) ----------------
+
+    private ProductDto? FindProduct(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? null : products.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.CurrentCultureIgnoreCase));
+
+    /// <summary>Wybranie nazwy z katalogu (podpowiedź lub pełna nazwa) uzupełnia jednostkę, cenę i stawkę VAT.</summary>
+    private void FillFromCatalog(SaveInvoiceItemRequest item)
+    {
+        if (FindProduct(item.Name) is not { } p) return;
+        item.Name = p.Name;
+        item.Unit = p.Unit;
+        item.UnitNetPrice = p.UnitNetPrice;
+        item.VatRate = p.VatRate;
+        Recalculate();
+    }
+
+    private async Task AddToCatalogAsync(SaveInvoiceItemRequest item)
+    {
+        var result = await Api.PostAsync<ProductDto>("api/products", new SaveProductRequest
+        {
+            Name = item.Name.Trim(), Unit = item.Unit, UnitNetPrice = item.UnitNetPrice, VatRate = item.VatRate
+        });
+        if (result.Value is { } added) products = [.. products, added];
+        else problem = result.Problem;
     }
 }

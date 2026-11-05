@@ -61,7 +61,8 @@ main {
     .top-row {
         position: sticky;
         top: 0;
-        z-index: 1;
+        /* powyżej elementów grup pól Bootstrapa (z-index do 5), które inaczej nachodzą na pasek przy przewijaniu */
+        z-index: 10;
     }
 
     .top-row.auth ::deep a:first-child {

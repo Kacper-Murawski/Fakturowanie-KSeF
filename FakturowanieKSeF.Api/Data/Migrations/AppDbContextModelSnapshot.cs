@@ -518,6 +518,52 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FakturowanieKSeF.Models.Product", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("UnitNetPrice")
+                        .HasColumnType("numeric(22,8)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VatRate")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "Name")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("Products");
+                });
+
             modelBuilder.Entity("FakturowanieKSeF.Models.ReceivedInvoice", b =>
                 {
                     b.Property<int>("Id")
@@ -1040,6 +1086,17 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Navigation("Invoice");
 
                     b.Navigation("ReceivedInvoice");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.Product", b =>
+                {
+                    b.HasOne("FakturowanieKSeF.Models.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("FakturowanieKSeF.Models.ReceivedInvoice", b =>

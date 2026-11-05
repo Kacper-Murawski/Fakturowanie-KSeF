@@ -236,4 +236,25 @@ public class DataIsolationTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal("Kontrahent S.A.", stillThere!.Name);
         Assert.Equal(HttpStatusCode.OK, (await userA.GetAsync($"/api/invoices/{invoiceA.Id}")).StatusCode);
     }
+
+    [Fact]
+    public async Task UzytkownikB_NieMaDostepuDoKataloguUzytkownikaA()
+    {
+        var userA = await factory.CreateClientWithCompanyAsync();
+        var productA = (await (await userA.PostAsJsonAsync("/api/products",
+                new SaveProductRequest { Name = "Produkt A", UnitNetPrice = 10m, VatRate = VatRate.Rate23 }))
+            .Content.ReadFromJsonAsync<ProductDto>())!;
+        var userB = await factory.CreateClientWithCompanyAsync();
+
+        Assert.Empty((await userB.GetFromJsonAsync<List<ProductDto>>("/api/products"))!);
+        Assert.Equal(HttpStatusCode.NotFound, (await userB.GetAsync($"/api/products/{productA.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await userB.PutAsJsonAsync($"/api/products/{productA.Id}",
+            new SaveProductRequest { Name = "Przejęty", UnitNetPrice = 1m })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await userB.DeleteAsync($"/api/products/{productA.Id}")).StatusCode);
+
+        // Ta sama nazwa w katalogu innej firmy jest dozwolona
+        Assert.Equal(HttpStatusCode.Created, (await userB.PostAsJsonAsync("/api/products",
+            new SaveProductRequest { Name = "Produkt A", UnitNetPrice = 20m })).StatusCode);
+        Assert.Equal(10m, (await userA.GetFromJsonAsync<ProductDto>($"/api/products/{productA.Id}"))!.UnitNetPrice);
+    }
 }
