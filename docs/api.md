@@ -32,7 +32,7 @@ po polsku.
 | GET | `/api/invoices/next-number?issueDate=&kind=` | Propozycja kolejnego numeru (`kind=Correction` - seria `KOR/n/MM/RRRR`) |
 | GET | `/api/invoices/{id}/pdf` | Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych) |
 | GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |
-| POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32) |
+| POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32). Opcjonalne `paidOn` - faktura zapłacona przy wystawieniu (`Zaplacono` w FA(3); nie później niż data wystawienia), przy wysyłce rejestrowana jako płatność (D33) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
 | DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona) |
 | POST | `/api/invoices/{id}/send` | Wysłanie faktury do KSeF (body: `version`); 202 i status `Pending`, dalej asynchronicznie - zob. `docs/integracja-ksef.md` |
@@ -50,7 +50,7 @@ po polsku.
 | POST | `/api/received-invoices/sync` | Ręczna synchronizacja z KSeF (409 bez tokenu, 429 częściej niż raz na minutę, 502 przy błędzie KSeF) |
 | GET | `/api/vat-registry/{nip}` | Dane podmiotu z wykazu podatników VAT (Biała lista MF): nazwa, adres rozbity na pola, status VAT, rachunki. 404 - brak w wykazie, 429 - dzienny limit zapytań, 502 - błąd API MF (D28) |
 | POST | `/api/invoices/{id}/payments` | Rejestracja wpłaty (`paidOn`, `amount`, `note`); zwraca rozliczenie. 400 - nadpłata, data z przyszłości; 409 - szkic, faktura odrzucona lub opłacona (D30) |
-| DELETE | `/api/invoices/{id}/payments/{paymentId}` | Usunięcie błędnej wpłaty; zwraca rozliczenie |
+| DELETE | `/api/invoices/{id}/payments/{paymentId}` | Usunięcie błędnej wpłaty; zwraca rozliczenie. 409 - zapłata oznaczona w fakturze w KSeF (`fromInvoice`, D33) |
 | POST | `/api/received-invoices/{id}/payments` | Rejestracja zapłaty za fakturę otrzymaną (jak wyżej) |
 | DELETE | `/api/received-invoices/{id}/payments/{paymentId}` | Usunięcie błędnej zapłaty |
 | GET | `/api/payments/summary` | Należności i zobowiązania: pozostało do zapłaty, w tym po terminie (kwoty w PLN) |

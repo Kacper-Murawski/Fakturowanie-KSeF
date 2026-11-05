@@ -135,7 +135,7 @@ public static class InvoiceEndpoints
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
-                var invoice = await db.Invoices.Include(i => i.Items).Include(i => i.KsefSubmissions)
+                var invoice = await db.Invoices.Include(i => i.Items).Include(i => i.KsefSubmissions).Include(i => i.Payments)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
 
@@ -177,6 +177,7 @@ public static class InvoiceEndpoints
                     InvoiceHash = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(xml))
                 });
                 invoice.Status = InvoiceStatus.Pending;
+                RecordPaymentFromInvoice(db, invoice, time);
 
                 await db.SaveChangesAsync(ct);
                 signal.Pulse(); // usługa w tle wysyła fakturę od razu
@@ -336,6 +337,30 @@ public static class InvoiceEndpoints
     /// i przelicza kwoty wspólnym kalkulatorem. Dla faktury korygującej kopiuje dane faktury korygowanej i stan
     /// przed korektą (wiersze StanPrzed), a kwoty faktury to różnica po - przed. Zwraca błąd albo null.
     /// </summary>
+    /// <summary>
+    /// Zapłata oznaczona w XML faktury (Zaplacono) staje się płatnością w rozliczeniu. Wcześniejszy zapis z odrzuconej
+    /// wysyłki jest zastępowany - ponowna wysyłka po poprawkach nie dubluje płatności (D33).
+    /// </summary>
+    private static void RecordPaymentFromInvoice(AppDbContext db, Invoice invoice, TimeProvider time)
+    {
+        foreach (var old in invoice.Payments.Where(p => p.FromInvoice).ToList())
+        {
+            db.Payments.Remove(old);
+            invoice.Payments.Remove(old);
+        }
+        if (invoice.PaidOn is not { } paidOn || invoice.Kind != InvoiceKind.Vat) return;
+
+        invoice.Payments.Add(new Payment
+        {
+            CompanyId = invoice.CompanyId,
+            PaidOn = paidOn,
+            Amount = invoice.TotalGross,
+            Note = "Zapłacono przy wystawieniu (oznaczone w fakturze w KSeF)",
+            FromInvoice = true,
+            CreatedAt = time.GetUtcNow().UtcDateTime
+        });
+    }
+
     private static async Task<IResult?> ApplyAsync(Invoice invoice, SaveInvoiceRequest request, Company company,
         AppDbContext db, CancellationToken ct)
     {
@@ -407,6 +432,7 @@ public static class InvoiceEndpoints
         invoice.SaleDate = request.SaleDate;
         invoice.PaymentMethod = request.PaymentMethod;
         invoice.DueDate = request.DueDate;
+        invoice.PaidOn = request.IsCorrection ? null : request.PaidOn;
         var anyExempt = request.Items.Any(i => i.VatRate == VatRate.Exempt) || before?.Any(i => i.VatRate == VatRate.Exempt) == true;
         invoice.ExemptionBasis = anyExempt ? Mapping.EmptyToNull(request.ExemptionBasis) ?? originalExemptionBasis : null;
         invoice.BankAccountNumber = Mapping.NormalizeBankAccount(request.BankAccountNumber)

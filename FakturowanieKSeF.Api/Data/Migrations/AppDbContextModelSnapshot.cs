@@ -292,6 +292,9 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<DateOnly?>("PaidOn")
+                        .HasColumnType("date");
+
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -484,6 +487,9 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("FromInvoice")
+                        .HasColumnType("boolean");
 
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("integer");

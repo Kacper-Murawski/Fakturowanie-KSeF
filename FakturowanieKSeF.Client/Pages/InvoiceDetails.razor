@@ -200,6 +200,10 @@ else
 
             <div class="small">
                 Forma płatności: <strong>@Format.Payment(invoice.PaymentMethod)</strong>
+                @if (invoice.PaidOn is not null)
+                {
+                    <span>, <strong class="text-success" data-testid="paid-at-issue">zapłacono @Format.Date(invoice.PaidOn)</strong></span>
+                }
                 @if (invoice.DueDate is not null)
                 {
                     <span>, termin: <strong>@Format.Date(invoice.DueDate)</strong></span>

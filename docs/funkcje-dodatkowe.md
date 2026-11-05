@@ -27,6 +27,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 3 | Status płatności faktur wystawionych i otrzymanych (D30) | wysoki | ✅ |
 | 4 | „Wystaw podobną” - kopia faktury jako nowy szkic (D31) | wysoki | ✅ |
 | 5 | Faktury korygujące (D32) | wysoki | ✅ |
+| 5a | Oznaczenie „Zapłacono” przy wystawianiu (D33) | wysoki | ✅ |
 | 6 | Wysyłka faktury e-mailem | średni | do decyzji |
 | 7 | Faktury cykliczne | średni | do decyzji |
 | 8 | Przypomnienia o płatności | średni | do decyzji |
@@ -96,6 +97,14 @@ przed korektą, użytkownik wprowadza stan po korekcie, a aplikacja liczy różn
 numerów (`KOR/n/MM/RRRR`), jest wysyłana do KSeF jak zwykła faktura, a jej różnica zmienia kwotę należną faktury
 korygowanej w rozliczeniach. Prawdziwy testowy KSeF przyjął korektę wygenerowaną przez aplikację. Szczegóły: D32,
 `docs/fa3-xml.md`.
+
+## 5a. Oznaczenie „Zapłacono” przy wystawianiu
+
+KSeF nie obsługuje płatności - przechowuje faktury. Jedyną informacją o zapłacie, jaką można przekazać do KSeF,
+jest oznaczenie w samej fakturze, że w chwili wystawienia jest już zapłacona (`Zaplacono`, `DataZaplaty`), np. przy
+sprzedaży za gotówkę lub kartą. W formularzu faktury pole **Zapłacono przy wystawieniu** zapisuje to oznaczenie
+w XML, a przy wysyłce aplikacja rejestruje płatność w rozliczeniu, więc faktura od razu jest opłacona. Wpłaty
+po wystawieniu nadal rejestruje się w rozliczeniu (pkt 3). Szczegóły: D33.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).

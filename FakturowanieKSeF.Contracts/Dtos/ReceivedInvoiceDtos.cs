@@ -71,7 +71,9 @@ public sealed record InvoiceDocumentDto(
     string? PaymentMethod,
     string? BankAccount,
     string? CorrectionReason = null,
-    IReadOnlyList<DocumentCorrectedInvoiceDto>? CorrectedInvoices = null)
+    IReadOnlyList<DocumentCorrectedInvoiceDto>? CorrectedInvoices = null,
+    /// <summary>Data zapłaty, gdy faktura jest oznaczona jako zapłacona (Zaplacono = 1, DataZaplaty).</summary>
+    DateOnly? PaidOn = null)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsCorrection => InvoiceType.StartsWith("KOR", StringComparison.Ordinal);

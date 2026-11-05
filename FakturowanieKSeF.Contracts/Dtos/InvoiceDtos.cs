@@ -71,7 +71,9 @@ public sealed record InvoiceDto(
     /// <summary>Dane korekty - tylko dla faktury korygującej (Items to wtedy stan po korekcie, sumy to różnica).</summary>
     CorrectionInfoDto? Correction = null,
     /// <summary>Faktury korygujące wystawione do tej faktury.</summary>
-    IReadOnlyList<CorrectionSummaryDto>? Corrections = null);
+    IReadOnlyList<CorrectionSummaryDto>? Corrections = null,
+    /// <summary>Data zapłaty, gdy faktura jest oznaczona jako zapłacona w chwili wystawienia (Zaplacono w FA(3)).</summary>
+    DateOnly? PaidOn = null);
 
 /// <summary>Faktura korygująca: dane faktury korygowanej, przyczyna, stan przed korektą i różnica per stawka.</summary>
 public sealed record CorrectionInfoDto(
@@ -150,6 +152,12 @@ public sealed class SaveInvoiceRequest : IValidatableObject
 
     public DateOnly? DueDate { get; set; }
 
+    /// <summary>
+    /// Faktura zapłacona w całości w chwili wystawienia (np. gotówką, kartą) - data zapłaty trafia do XML FA(3)
+    /// (Zaplacono, DataZaplaty). Puste = faktura do zapłaty. Nie dotyczy faktur korygujących.
+    /// </summary>
+    public DateOnly? PaidOn { get; set; }
+
     [BankAccount]
     public string? BankAccountNumber { get; set; }
 
@@ -201,7 +209,15 @@ public sealed class SaveInvoiceRequest : IValidatableObject
         if (DueDate is { } due && due < IssueDate)
             yield return new ValidationResult("Termin płatności nie może być wcześniejszy niż data wystawienia.", [nameof(DueDate)]);
 
-        if (PaymentMethod == PaymentMethod.Transfer && DueDate is null && !IsCorrection)
+        if (PaidOn is { } paidOn)
+        {
+            if (IsCorrection)
+                yield return new ValidationResult("Oznaczenie zapłaty dotyczy tylko faktur VAT, nie korekt.", [nameof(PaidOn)]);
+            else if (paidOn > IssueDate)
+                yield return new ValidationResult("Data zapłaty nie może być późniejsza niż data wystawienia - późniejsze wpłaty rejestruj w rozliczeniu faktury.", [nameof(PaidOn)]);
+        }
+
+        if (PaymentMethod == PaymentMethod.Transfer && DueDate is null && !IsCorrection && PaidOn is null)
             yield return new ValidationResult("Dla płatności przelewem podaj termin płatności.", [nameof(DueDate)]);
 
         // Ograniczenia zakresu MVP wynikające ze struktury FA(3) (decyzja D21)

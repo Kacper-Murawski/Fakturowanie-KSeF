@@ -67,7 +67,7 @@ public static class Mapping
         var paid = list.Sum(p => p.Amount);
         return new PaymentInfoDto(PaymentRules.Status(totalDue, paid), paid, Math.Max(totalDue - paid, 0),
             PaymentRules.IsOverdue(dueDate, totalDue, paid, today),
-            list.Select(p => new PaymentDto(p.Id, p.PaidOn, p.Amount, p.Note)).ToList(),
+            list.Select(p => new PaymentDto(p.Id, p.PaidOn, p.Amount, p.Note, p.FromInvoice)).ToList(),
             totalDue, Math.Max(paid - totalDue, 0));
     }
 
@@ -110,7 +110,8 @@ public static class Mapping
             i.Kind,
             correction,
             i.Corrections.OrderBy(c => c.Id)
-                .Select(c => new CorrectionSummaryDto(c.Id, c.Number, c.IssueDate, c.Status, c.TotalGross)).ToList());
+                .Select(c => new CorrectionSummaryDto(c.Id, c.Number, c.IssueDate, c.Status, c.TotalGross)).ToList(),
+            i.PaidOn);
     }
 
     public static KsefSubmissionDto ToDto(this KsefSubmission s) => new(

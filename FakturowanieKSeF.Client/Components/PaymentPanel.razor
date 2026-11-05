@@ -42,8 +42,15 @@
                             <td class="text-end">@Format.Money(p.Amount, Currency)</td>
                             <td>@p.Note</td>
                             <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń płatność" disabled="@busy"
-                                        @onclick="() => DeleteAsync(p)">✕</button>
+                                @if (p.FromInvoice)
+                                {
+                                    <span class="badge text-bg-light" title="Zapłata oznaczona w fakturze w KSeF - nie można jej usunąć">w fakturze</span>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń płatność" disabled="@busy"
+                                            @onclick="() => DeleteAsync(p)">✕</button>
+                                }
                             </td>
                         </tr>
                     }

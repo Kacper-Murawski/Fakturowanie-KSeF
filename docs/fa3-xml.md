@@ -49,6 +49,7 @@ Pliki: [`spike-ksef/faktura-z-generatora.xml`](spike-ksef/faktura-z-generatora.x
 | `Fa/DaneFaKorygowanej` | `DataWystFaKorygowanej`, `NrFaKorygowanej`, `NrKSeF=1`, `NrKSeFFaKorygowanej` | kopia danych faktury korygowanej |
 | `Fa/FaWiersz/StanPrzed` | `1` - wiersz stanu przed korektą (metoda „przed i po”, osobna numeracja wierszy) | `InvoiceItem.BeforeCorrection` |
 | `Fa/FaWiersz` | `NrWierszaFa`, `P_7` nazwa, `P_8A` j.m., `P_8B` ilość, `P_9A` cena netto, `P_11` wartość netto, `P_12` stawka | `Invoice.Items` |
+| `Fa/Platnosc/Zaplacono`, `DataZaplaty` | `1` i data - faktura zapłacona w chwili wystawienia (D33) | `PaidOn` |
 | `Fa/Platnosc/TerminPlatnosci/Termin` | termin płatności | `DueDate` |
 | `Fa/Platnosc/FormaPlatnosci` | 1-7 (np. 6 = przelew) | `PaymentMethod` |
 | `Fa/Platnosc/RachunekBankowy/NrRB` | numer rachunku | `BankAccountNumber` |

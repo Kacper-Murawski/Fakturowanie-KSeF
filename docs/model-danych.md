@@ -80,6 +80,7 @@ erDiagram
         string Currency "ISO 4217"
         string PaymentMethod "FormaPlatnosci"
         date DueDate
+        date PaidOn "Zaplacono/DataZaplaty - zapłacona przy wystawieniu"
         string BankAccountNumber "NrRB"
         string ExemptionBasis "P_19A - podstawa zwolnienia"
         string Seller_Name "kopia - Podmiot1"
@@ -172,6 +173,7 @@ erDiagram
         numeric Amount "w walucie faktury"
         string Note
         timestamptz CreatedAt
+        bool FromInvoice "z oznaczenia Zaplacono w fakturze (nieusuwalna)"
     }
 ```
 
@@ -217,6 +219,8 @@ więc mogą być ujemne. Kwota należna faktury korygowanej = jej brutto + róż
 - Klucze obce do faktur i od faktur mają `ON DELETE RESTRICT`: baza nie pozwoli fizycznie usunąć firmy lub
   kontrahenta, do którego odwołują się faktury, ani faktury z historią wysyłek do KSeF.
 - Jedynie pozycje faktury (`InvoiceItems`) są usuwane kaskadowo, bo są częścią faktury.
+- Faktura z `PaidOn` (zapłacona przy wystawieniu, D33) przy wysyłce do KSeF otrzymuje płatność z `FromInvoice = true`
+  na kwotę brutto. Takiej płatności nie można usunąć, bo odpowiada jej oznaczenie w fakturze w KSeF.
 - Płatności (`Payments`) to zapis pomocniczy użytkownika, nie dokument podatkowy - błędnie zarejestrowaną
   płatność usuwa się fizycznie.
 

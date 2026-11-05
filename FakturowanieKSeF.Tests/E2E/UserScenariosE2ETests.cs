@@ -415,4 +415,37 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.GotoAsync("/faktury");
         await Expect(page.Locator("tbody .badge:has-text('KOR')")).ToHaveCountAsync(1);
     }
+
+    [E2EFact]
+    public async Task ZaplaconoPrzyWystawieniu_TrafiaDoKsef_IFakturaJestOplacona()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        // Sprzedaż za gotówkę: zapłacono w dniu wystawienia, bez terminu płatności
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Klient Gotówkowy", "1234563218");
+        await FillItemAsync(page, 0, "Naprawa sprzętu", "1", "200");
+        await page.SelectOptionAsync("#payment", "Cash");
+        await page.CheckAsync("#paid");
+        await Expect(page.Locator("#due")).ToHaveCountAsync(0); // termin zbędny - faktura zapłacona
+        await Expect(page.Locator("#paid-on")).ToHaveValueAsync(await page.Locator("#issue").InputValueAsync());
+        await E2EFixture.ScreenshotAsync(page, "21-zaplacono-przy-wystawieniu");
+
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await Expect(page.Locator("[data-testid=paid-at-issue]")).ToBeVisibleAsync();
+
+        await page.ClickAsync("text=Wyślij do KSeF");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+
+        // Rozliczenie: zapłata z faktury, bez możliwości usunięcia
+        var panel = page.Locator("[data-testid=payment-panel]");
+        await Expect(panel).ToContainTextAsync("w fakturze");
+        await Expect(panel.Locator("button[title='Usuń płatność']")).ToHaveCountAsync(0);
+        await Expect(panel.Locator("text=Zarejestruj")).ToHaveCountAsync(0);
+    }
 }
+

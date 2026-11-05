@@ -52,6 +52,8 @@ public static class PaymentEndpoints
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 var payment = invoice?.Payments.SingleOrDefault(p => p.Id == paymentId);
                 if (invoice is null || payment is null) return ApiErrors.NotFound("płatność");
+                if (payment.FromInvoice)
+                    return ApiErrors.Conflict("Tej zapłaty nie można usunąć - jest oznaczona w fakturze przekazanej do KSeF.");
 
                 db.Payments.Remove(payment);
                 invoice.Payments.Remove(payment);

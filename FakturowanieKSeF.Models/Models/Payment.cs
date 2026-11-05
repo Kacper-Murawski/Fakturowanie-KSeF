@@ -32,4 +32,10 @@ public class Payment
     public string? Note { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Płatność wynikająca z oznaczenia „Zapłacono” w XML faktury wysłanej do KSeF (<see cref="Invoice.PaidOn"/>).
+    /// Tworzona automatycznie przy wysyłce; nie można jej usunąć - faktury w KSeF nie da się zmienić.
+    /// </summary>
+    public bool FromInvoice { get; set; }
 }

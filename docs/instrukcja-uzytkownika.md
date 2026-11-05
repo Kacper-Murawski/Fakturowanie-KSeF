@@ -111,6 +111,13 @@ faktury otrzymane. Szkice i faktury odrzucone nie podlegają rozliczeniu.
 
 ![Rozliczenie faktury](zrzuty/17-rozliczenie-faktury.png)
 
+Jeśli nabywca zapłacił od razu (gotówką, kartą, przedpłatą), zaznacz w formularzu faktury **Zapłacono przy
+wystawieniu** i podaj datę zapłaty (nie późniejszą niż data wystawienia). Termin płatności nie jest wtedy potrzebny.
+Informacja o zapłacie trafi do KSeF razem z fakturą, a po wysyłce faktura od razu jest *Opłacona*. Tej wpłaty nie
+można usunąć, bo jest zapisana w fakturze w KSeF (oznaczenie „w fakturze”).
+
+![Zapłacono przy wystawieniu](zrzuty/21-zaplacono-przy-wystawieniu.png)
+
 Listy faktur mają filtr **Płatność** (nieopłacone, po terminie, opłacone), a pulpit pokazuje sumę **należności**
 i **zobowiązań**, w tym kwoty po terminie. Kliknięcie kwoty otwiera listę odpowiednich faktur.
 

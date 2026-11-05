@@ -221,6 +221,7 @@ public sealed class InvoicePdfRenderer
         {
             c.Item().Text("PŁATNOŚĆ").FontSize(8).FontColor(Colors.Grey.Darken1).SemiBold();
             if (doc.PaymentMethod is not null) c.Item().Text($"Forma płatności: {doc.PaymentMethod}");
+            if (doc.PaidOn is { } paid) c.Item().Text($"ZAPŁACONO dnia {Date(paid)}").SemiBold();
             if (doc.DueDate is { } due) c.Item().Text($"Termin płatności: {Date(due)}");
             if (doc.BankAccount is not null) c.Item().Text($"Rachunek: {BankAccount(doc.BankAccount)}");
         });
