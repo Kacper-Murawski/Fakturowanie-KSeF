@@ -69,6 +69,7 @@ builder.Services.AddHostedService<KsefSubmissionWorker>();
 builder.Services.AddSingleton<KsefTokenProtector>();
 builder.Services.AddScoped<ReceivedInvoiceSync>();
 builder.Services.AddSingleton<InvoicePdfRenderer>();
+builder.Services.AddScoped<AccountingExport>();
 builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 
 // Wykaz podatników VAT (Biała lista MF) - podpowiadanie danych po NIP, z pamięcią podręczną i limitami (D28)
@@ -139,6 +140,7 @@ api.MapKsefSettingsEndpoints();
 api.MapReceivedInvoiceEndpoints();
 api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
+api.MapExportEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

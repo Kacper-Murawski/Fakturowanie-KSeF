@@ -598,3 +598,39 @@ faktury przez KSeF tej informacji nie da się już zmienić.
 pozostaje spójne z dokumentem w KSeF. Rekord płatności tworzony w chwili wysyłki (wystawienia) odpowiada zasadzie
 z D30, że rozliczeniu podlegają faktury przekazane do KSeF. Zgodność potwierdzona przyjęciem faktury przez testowy KSeF.
 
+---
+
+## D34. Eksport dla księgowej: zestawienia CSV i paczka ZIP z XML i UPO
+
+**Kontekst:** większość małych firm prowadzi księgowość w biurze rachunkowym. Księgowa potrzebuje co miesiąc listy
+faktur sprzedaży i zakupu z kwotami per stawka VAT oraz samych dokumentów. Biura mogą pobierać faktury z KSeF
+samodzielnie, ale wymaga to nadania im uprawnień w KSeF - eksport jest prostszą drogą dla przedsiębiorcy.
+
+**Decyzja:**
+- strona **Eksport dla księgowej** z wyborem miesiąca (domyślnie poprzedni) lub dowolnego okresu do 366 dni,
+  podsumowaniem okresu i trzema plikami: zestawienie sprzedaży (CSV), zestawienie zakupów (CSV) i paczka ZIP
+  (oba zestawienia, XML faktur sprzedaży z UPO, XML faktur zakupu, plik README z opisem),
+- sprzedaż - faktury przyjęte w KSeF (z numerem KSeF) według daty wystawienia; szkice, faktury odrzucone
+  i w trakcie wysyłki są pomijane (nie są fakturami w KSeF),
+- zakupy - faktury otrzymane według daty otrzymania, czyli nadania numeru KSeF (czas polski): w KSeF to data
+  otrzymania faktury, od której zależy prawo do odliczenia VAT,
+- kwoty i dane w zestawieniach są odczytywane z dokumentów XML (dla sprzedaży - z dokładnie wysłanego dokumentu),
+  w kolumnach per stawka (23%, 8%, 5%, 0%, zw, np, oo); korekty mają kwoty różnicy, tak jak w fakturze korygującej,
+- CSV w formacie polskiego Excela: średnik, przecinek dziesiętny, UTF-8 ze znacznikiem BOM; pola tekstowe
+  zaczynające się od `=`, `+`, `-`, `@` są poprzedzane apostrofem (ochrona przed wstrzyknięciem formuł - nazwy
+  kontrahentów z faktur otrzymanych pochodzą od osób trzecich),
+- pliki budowane w pamięci na żądanie (bez przechowywania), tylko z danych firmy zalogowanego użytkownika.
+
+**Alternatywy:**
+- format JPK_V7 (plik JPK dla urzędu skarbowego): wymaga danych spoza faktur (np. rozliczenie okresu, korekty
+  odliczeń, oznaczenia GTU/procedur) i podpisu - to zadanie programu księgowego, a nie programu do faktur,
+- eksport do formatów konkretnych programów księgowych (Symfonia, Optima, enova): wiele formatów i zmiennych
+  wersji; CSV jest uniwersalny i importowany przez te programy,
+- PDF faktur w paczce: wygodne do przeglądania, ale prawnie wiążący jest XML, a generowanie wielu PDF obciąża serwer;
+  PDF dostępny pojedynczo w aplikacji,
+- dostęp księgowej do aplikacji (funkcja 18) - większa zmiana modelu uprawnień, rozważana osobno.
+
+**Uzasadnienie:** jeden przycisk raz w miesiącu wystarcza do przekazania kompletu dokumentów, a dane w zestawieniach
+są zgodne z dokumentami w KSeF. CSV otwiera się w Excelu bez konfiguracji, a XML i UPO są dowodem wystawienia
+i doręczenia faktury.
+

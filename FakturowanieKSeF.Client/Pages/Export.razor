@@ -1,0 +1,108 @@
+@page "/eksport"
+@using System.Globalization
+@inject ApiClient Api
+
+<PageTitle>Eksport dla księgowej - Fakturowanie KSeF</PageTitle>
+
+<h1>Eksport dla księgowej</h1>
+<p class="text-muted">
+    Zestawienia faktur za wybrany okres (CSV do Excela lub programu księgowego) oraz paczka ZIP z plikami XML
+    faktur w postaci z KSeF i UPO.
+</p>
+
+<section class="card mb-3">
+    <div class="card-body row g-3 align-items-end">
+        <div class="col-sm-4 col-lg-3">
+            <label class="form-label" for="month">Miesiąc</label>
+            <input id="month" type="month" class="form-control" value="@month" @onchange="OnMonthChanged" />
+        </div>
+        <div class="col-sm-4 col-lg-3">
+            <label class="form-label" for="from">Od</label>
+            <input id="from" type="date" class="form-control" value="@Iso(from)" @onchange="e => SetRange(Parse(e.Value), to)" />
+        </div>
+        <div class="col-sm-4 col-lg-3">
+            <label class="form-label" for="to">Do</label>
+            <input id="to" type="date" class="form-control" value="@Iso(to)" @onchange="e => SetRange(from, Parse(e.Value))" />
+        </div>
+    </div>
+</section>
+
+<ProblemAlert Problem="problem" />
+
+@if (summary is { } s)
+{
+    <div class="row g-3 mb-3" data-testid="export-summary">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6 text-muted">Sprzedaż (faktury przyjęte w KSeF, według daty wystawienia)</h2>
+                    <div class="fs-4 fw-semibold" data-testid="sales-count">@s.SalesCount @Faktur(s.SalesCount)</div>
+                    <div class="small">netto @Format.Money(s.SalesNet), VAT @Format.Money(s.SalesVat), brutto @Format.Money(s.SalesGross)</div>
+                    <a class="btn btn-sm btn-outline-secondary mt-2" href="@Url("sales.csv")" download>Zestawienie sprzedaży (CSV)</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6 text-muted">Zakupy (faktury otrzymane, według daty otrzymania w KSeF)</h2>
+                    <div class="fs-4 fw-semibold" data-testid="purchases-count">@s.PurchasesCount @Faktur(s.PurchasesCount)</div>
+                    <div class="small">netto @Format.Money(s.PurchasesNet), VAT @Format.Money(s.PurchasesVat), brutto @Format.Money(s.PurchasesGross)</div>
+                    @if (s.PurchasesForeignCurrency > 0)
+                    {
+                        <div class="small text-muted">Kwoty bez @s.PurchasesForeignCurrency @Faktur(s.PurchasesForeignCurrency) w walutach obcych (są w zestawieniu).</div>
+                    }
+                    <a class="btn btn-sm btn-outline-secondary mt-2" href="@Url("purchases.csv")" download>Zestawienie zakupów (CSV)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a class="btn btn-primary" href="@Url("package.zip")" download data-testid="download-package">Pobierz paczkę ZIP (CSV + XML + UPO)</a>
+    <p class="form-text mt-2">
+        Faktury otrzymane pochodzą z ostatniej synchronizacji z KSeF. Faktury w trakcie wysyłki pojawią się w zestawieniu
+        po nadaniu numeru KSeF.
+    </p>
+}
+
+@code {
+    private DateOnly from;
+    private DateOnly to;
+    private string month = "";
+    private ExportSummaryDto? summary;
+    private ApiProblem? problem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Domyślnie poprzedni miesiąc - typowy okres rozliczenia z księgową
+        var first = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-1);
+        await SetRange(first, first.AddMonths(1).AddDays(-1));
+    }
+
+    private async Task OnMonthChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParseExact($"{e.Value}-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var first))
+            await SetRange(first, first.AddMonths(1).AddDays(-1));
+    }
+
+    private async Task SetRange(DateOnly? newFrom, DateOnly? newTo)
+    {
+        if (newFrom is null || newTo is null) return;
+        from = newFrom.Value;
+        to = newTo.Value;
+        month = from.Day == 1 && to == from.AddMonths(1).AddDays(-1) ? from.ToString("yyyy-MM", CultureInfo.InvariantCulture) : "";
+
+        var result = await Api.GetAsync<ExportSummaryDto>(Url("summary"));
+        summary = result.Value;
+        problem = result.Problem;
+    }
+
+    private string Url(string what) => $"api/exports/{what}?from={Iso(from)}&to={Iso(to)}";
+
+    private static string Iso(DateOnly d) => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static DateOnly? Parse(object? value) =>
+        DateOnly.TryParseExact(value?.ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+
+    private static string Faktur(int n) => n == 1 ? "faktura" : n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14 ? "faktury" : "faktur";
+}

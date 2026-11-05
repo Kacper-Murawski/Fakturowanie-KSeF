@@ -6,7 +6,7 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 
 | Zagrożenie | Zabezpieczenie | Weryfikacja |
 |---|---|---|
-| **Dostęp do danych innego użytkownika** (IDOR, multi-tenancy) | `CompanyId` wyłącznie z tożsamości zalogowanego użytkownika (`CurrentCompany`), warunek w każdym zapytaniu; cudzy rekord = 404, bez ujawnienia jego istnienia (D15) | `DataIsolationTests`, testy izolacji wysyłki, UPO, PDF, faktur otrzymanych i płatności; test E2E dostępu po adresie strony |
+| **Dostęp do danych innego użytkownika** (IDOR, multi-tenancy) | `CompanyId` wyłącznie z tożsamości zalogowanego użytkownika (`CurrentCompany`), warunek w każdym zapytaniu; cudzy rekord = 404, bez ujawnienia jego istnienia (D15) | `DataIsolationTests`, testy izolacji wysyłki, UPO, PDF, faktur otrzymanych, płatności i eksportu; test E2E dostępu po adresie strony |
 | **Kradzież sesji przez XSS** | Ciasteczko sesji `HttpOnly` (niedostępne dla skryptów); klient nie przechowuje tokenów (D18); Blazor domyślnie koduje dane w HTML | Test flag ciasteczka |
 | **CSRF** | `SameSite=Strict`; API przyjmuje JSON, a żądanie z obcej witryny wymagałoby zgody CORS, której API nie udziela; klient i API w jednej domenie (D6) | Konfiguracja, test flag ciasteczka |
 | **Zgadywanie haseł** | Polityka haseł (min. 8 znaków, różne klasy znaków); blokada konta na 15 minut po 5 nieudanych próbach; hasła haszowane (PBKDF2, Identity) | Test polskich komunikatów polityki haseł |
@@ -16,6 +16,7 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 | **Wstrzyknięcie treści do XML / ataki XXE** | XML budowany przez `XmlWriter` (kodowanie znaków), bez sklejania tekstu; walidacja XSD bez DTD i bez dostępu do zasobów zewnętrznych; czytnik XML z wyłączonym DTD (D21) | Testy znaków specjalnych, testy XXE walidatora i czytnika |
 | **Zmanipulowane kwoty z przeglądarki** | Kwoty liczy wyłącznie serwer, klient ich nie przesyła (D16) | Testy kalkulatora i API |
 | **Nieprawidłowe dane wejściowe** | Walidacja wszystkich żądań (DataAnnotations, D14), także obiektów zagnieżdżonych i list; ograniczenia długości zgodne z bazą i FA(3) | Testy walidacji API i E2E |
+| **Wstrzyknięcie formuł do arkusza (CSV injection)** | Pola tekstowe eksportu CSV zaczynające się od `=`, `+`, `-`, `@` poprzedzane apostrofem - nazwy kontrahentów z faktur otrzymanych pochodzą od osób trzecich (D34) | `CsvFormatTests`, test eksportu z „złośliwą” nazwą sprzedawcy |
 | **SQL injection** | Wyłącznie zapytania parametryzowane (EF Core / LINQ) | Brak SQL budowanego z tekstu |
 | **Wyścigi i podwójne operacje** | Optymistyczna kontrola współbieżności (`xmin`), unikalne indeksy (numer faktury, NIP, numer KSeF) (D17) | Testy konfliktu wersji i podwójnej wysyłki |
 | **Utrata lub duplikacja dokumentów podatkowych** | Miękkie usuwanie, `ON DELETE RESTRICT`, faktury wysłane nienaruszalne; brak oznaczania faktury jako odrzuconej po jej przyjęciu do przetwarzania przez KSeF (D12, D25) | Testy modelu danych i awarii wysyłki |

@@ -152,6 +152,19 @@ najlepiej wykonać je w dniu zlecenia przelewu („Sprawdź ponownie”).
 
 ![Rachunek sprawdzony na białej liście](zrzuty/16-faktura-otrzymana-biala-lista.png)
 
+## 10. Eksport dla księgowej
+
+W menu **Eksport dla księgowej** wybierz miesiąc (domyślnie poprzedni) albo dowolny okres (od-do). Aplikacja pokaże
+liczbę i kwoty faktur sprzedaży (przyjętych w KSeF, według daty wystawienia) i zakupu (według daty otrzymania w KSeF).
+Do pobrania są:
+- **Zestawienie sprzedaży (CSV)** i **Zestawienie zakupów (CSV)** - otwierają się w Excelu; kwoty netto i VAT
+  w kolumnach według stawek,
+- **Paczka ZIP** - oba zestawienia oraz pliki XML faktur (w postaci z KSeF) i UPO faktur sprzedaży.
+
+Przed eksportem zakupów zsynchronizuj faktury otrzymane, żeby paczka zawierała najnowsze dokumenty.
+
+![Eksport dla księgowej](zrzuty/22-eksport-dla-ksiegowej.png)
+
 ## Najczęstsze komunikaty
 
 | Komunikat | Znaczenie i rozwiązanie |

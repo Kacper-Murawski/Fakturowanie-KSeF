@@ -35,7 +35,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 10 | Pulpit z wykresami | średni | do decyzji |
 | 11 | Katalog produktów i usług | niski | do decyzji |
 | 12 | Waluty obce z kursem NBP | niski | do decyzji |
-| 13 | Eksport dla księgowej (CSV, paczka XML + UPO) | niski | do decyzji |
+| 13 | Eksport dla księgowej (CSV, paczka XML + UPO) (D34) | niski | ✅ |
 | 14 | Aplikacja mobilna (PWA) | niski | do decyzji |
 | 15 | Logowanie dwuskładnikowe | niski | do decyzji |
 | 16 | Faktura proforma | niski | do decyzji |
@@ -105,6 +105,12 @@ jest oznaczenie w samej fakturze, że w chwili wystawienia jest już zapłacona 
 sprzedaży za gotówkę lub kartą. W formularzu faktury pole **Zapłacono przy wystawieniu** zapisuje to oznaczenie
 w XML, a przy wysyłce aplikacja rejestruje płatność w rozliczeniu, więc faktura od razu jest opłacona. Wpłaty
 po wystawieniu nadal rejestruje się w rozliczeniu (pkt 3). Szczegóły: D33.
+
+## 13. Eksport dla księgowej
+
+Strona **Eksport dla księgowej** pokazuje podsumowanie wybranego miesiąca (liczba faktur, netto, VAT, brutto) i pozwala
+pobrać zestawienia sprzedaży i zakupów w CSV (otwierane wprost w Excelu, kwoty per stawka VAT) oraz paczkę ZIP
+z zestawieniami, plikami XML faktur w postaci z KSeF i UPO. Szczegóły: D34.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).
