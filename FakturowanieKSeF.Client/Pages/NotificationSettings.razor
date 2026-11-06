@@ -1,0 +1,82 @@
+@* Ustawienia powiadomień e-mail - osadzane na stronie „Moja firma” (D37) *@
+@inject ApiClient Api
+
+<section class="card mt-4 form-narrow" data-testid="notification-settings">
+    <div class="card-body">
+        <h2 class="h5">Powiadomienia e-mail</h2>
+
+        @if (settings is null)
+        {
+            <p class="text-muted mb-0">Wczytywanie…</p>
+        }
+        else
+        {
+            @if (!settings.EmailConfigured)
+            {
+                <div class="alert alert-secondary small">Wysyłka e-mail nie jest skonfigurowana na serwerze - powiadomienia nie będą wysyłane.</div>
+            }
+            <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="notifications">
+                <DeepValidator @ref="validator" />
+                <div class="form-check mb-2">
+                    <InputCheckbox id="auto-reminders" class="form-check-input" @bind-Value="model.AutoReminders" />
+                    <label class="form-check-label" for="auto-reminders">Automatyczne przypomnienia o płatności dla nabywców</label>
+                </div>
+                @if (model.AutoReminders)
+                {
+                    <div class="mb-2 ms-4">
+                        <label class="form-label small" for="reminder-days">Pierwsze przypomnienie po (dniach od terminu)</label>
+                        <InputNumber id="reminder-days" class="form-control" style="max-width: 8rem" @bind-Value="model.ReminderDaysAfterDue" />
+                        <ValidationMessage For="() => model.ReminderDaysAfterDue" />
+                        <div class="form-text">
+                            Przypomnienie trafia na adres e-mail kontrahenta (lub adres, na który wysłano fakturę). Kolejne - co 7 dni,
+                            najwyżej 3 do jednej faktury. Faktury opłacone nie dostają przypomnień.
+                        </div>
+                    </div>
+                }
+                <button type="submit" class="btn btn-outline-primary btn-sm" disabled="@busy">Zapisz ustawienia</button>
+                @if (saved)
+                {
+                    <span class="text-success small ms-2" role="status">Zapisano.</span>
+                }
+            </EditForm>
+            <ProblemAlert Problem="problem" />
+        }
+    </div>
+</section>
+
+@code {
+    private NotificationSettingsDto? settings;
+    private SaveNotificationSettingsRequest model = new();
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private bool busy;
+    private bool saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<NotificationSettingsDto>("api/company/notifications");
+        problem = result.Problem;
+        if (result.Value is { } s) Apply(s);
+    }
+
+    private void Apply(NotificationSettingsDto s)
+    {
+        settings = s;
+        model = new SaveNotificationSettingsRequest { AutoReminders = s.AutoReminders, ReminderDaysAfterDue = s.ReminderDaysAfterDue };
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        saved = false;
+        var result = await Api.PutAsync<NotificationSettingsDto>("api/company/notifications", model);
+        busy = false;
+        problem = result.Problem;
+        if (result.Value is { } s)
+        {
+            Apply(s);
+            saved = true;
+        }
+        else if (problem is not null) validator?.ShowServerErrors(problem);
+    }
+}

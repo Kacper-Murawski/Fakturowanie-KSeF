@@ -30,6 +30,7 @@ flowchart LR
         MF["Oficjalny klient KSeF MF<br/>(submoduł, MIT)"]
         WL["Wyszukiwanie w wykazie VAT<br/>(VatRegistryLookup: pamięć podręczna + limity)"]
         WE["Usługa w tle: wysyłka e-mail<br/>(EmailOutbox: kolejka w bazie)"]
+        WP["Usługa w tle: przypomnienia o płatności<br/>(PaymentReminders, co godzinę)"]
     end
 
     DB[("PostgreSQL 16")]
@@ -52,6 +53,7 @@ flowchart LR
     WL -- "HTTPS, tylko odczyt" --> BL
     API -- "zapis do kolejki" --> DB
     WE --> DB
+    WP -- "faktury po terminie → kolejka" --> DB
     WE -- "SMTP (TLS)" --> SMTP
 ```
 

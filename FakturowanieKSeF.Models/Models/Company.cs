@@ -49,6 +49,14 @@ public class Company : BaseEntity
     [MaxLength(1000)]
     public string? ReceivedInvoicesLastSyncError { get; set; }
 
+    // ---------------- powiadomienia e-mail (D37) ----------------
+
+    /// <summary>Automatyczne przypomnienia o płatności dla nabywców faktur nieopłaconych po terminie.</summary>
+    public bool AutoRemindersEnabled { get; set; }
+
+    /// <summary>Po ilu dniach od terminu płatności wysłać pierwsze automatyczne przypomnienie.</summary>
+    public int ReminderDaysAfterDue { get; set; } = 3;
+
     // --- Właściciel i relacje ---
 
     [Required]

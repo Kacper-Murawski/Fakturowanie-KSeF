@@ -54,6 +54,8 @@ erDiagram
         timestamptz CreatedAt
         timestamptz UpdatedAt
         bool IsDeleted
+        bool AutoRemindersEnabled "automatyczne przypomnienia (D37)"
+        int ReminderDaysAfterDue "dni po terminie"
     }
 
     Customers {

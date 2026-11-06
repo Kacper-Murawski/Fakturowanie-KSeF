@@ -78,6 +78,8 @@ builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<EmailWorkSignal>();
 builder.Services.AddScoped<EmailOutbox>();
 builder.Services.AddHostedService<EmailWorker>();
+builder.Services.AddScoped<PaymentReminders>();
+builder.Services.AddHostedService<PaymentReminderWorker>();
 builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 
 // Wykaz podatników VAT (Biała lista MF) - podpowiadanie danych po NIP, z pamięcią podręczną i limitami (D28)
@@ -151,6 +153,7 @@ api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
 api.MapExportEndpoints();
 api.MapEmailEndpoints();
+api.MapNotificationEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

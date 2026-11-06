@@ -703,3 +703,33 @@ Aplikacja w modelu SaaS wysyła pocztę w imieniu wielu firm, więc trzeba ją c
 funkcje etapu B. Limity i ostrzeżenie o środowisku testowym ograniczają nadużycia. Wysyłka przez prawdziwy serwer SMTP
 została sprawdzona z lokalnym serwerem testowym (nagłówki From/Reply-To, załącznik).
 
+---
+
+## D37. Przypomnienia o płatności: ręczne i automatyczne z ograniczeniami
+
+**Kontekst:** rozliczenia (D30) pokazują faktury po terminie, ale użytkownik musi sam upominać nabywców. Konkurencja
+wysyła przypomnienia automatycznie. Zbyt częste wiadomości szkodzą relacji z kontrahentem i mogą trafić do spamu.
+
+**Decyzja:**
+- przypomnienie ręczne: przycisk **Przypomnij o płatności** przy fakturze VAT przyjętej w KSeF z kwotą pozostałą
+  do zapłaty; wiadomość zawiera pozostałą kwotę (po wpłatach częściowych i korektach), termin i liczbę dni po terminie,
+  numer rachunku, tytuł przelewu i fakturę w załączniku; faktura opłacona - 409,
+- przypomnienia automatyczne włączane w ustawieniach firmy (domyślnie wyłączone): pierwsze po N dniach od terminu
+  (domyślnie 3), kolejne nie częściej niż co 7 dni, najwyżej 3 do jednej faktury; odstęp liczy także przypomnienia
+  ręczne; po wpłacie przypomnienia ustają,
+- adres nabywcy: e-mail kontrahenta z książki adresowej, a w drugiej kolejności - ostatni adres, na który wysłano
+  fakturę; bez adresu przypomnienie automatyczne jest pomijane,
+- usługa w tle uruchamiana co godzinę; reguła odstępu sprawia, że wielokrotne uruchomienie (np. po restarcie)
+  nie dubluje wiadomości; przypomnienia korzystają z kolejki e-mail i dziennego limitu firmy (D36).
+
+**Alternatywy:**
+- przypomnienie przed terminem płatności: przydatne, ale część nabywców odbiera je jako nachalne; ręczne
+  przypomnienie można wysłać w dowolnym momencie,
+- konfigurowalny harmonogram (np. 3, 10, 30 dni) i własne szablony treści: większa elastyczność kosztem złożoności
+  interfejsu - stałe reguły wystarczają małej firmie,
+- osobna tabela przypomnień: historia jest już w kolejce e-mail (`EmailMessages` z rodzajem `PaymentReminder`),
+  która wystarcza do wyznaczania odstępów i limitu.
+
+**Uzasadnienie:** automatyzacja ściągania należności przy ochronie relacji z kontrahentem (rzadkie, ograniczone
+wiadomości) i bez dodatkowych tabel - przypomnienia to wiadomości z kolejki D36 z regułami wyliczanymi z ich historii.
+

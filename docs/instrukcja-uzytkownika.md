@@ -140,6 +140,16 @@ można usunąć, bo jest zapisana w fakturze w KSeF (oznaczenie „w fakturze”
 
 ![Zapłacono przy wystawieniu](zrzuty/21-zaplacono-przy-wystawieniu.png)
 
+**Przypomnienia o płatności.** Przy fakturze z kwotą do zapłaty w sekcji **E-mail** jest przycisk
+**Przypomnij o płatności**. Nabywca dostanie wiadomość z kwotą pozostałą do zapłaty, terminem, numerem rachunku
+i fakturą w załączniku. Na stronie **Moja firma** w sekcji **Powiadomienia e-mail** możesz włączyć przypomnienia
+automatyczne: pierwsze po wybranej liczbie dni od terminu, kolejne co 7 dni, najwyżej 3 do jednej faktury. Trafiają
+na adres e-mail kontrahenta (albo na adres, na który wysłano fakturę) i ustają po zarejestrowaniu pełnej wpłaty.
+
+![Ustawienia powiadomień](zrzuty/26-ustawienia-powiadomien.png)
+
+![Przypomnienie o płatności](zrzuty/27-przypomnienie-o-platnosci.png)
+
 Listy faktur mają filtr **Płatność** (nieopłacone, po terminie, opłacone), a pulpit pokazuje sumę **należności**
 i **zobowiązań**, w tym kwoty po terminie. Kliknięcie kwoty otwiera listę odpowiednich faktur.
 

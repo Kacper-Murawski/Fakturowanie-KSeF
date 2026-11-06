@@ -138,7 +138,7 @@ else
 
     @if (invoice.Status == InvoiceStatus.Accepted)
     {
-        <InvoiceEmailPanel InvoiceId="invoice.Id" CustomerId="invoice.CustomerId" />
+        <InvoiceEmailPanel InvoiceId="invoice.Id" Remaining="invoice.Payment?.Remaining" />
     }
 
     <div class="invoice-sheet card">
