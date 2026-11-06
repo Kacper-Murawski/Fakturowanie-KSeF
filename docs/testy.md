@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **250 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **253 przypadki testowe**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -43,6 +43,7 @@ jednostkowe, integracyjne i E2E.
 | Przypomnienia o płatności | `PaymentReminderTests` | treść (dni po terminie, kwota pozostała, rachunek); przypomnienie ręczne z kwotą po wpłacie częściowej; brak dla faktury opłaconej i szkicu; automatyczne: wyłączone/włączone, bez duplikatu tego samego dnia, co 7 dni, najwyżej 3, pomijanie opłaconych, niedawno po terminie i bez adresu; ustawienia; izolacja |
 | Powiadomienia o fakturach kosztowych | `ReceivedNotificationTemplateTests`, `ReceivedNotificationTests` | treść (kolejność po terminie, ostrzeżenie o białej liście tylko dla PLN > 15 000 zł, link, skracanie listy); jedna wiadomość na synchronizację; brak przy synchronizacji bez nowych faktur; domyślnie wyłączone; adres konta; walidacja adresu |
 | Faktury cykliczne | `RecurringScheduleTests`, `RecurringInvoiceApiTests` | kolejne daty (koniec miesiąca, rok przestępny); szkic na wzór z aktualnymi danymi kontrahenta i terminem; brak duplikatu tego samego dnia; jeden szkic po przestoju; data końcowa; wstrzymanie; walidacja; blokada usunięcia wzoru; powiadomienie; izolacja |
+| Pulpit z wykresami | `DashboardTests` | sprzedaż i koszty w miesiącach (szkice pominięte), wiekowanie należności po wpłatach, najwięksi nabywcy, izolacja; E2E: kolumny, tabela danych, ranking |
 | Eksport dla księgowej | `CsvFormatTests`, `ExportApiTests` | format CSV (BOM, separator, ochrona przed formułami, kwoty ujemne); okres; tylko faktury przyjęte w KSeF i otrzymane w okresie; kwoty per stawka z XML; zawartość paczki ZIP (XML zgodny z wysłanym, UPO); izolacja |
 | Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests`, testy rachunku w `ReceivedInvoicesTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF (wyszukiwanie, sprawdzenie rachunku); pamięć podręczna; limity dzienne; awaria MF; zapis wyniku sprawdzenia, rachunki zagraniczne, izolacja |
 | Interfejs (E2E) | `UserScenariosE2ETests` | główne scenariusze użytkownika i regresje błędów interfejsu |
@@ -73,6 +74,7 @@ w trakcie scenariuszy (bez tej zmiennej testy nie robią zrzutów).
 | Numer KSeF atrapy niezgodny z formatem KSeF | walidacja XSD korekty (funkcja „Faktury korygujące”) | atrapa nadawała numery `…-FAKTURA-1-00`, a XML korekty zawiera numer faktury korygowanej (typ `TNumerKSeF`) | atrapa nadaje numery w formacie prawdziwego KSeF |
 | Przycisk „Pobierz z wykazu VAT” nad górnym paskiem | zrzut ekranu z testu E2E (funkcja „Katalog produktów”) | przy przewijaniu przycisk grupy pól (z-index Bootstrapa) nachodził na przyklejony pasek z adresem e-mail | wyższy `z-index` paska |
 | Niewidoczne znaczniki stanu („wysłano”, „w fakturze”) | zrzut ekranu z testu E2E (funkcja „Przypomnienia o płatności”) | klasy `text-bg-*` pochodzą z Bootstrapa 5.2, a projekt używa 5.1 - biały tekst bez tła; test sprawdzał tylko treść, nie wygląd | klasy `bg-*` zgodne z 5.1 |
+| Paski należności nieproporcjonalne do kwot | zrzut ekranu z testu E2E (funkcja „Pulpit z wykresami”) | etykieta kwoty w tym samym elemencie elastycznym skracała pasek - różne kwoty miały równe paski | pasek i kwota w osobnych kolumnach siatki |
 | Zawijanie numeru KSeF pod kodem QR | test treści PDF (etap 8) | numer KSeF dzielony na dwie linie | szersza kolumna oznaczenia |
 
 Wniosek: testy API nie wystarczają. Dwa z błędów (D20, D22) były widoczne wyłącznie w prawdziwej przeglądarce,

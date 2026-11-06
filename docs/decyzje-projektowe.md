@@ -795,3 +795,34 @@ zakończona umowa) da się naprawić tylko korektą.
 po stronie użytkownika. Wykorzystanie ścieżki formularza gwarantuje te same reguły i obliczenia co przy ręcznym
 wystawianiu.
 
+---
+
+## D40. Wykresy pulpitu rysowane w SVG bez biblioteki JavaScript
+
+**Kontekst:** pulpit pokazywał liczniki faktur i sumy należności. Użytkownik nie widział trendu sprzedaży i kosztów
+ani struktury zaległości, które konkurencyjne programy prezentują na wykresach.
+
+**Decyzja:**
+- endpoint `GET /api/dashboard` zwraca dane trzech wykresów liczone w bazie dla firmy zalogowanego użytkownika:
+  sprzedaż i koszty netto w 12 ostatnich miesiącach (sprzedaż - faktury przekazane do KSeF z korektami, według daty
+  wystawienia; koszty - faktury otrzymane), wiekowanie należności (w terminie, 1-30, 31-60, ponad 60 dni po terminie,
+  kwota pozostała do zapłaty jak w rozliczeniach D30) i pięciu największych nabywców,
+- wykres kolumnowy rysowany jako SVG w komponencie Razor, paski poziome w HTML/CSS - bez bibliotek JavaScript,
+- zasady czytelności: jedna oś wartości, cienkie kolumny (do 24 px) z zaokrąglonym końcem i prostą podstawą,
+  odstęp 2 px w parze kolumn, włosowa ciągła siatka, „ładne” podziałki osi (1, 2, 5 × 10ⁿ), tekst w kolorach tekstu
+  (nie w kolorze serii), legenda dla dwóch serii; kolory serii z palety kategorycznej (niebieski, pomarańczowy)
+  sprawdzone walidatorem pod kątem rozróżnialności przy zaburzeniach widzenia barw i kontrastu,
+- dostępność: każda kolumna ma podpowiedź (`title`) i jest osiągalna klawiaturą, wykres ma opis dla czytników
+  ekranu, a wszystkie wartości są w tabeli „Dane w tabeli” pod wykresem; paski poziome mają wartości wypisane obok,
+- kwoty w PLN (faktury w walutach obcych - funkcja 12 - liczone osobno).
+
+**Alternatywy:**
+- biblioteka Chart.js lub ApexCharts przez JS interop: więcej typów wykresów i animacje, ale dodatkowa zależność
+  JavaScript, kod w dwóch językach i trudniejsze testy; trzy proste wykresy nie wymagają biblioteki,
+- biblioteki wykresów dla Blazora (np. komponenty komercyjne): wygodne, ale często płatne lub duże,
+- wykres kołowy struktury należności: trudniejszy do porównania niż paski (kąty zamiast długości).
+
+**Uzasadnienie:** brak nowych zależności, pełna kontrola nad wyglądem i dostępnością, wykresy renderowane
+po stronie przeglądarki z danych jednego zapytania. Proporcje pasków sprawdzono na zrzucie ekranu (pierwsza wersja
+skracała paski o szerokość etykiety kwoty - poprawione).
+

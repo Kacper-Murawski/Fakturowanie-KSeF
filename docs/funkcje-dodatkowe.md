@@ -32,7 +32,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 7 | Faktury cykliczne (D39) | średni | ✅ |
 | 8 | Przypomnienia o płatności (D37) | średni | ✅ |
 | 9 | Powiadomienie o nowej fakturze kosztowej (D38) | średni | ✅ |
-| 10 | Pulpit z wykresami | średni | do decyzji |
+| 10 | Pulpit z wykresami (D40) | średni | ✅ |
 | 11 | Katalog produktów i usług (D35) | niski | ✅ |
 | 12 | Waluty obce z kursem NBP | niski | do decyzji |
 | 13 | Eksport dla księgowej (CSV, paczka XML + UPO) (D34) | niski | ✅ |
@@ -131,6 +131,12 @@ automatyczne: pierwsze N dni po terminie, kolejne co 7 dni, najwyżej 3 do faktu
 Po synchronizacji z KSeF, która pobrała nowe faktury zakupowe, użytkownik dostaje jedną wiadomość z ich listą
 (sprzedawca, kwota, termin) i ostrzeżeniem o fakturach powyżej 15 000 zł (sprawdzenie rachunku na białej liście).
 Funkcję i adres powiadomień ustawia się na stronie „Moja firma”. Szczegóły: D38.
+
+## 10. Pulpit z wykresami
+
+Pulpit pokazuje wykres kolumnowy sprzedaży i kosztów netto w ostatnich 12 miesiącach, należności według liczby dni
+po terminie i pięciu największych nabywców. Wykresy są rysowane w SVG bez bibliotek JavaScript, z legendą,
+podpowiedziami i tabelą danych. Szczegóły: D40.
 
 ## 11. Katalog produktów i usług
 

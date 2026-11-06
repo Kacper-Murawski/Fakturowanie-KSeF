@@ -154,6 +154,7 @@ api.MapKsefSettingsEndpoints();
 api.MapReceivedInvoiceEndpoints();
 api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
+api.MapDashboardEndpoints();
 api.MapExportEndpoints();
 api.MapEmailEndpoints();
 api.MapNotificationEndpoints();

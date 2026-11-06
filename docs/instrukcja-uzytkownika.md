@@ -174,6 +174,14 @@ oraz stronicowaniem. **Pulpit** pokazuje liczbę faktur w każdym statusie.
 
 ![Pulpit](zrzuty/11-pulpit.png)
 
+### Wykresy na pulpicie
+
+Pod podsumowaniem należności pulpit pokazuje wykres sprzedaży i kosztów netto w ostatnich 12 miesiącach,
+należności według liczby dni po terminie oraz największych nabywców (kliknięcie nazwy otwiera ich faktury).
+Po najechaniu na kolumnę widać dokładną kwotę, a wszystkie wartości są w tabeli **Dane w tabeli** pod wykresem.
+
+![Pulpit z wykresami](zrzuty/30-pulpit-wykresy.png)
+
 ## 9. Faktury otrzymane
 
 W menu **Faktury otrzymane** znajdują się faktury wystawione na NIP Twojej firmy przez innych podatników,

@@ -135,3 +135,33 @@ tr[role="button"] {
 .items-table th:nth-child(2) {
     min-width: 16rem;
 }
+
+/* ---------------- Wykresy pulpitu (D40) ----------------
+   Paleta: kategoryczne sloty 1-2 (niebieski, pomarańczowy) - zweryfikowane walidatorem (CVD, kontrast) na białym tle.
+   Tekst zawsze w kolorach tekstu, nigdy w kolorze serii; siatka i osie - włosowe, ciągłe. */
+.viz {
+    --viz-series-1: #2a78d6;
+    --viz-series-2: #eb6834;
+    --viz-grid: #e1e0d9;
+    --viz-axis: #c3c2b7;
+    --viz-muted: #6c6a65;
+    --viz-surface: #ffffff;
+}
+.viz-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.viz-grid { stroke: var(--viz-grid); stroke-width: 1; shape-rendering: crispEdges; }
+.viz-baseline { stroke: var(--viz-axis); stroke-width: 1; shape-rendering: crispEdges; }
+.viz-tick { fill: var(--viz-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.viz-bar { cursor: default; }
+.viz-bar:hover, .viz-bar:focus { opacity: .8; outline: none; }
+.viz-legend { display: flex; gap: 1rem; font-size: .875rem; color: #52514e; margin-bottom: .25rem; }
+.viz-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .375rem; vertical-align: baseline; }
+.viz-table td, .viz-table th { font-variant-numeric: tabular-nums; }
+
+.viz-barlist { display: grid; gap: .625rem; }
+.viz-barlist-row { font-size: .875rem; }
+.viz-barlist-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: .125rem; }
+/* Pasek w osobnej kolumnie - długość proporcjonalna do wartości niezależnie od szerokości etykiety kwoty */
+.viz-barlist-track { display: grid; grid-template-columns: 1fr 7.5rem; gap: .5rem; align-items: center; }
+.viz-barlist-area { min-width: 0; }
+.viz-barlist-bar { height: 12px; background: #2a78d6; border-radius: 0 4px 4px 0; min-width: 2px; }
+.viz-barlist-value { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; color: #52514e; }

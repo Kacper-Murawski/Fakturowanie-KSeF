@@ -58,6 +58,7 @@ po polsku.
 | DELETE | `/api/invoices/{id}/payments/{paymentId}` | Usunięcie błędnej wpłaty; zwraca rozliczenie. 409 - zapłata oznaczona w fakturze w KSeF (`fromInvoice`, D33) |
 | POST | `/api/received-invoices/{id}/payments` | Rejestracja zapłaty za fakturę otrzymaną (jak wyżej) |
 | DELETE | `/api/received-invoices/{id}/payments/{paymentId}` | Usunięcie błędnej zapłaty |
+| GET | `/api/dashboard` | Dane wykresów pulpitu: sprzedaż i koszty netto w 12 miesiącach, wiekowanie należności, 5 największych nabywców (D40) |
 | GET | `/api/payments/summary` | Należności i zobowiązania: pozostało do zapłaty, w tym po terminie (kwoty w PLN) |
 | POST | `/api/invoices/{id}/email` | Wysłanie faktury e-mailem (`to`, `message`) - PDF i XML w załączniku; 202 - wiadomość w kolejce. 409 - faktura nieprzyjęta w KSeF lub poczta nieskonfigurowana, 429 - dzienny limit wiadomości firmy (D36) |
 | GET | `/api/invoices/{id}/emails` | Historia wiadomości dotyczących faktury: odbiorca, rodzaj, stan (`Pending`, `Sent`, `Failed`), liczba prób, ostatni błąd |
