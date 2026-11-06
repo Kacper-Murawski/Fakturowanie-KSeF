@@ -84,6 +84,15 @@ fakturach powtarzalnych, np. comiesięcznym abonamencie. Nic nie jest zapisywane
 
 ![Wystaw podobną](zrzuty/18-wystaw-podobna.png)
 
+### Faktura w walucie obcej
+
+W polu **Waluta** wybierz np. EUR. Aplikacja pobierze kurs średni NBP z ostatniego dnia roboczego przed dniem sprzedaży
+(albo wystawienia) i pod sumami pokaże kurs, numer tabeli NBP i podatek VAT w PLN - tak, jak wymaga ustawa. Kurs
+ustalany jest ponownie przy zapisie, więc zmiana daty sprzedaży zmienia też kurs. Na PDF i w XML wysyłanym do KSeF
+znajdą się kwoty w walucie oraz podatek w PLN. Należności na pulpicie sumują tylko faktury w PLN.
+
+![Faktura w walucie obcej](zrzuty/33-faktura-w-walucie.png)
+
 ### Faktura proforma
 
 Jeśli chcesz najpierw wysłać klientowi dokument do zapłaty (np. przedpłata), w formularzu nowej faktury wybierz

@@ -105,6 +105,12 @@ public sealed class VatWhiteListClient(HttpClient http) : IVatWhiteListClient
                     : $"Wykaz podatników VAT zwrócił błąd ({(int)response.StatusCode}).");
             }
 
+            // Strona HTML zamiast JSON: zabezpieczenie MF przed automatycznymi zapytaniami zablokowało adres serwera
+            // (zaobserwowane dla adresów centrów danych w chmurze) - D43
+            if (response.Content.Headers.ContentType?.MediaType == "text/html")
+                throw new VatWhiteListException(
+                    "Wykaz podatników VAT odrzucił zapytanie serwera (zabezpieczenie przed automatycznymi zapytaniami). Uzupełnij dane ręcznie.");
+
             return await TryReadAsync<T>(response, ct)
                    ?? throw new VatWhiteListException("Nieoczekiwana odpowiedź wykazu podatników VAT.");
         }

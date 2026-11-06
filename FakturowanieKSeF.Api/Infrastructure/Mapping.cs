@@ -111,7 +111,11 @@ public static class Mapping
             correction,
             i.Corrections.OrderBy(c => c.Id)
                 .Select(c => new CorrectionSummaryDto(c.Id, c.Number, c.IssueDate, c.Status, c.TotalGross)).ToList(),
-            i.PaidOn);
+            i.PaidOn,
+            ExchangeRate: i.ExchangeRate is { } rate && Currencies.IsForeign(i.Currency)
+                ? new ExchangeRateDto(i.Currency, rate, i.ExchangeRateDate ?? default, i.ExchangeRateTable ?? "")
+                : null,
+            VatSummaryPln: i.ExchangeRate is { } r && Currencies.IsForeign(i.Currency) ? InvoiceCalculator.VatInPln(vatSummary, r) : null);
     }
 
     public static KsefSubmissionDto ToDto(this KsefSubmission s) => new(

@@ -75,6 +75,9 @@ public static class VatRateExtensions
         _ => 0m
     };
 
+    /// <summary>Stawka z kwotą podatku (pola P_14_x w FA(3)): 23/22, 8/7, 5, 4, 3%.</summary>
+    public static bool HasVatAmount(this VatRate rate) => rate.GetPercentage() > 0;
+
     /// <summary>Nazwa stawki do wyświetlenia użytkownikowi.</summary>
     public static string ToDisplayName(this VatRate rate) => rate switch
     {

@@ -38,6 +38,7 @@ flowchart LR
     KSEF["KSeF 2.0 - środowisko TESTOWE<br/>api-test.ksef.mf.gov.pl"]
     BL["Wykaz podatników VAT (Biała lista MF)<br/>wl-api.mf.gov.pl - dane publiczne"]
     SMTP["Serwer poczty SMTP<br/>(lokalnie: Mailpit)"]
+    NBP["Kursy walut NBP<br/>api.nbp.pl - dane publiczne"]
 
     UI -- "HTTPS, JSON<br/>ciasteczko HttpOnly" --> API
     API --> ID
@@ -58,6 +59,7 @@ flowchart LR
     WP -- "faktury po terminie → kolejka" --> DB
     WC -- "szkice faktur" --> DB
     WE -- "SMTP (TLS)" --> SMTP
+    API -- "HTTPS, kurs przy zapisie faktury walutowej" --> NBP
 ```
 
 ## Projekty (warstwy)
@@ -133,6 +135,7 @@ sequenceDiagram
 | PDF / QR | QuestPDF, QRCoder | D27 |
 | Dane kontrahentów | API wykazu podatników VAT MF (Biała lista), `IMemoryCache` | D28 |
 | Poczta | MailKit (SMTP), kolejka w PostgreSQL; lokalnie Mailpit | D36 |
+| Kursy walut | API NBP (tabela A), `IMemoryCache` | D43 |
 | Testy | xUnit, WebApplicationFactory, Playwright, PdfPig | D7, etap 10 |
 | CI | GitHub Actions (build, testy, E2E w Chromium) | D7 |
 | Środowisko uruchomieniowe | Docker (PostgreSQL), docelowo kontener aplikacji + reverse proxy z HTTPS | etap 9 |

@@ -38,7 +38,7 @@ po polsku.
 | POST | `/api/invoices/{id}/convert` | Szkic faktury VAT na podstawie proformy (nabywca, pozycje, warunki); 409 - dokument nie jest proformą albo już wystawiono z niej fakturę (D42) |
 | GET | `/api/invoices/{id}/pdf` | Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych) |
 | GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |
-| POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32). Pole `isProforma: true` - faktura proforma (nie trafia do KSeF, D42). Opcjonalne `paidOn` - faktura zapłacona przy wystawieniu (`Zaplacono` w FA(3); nie później niż data wystawienia), przy wysyłce rejestrowana jako płatność (D33) |
+| POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32). `currency`: PLN lub waluta z tabeli A NBP - przy zapisie serwer pobiera kurs NBP (400, gdy NBP niedostępny) (D43). Pole `isProforma: true` - faktura proforma (nie trafia do KSeF, D42). Opcjonalne `paidOn` - faktura zapłacona przy wystawieniu (`Zaplacono` w FA(3); nie później niż data wystawienia), przy wysyłce rejestrowana jako płatność (D33) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
 | DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona); 409 - faktura jest wzorem faktury cyklicznej (D39) |
 | POST | `/api/invoices/{id}/send` | Wysłanie faktury do KSeF (body: `version`); 202 i status `Pending`, dalej asynchronicznie - zob. `docs/integracja-ksef.md` |
@@ -65,6 +65,7 @@ po polsku.
 | POST | `/api/account/2fa/enable` | Włączenie po potwierdzeniu kodem (`code`); zwraca 10 kodów odzyskiwania; 400 - zły kod |
 | POST | `/api/account/2fa/disable` | Wyłączenie - wymaga kodu z aplikacji lub kodu odzyskiwania |
 | POST | `/api/account/2fa/recovery-codes` | Nowe kody odzyskiwania - wymaga kodu z aplikacji |
+| GET | `/api/exchange-rates/{currency}?date=` | Kurs średni NBP z ostatniego dnia roboczego przed datą (dniem sprzedaży) - podgląd w formularzu; 502 - API NBP niedostępne (D43) |
 | GET | `/api/dashboard` | Dane wykresów pulpitu: sprzedaż i koszty netto w 12 miesiącach, wiekowanie należności, 5 największych nabywców (D40) |
 | GET | `/api/payments/summary` | Należności i zobowiązania: pozostało do zapłaty, w tym po terminie (kwoty w PLN) |
 | POST | `/api/invoices/{id}/email` | Wysłanie faktury e-mailem (`to`, `message`) - PDF i XML w załączniku; 202 - wiadomość w kolejce. 409 - faktura nieprzyjęta w KSeF lub poczta nieskonfigurowana, 429 - dzienny limit wiadomości firmy (D36) |

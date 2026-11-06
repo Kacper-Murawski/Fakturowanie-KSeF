@@ -68,13 +68,18 @@ public sealed partial class AccountingExport(AppDbContext db)
         return invoices.Select(r => new PurchaseRow(r, Fa3InvoiceReader.Read(r.Xml))).ToList();
     }
 
-    public static ExportSummaryDto Summary(DateOnly from, DateOnly to, List<SaleRow> sales, List<PurchaseRow> purchases) => new(
-        from, to,
-        sales.Count, sales.Sum(s => Net(s.Document)), sales.Sum(s => Vat(s.Document)), sales.Sum(s => s.Document.TotalGross),
-        purchases.Count, purchases.Count(p => p.Document.Currency != "PLN"),
-        purchases.Where(p => p.Document.Currency == "PLN").Sum(p => Net(p.Document)),
-        purchases.Where(p => p.Document.Currency == "PLN").Sum(p => Vat(p.Document)),
-        purchases.Where(p => p.Document.Currency == "PLN").Sum(p => p.Document.TotalGross));
+    /// <summary>Sumy w PLN; dokumenty w walutach obcych są liczone osobno (ich kwoty w PLN są w zestawieniach).</summary>
+    public static ExportSummaryDto Summary(DateOnly from, DateOnly to, List<SaleRow> sales, List<PurchaseRow> purchases)
+    {
+        var salesPln = sales.Where(s => s.Document.Currency == "PLN").ToList();
+        var purchasesPln = purchases.Where(p => p.Document.Currency == "PLN").ToList();
+        return new ExportSummaryDto(
+            from, to,
+            sales.Count, salesPln.Sum(s => Net(s.Document)), salesPln.Sum(s => Vat(s.Document)), salesPln.Sum(s => s.Document.TotalGross),
+            purchases.Count, purchases.Count - purchasesPln.Count,
+            purchasesPln.Sum(p => Net(p.Document)), purchasesPln.Sum(p => Vat(p.Document)), purchasesPln.Sum(p => p.Document.TotalGross),
+            sales.Count - salesPln.Count);
+    }
 
     // ------------------------------------------------------------------ CSV
 
@@ -83,7 +88,8 @@ public sealed partial class AccountingExport(AppDbContext db)
         var csv = new CsvBuilder();
         csv.Row(["Rodzaj", "Numer faktury", "Data wystawienia", "Data sprzedaży", "Numer KSeF", "Data nadania numeru KSeF",
                  "Nabywca", "NIP nabywcy", "Faktura korygowana", "Przyczyna korekty",
-                 .. RateHeaders(), "Razem netto", "Razem VAT", "Brutto", "Waluta", "Forma płatności", "Termin płatności", "Data zapłaty"]);
+                 .. RateHeaders(), "Razem netto", "Razem VAT", "Brutto", "Waluta", "Kurs", "VAT w PLN",
+                 "Forma płatności", "Termin płatności", "Data zapłaty"]);
 
         foreach (var (invoice, submission, doc) in rows)
         {
@@ -93,6 +99,7 @@ public sealed partial class AccountingExport(AppDbContext db)
                 doc.Buyer.Name, doc.Buyer.Nip,
                 string.Join(", ", (doc.CorrectedInvoices ?? []).Select(c => c.Number)), doc.CorrectionReason,
                 .. RateValues(doc), Money(Net(doc)), Money(Vat(doc)), Money(doc.TotalGross), doc.Currency,
+                Rate(doc), Money(VatPln(doc)),
                 doc.PaymentMethod, Date(doc.DueDate), Date(doc.PaidOn)
             ]);
         }
@@ -104,7 +111,7 @@ public sealed partial class AccountingExport(AppDbContext db)
         var csv = new CsvBuilder();
         csv.Row(["Rodzaj", "Numer faktury", "Data wystawienia", "Data otrzymania (KSeF)", "Numer KSeF",
                  "Sprzedawca", "NIP sprzedawcy", "Faktura korygowana",
-                 .. RateHeaders(), "Razem netto", "Razem VAT", "Brutto", "Waluta", "Forma płatności", "Termin płatności",
+                 .. RateHeaders(), "Razem netto", "Razem VAT", "Brutto", "Waluta", "Kurs", "VAT w PLN", "Forma płatności", "Termin płatności",
                  "Rachunek", "Rachunek na białej liście"]);
 
         foreach (var (invoice, doc) in rows)
@@ -114,6 +121,7 @@ public sealed partial class AccountingExport(AppDbContext db)
                 doc.Seller.Name, doc.Seller.Nip,
                 string.Join(", ", (doc.CorrectedInvoices ?? []).Select(c => c.Number)),
                 .. RateValues(doc), Money(Net(doc)), Money(Vat(doc)), Money(doc.TotalGross), doc.Currency,
+                Rate(doc), Money(VatPln(doc)),
                 doc.PaymentMethod, Date(doc.DueDate), doc.BankAccount,
                 invoice.BankAccountOnWhiteList switch
                 {
@@ -202,6 +210,11 @@ public sealed partial class AccountingExport(AppDbContext db)
     });
 
     private static decimal Net(InvoiceDocumentDto doc) => doc.VatSummary.Sum(v => v.Net);
+
+    /// <summary>Podatek w PLN: dla PLN - kwota VAT, dla waluty obcej - suma pól P_14_xW (D43).</summary>
+    private static decimal VatPln(InvoiceDocumentDto doc) => doc.Currency == "PLN" ? Vat(doc) : doc.VatSummary.Sum(v => v.VatPln ?? 0);
+
+    private static string? Rate(InvoiceDocumentDto doc) => doc.ExchangeRate?.ToString("0.0000##", Pl);
     private static decimal Vat(InvoiceDocumentDto doc) => doc.VatSummary.Sum(v => v.Vat ?? 0);
 
     private static string Money(decimal value) => value.ToString("0.00", Pl);

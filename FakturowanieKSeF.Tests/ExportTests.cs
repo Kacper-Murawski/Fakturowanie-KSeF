@@ -141,7 +141,7 @@ public class ExportApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.StartsWith($"VAT;{accepted.Number};2026-11-01;", row);
         Assert.Contains(accepted.KsefNumber!, row);
         Assert.Contains("1500,00;345,00;;;50,00;2,50", row);
-        Assert.Contains(";1550,00;347,50;1897,50;PLN;Przelew;2026-11-15;", row);
+        Assert.Contains(";1550,00;347,50;1897,50;PLN;;347,50;Przelew;2026-11-15;", row); // PLN: bez kursu, VAT w PLN = VAT
         Assert.DoesNotContain(sales, l => l.Contains(draft.Number));
 
         var purchases = Encoding.UTF8.GetString((await client.GetByteArrayAsync($"/api/exports/purchases.csv?{Period}"))[3..]).Split("\r\n");

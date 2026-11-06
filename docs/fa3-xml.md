@@ -26,7 +26,9 @@ Pliki: [`spike-ksef/faktura-z-generatora.xml`](spike-ksef/faktura-z-generatora.x
 | `Podmiot2/DaneIdentyfikacyjne/NIP` albo `BrakID=1` | nabywca - firma (NIP) albo osoba prywatna | `Invoice.Buyer.Nip` |
 | `Podmiot2/Adres` | adres nabywcy | `Invoice.Buyer.Address` |
 | `Podmiot2/JST`, `GV` | `2` - nie dotyczy jednostki JST ani grupy VAT | stała |
-| `Fa/KodWaluty` | `PLN` | `Invoice.Currency` |
+| `Fa/KodWaluty` | `PLN` lub waluta obca (EUR, USD…) | `Invoice.Currency` |
+| `Fa/P_14_1W`, `P_14_2W`, `P_14_3W` | waluta obca: podatek w PLN (podatek × kurs, do grosza) | `InvoiceCalculator.VatInPln` (D43) |
+| `Fa/FaWiersz/KursWaluty` | waluta obca: kurs średni NBP (do 6 miejsc) | `Invoice.ExchangeRate` |
 | `Fa/P_1`, `P_1M` | data i miejsce wystawienia | `IssueDate`, `IssuePlace` |
 | `Fa/P_2` | numer faktury | `Number` |
 | `Fa/P_6` | data sprzedaży - tylko gdy różna od daty wystawienia | `SaleDate` |

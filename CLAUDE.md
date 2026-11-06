@@ -58,6 +58,8 @@
 - Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
 - Git: każda funkcja na osobnej gałęzi o nazwie tematycznej po polsku, np. `feature/faktury-korygujace`,
   `fix/walidacja-nip` (nie nazwy losowe); jeden PR do `main` na funkcję, scalanie przez merge commit.
+- Kursy walut NBP (`api.nbp.pl`): `INbpClient` (w testach `FakeNbpClient`) + `ExchangeRateLookup` (kurs z ostatniego dnia
+  roboczego przed dniem sprzedaży); kurs ustala serwer przy zapisie faktury walutowej (D43). Kwot w różnych walutach nie sumuj.
 - Biała lista VAT (`wl-api.mf.gov.pl`): klient `IVatWhiteListClient` (w testach `FakeVatWhiteList`), odczyty przez
   `VatRegistryLookup` (pamięć podręczna + dzienne limity, bo MF limituje zapytania na adres IP serwera).
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).

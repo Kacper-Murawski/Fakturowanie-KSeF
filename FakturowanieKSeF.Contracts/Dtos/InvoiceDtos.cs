@@ -76,7 +76,10 @@ public sealed record InvoiceDto(
     DateOnly? PaidOn = null,
     /// <summary>Powiązanie proforma ↔ faktura VAT (D42): dla faktury VAT - proforma, z której powstała; dla proformy - wystawiona faktura.</summary>
     LinkedDocumentDto? Proforma = null,
-    LinkedDocumentDto? IssuedFromProforma = null);
+    LinkedDocumentDto? IssuedFromProforma = null,
+    /// <summary>Faktura w walucie obcej: kurs NBP i kwoty podatku w PLN per stawka (D43).</summary>
+    ExchangeRateDto? ExchangeRate = null,
+    IReadOnlyList<VatRateSummary>? VatSummaryPln = null);
 
 /// <summary>Odwołanie do powiązanego dokumentu (numer i stan).</summary>
 public sealed record LinkedDocumentDto(int Id, string Number, InvoiceStatus Status);
@@ -234,9 +237,9 @@ public sealed class SaveInvoiceRequest : IValidatableObject
         if (PaymentMethod == PaymentMethod.Transfer && DueDate is null && !IsCorrection && PaidOn is null)
             yield return new ValidationResult("Dla płatności przelewem podaj termin płatności.", [nameof(DueDate)]);
 
-        // Ograniczenia zakresu MVP wynikające ze struktury FA(3) (decyzja D21)
-        if (Currency != "PLN")
-            yield return new ValidationResult("W obecnej wersji obsługiwane są wyłącznie faktury w PLN.", [nameof(Currency)]);
+        // Waluty: PLN i waluty z tabeli A NBP (kurs pobierany przy zapisie - D43)
+        if (!Currencies.Supported.Contains(Currency))
+            yield return new ValidationResult("Nieobsługiwana waluta.", [nameof(Currency)]);
 
         if (Items.Any(i => i.VatRate == VatRate.Exempt) && string.IsNullOrWhiteSpace(ExemptionBasis))
             yield return new ValidationResult("Podaj podstawę prawną zwolnienia z VAT (np. art. 113 ust. 1 ustawy o VAT).", [nameof(ExemptionBasis)]);

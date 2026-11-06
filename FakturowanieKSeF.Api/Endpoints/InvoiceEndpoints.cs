@@ -1,3 +1,5 @@
+using FakturowanieKSeF.Api.Integrations.Nbp;
+using FakturowanieKSeF.Contracts.Calculation;
 using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Services;
@@ -242,7 +244,7 @@ public static class InvoiceEndpoints
             .WithSummary("Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych)");
 
         group.MapPost("/{id:int}/convert", async (int id, CurrentCompany current, AppDbContext db, InvoiceNumbering numbering,
-                TimeProvider time, CancellationToken ct) =>
+                ExchangeRateLookup rates, TimeProvider time, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
@@ -263,7 +265,7 @@ public static class InvoiceEndpoints
                 for (var attempt = 1; ; attempt++)
                 {
                     var invoice = new Invoice { CompanyId = company.Id, ProformaId = proforma.Id };
-                    if (await ApplyAsync(invoice, request, company, db, ct) is { } error) return error;
+                    if (await ApplyAsync(invoice, request, company, db, rates, ct) is { } error) return error;
                     invoice.Number = await numbering.NextAsync(company.Id, today, InvoiceKind.Vat, ct);
                     db.Invoices.Add(invoice);
                     try
@@ -288,7 +290,8 @@ public static class InvoiceEndpoints
             })
             .WithSummary("Propozycja kolejnego numeru faktury");
 
-        group.MapPost("/", async (SaveInvoiceRequest request, CurrentCompany current, AppDbContext db, InvoiceNumbering numbering, CancellationToken ct) =>
+        group.MapPost("/", async (SaveInvoiceRequest request, CurrentCompany current, AppDbContext db, InvoiceNumbering numbering,
+                ExchangeRateLookup rates, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
@@ -299,7 +302,7 @@ public static class InvoiceEndpoints
                 for (var attempt = 1; ; attempt++)
                 {
                     var invoice = new Invoice { CompanyId = company.Id };
-                    var error = await ApplyAsync(invoice, request, company, db, ct);
+                    var error = await ApplyAsync(invoice, request, company, db, rates, ct);
                     if (error is not null) return error;
 
                     if (autoNumber) invoice.Number = await numbering.NextAsync(company.Id, invoice.IssueDate, invoice.Kind, ct);
@@ -318,7 +321,8 @@ public static class InvoiceEndpoints
             })
             .WithSummary("Utworzenie faktury (szkicu)");
 
-        group.MapPut("/{id:int}", async (int id, SaveInvoiceRequest request, CurrentCompany current, AppDbContext db, CancellationToken ct) =>
+        group.MapPut("/{id:int}", async (int id, SaveInvoiceRequest request, CurrentCompany current, AppDbContext db,
+                ExchangeRateLookup rates, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
@@ -335,7 +339,7 @@ public static class InvoiceEndpoints
                 // Kontrola współbieżności: zapis tylko wtedy, gdy nikt nie zmienił faktury od jej odczytu
                 db.Entry(invoice).Property(i => i.Version).OriginalValue = request.Version.Value;
 
-                var error = await ApplyAsync(invoice, request, company, db, ct);
+                var error = await ApplyAsync(invoice, request, company, db, rates, ct);
                 if (error is not null) return error;
 
                 invoice.Status = InvoiceStatus.Draft; // poprawiona faktura odrzucona wraca do szkicu
@@ -395,7 +399,7 @@ public static class InvoiceEndpoints
     }
 
     internal static async Task<IResult?> ApplyAsync(Invoice invoice, SaveInvoiceRequest request, Company company,
-        AppDbContext db, CancellationToken ct)
+        AppDbContext db, ExchangeRateLookup rates, CancellationToken ct)
     {
         var kind = request.IsCorrection ? InvoiceKind.Correction : request.IsProforma ? InvoiceKind.Proforma : InvoiceKind.Vat;
         if (invoice.Id != 0 && (invoice.Kind != kind || invoice.CorrectedInvoiceId != request.CorrectedInvoiceId))
@@ -436,6 +440,10 @@ public static class InvoiceEndpoints
             invoice.CorrectionType = request.CorrectionType;
             invoice.CustomerId = original.CustomerId;
             invoice.Currency = original.Currency;
+            // Korekta faktury walutowej - kurs faktury korygowanej (D43)
+            invoice.ExchangeRate = original.ExchangeRate;
+            invoice.ExchangeRateDate = original.ExchangeRateDate;
+            invoice.ExchangeRateTable = original.ExchangeRateTable;
             originalExemptionBasis = original.ExemptionBasis;
         }
         else
@@ -505,6 +513,27 @@ public static class InvoiceEndpoints
                 VatAmount = line.VatAmount,
                 GrossAmount = line.GrossAmount
             });
+        }
+
+        // Waluta obca: kurs średni NBP z ostatniego dnia roboczego przed dniem sprzedaży (art. 31a ustawy o VAT) - D43
+        if (before is null)
+        {
+            if (Currencies.IsForeign(invoice.Currency))
+            {
+                try
+                {
+                    var rate = await rates.ForTaxPointAsync(invoice.Currency, invoice.SaleDate ?? invoice.IssueDate, ct);
+                    (invoice.ExchangeRate, invoice.ExchangeRateDate, invoice.ExchangeRateTable) = (rate.Mid, rate.EffectiveDate, rate.TableNo);
+                }
+                catch (NbpException ex)
+                {
+                    return ApiErrors.Validation(nameof(request.Currency), $"Nie udało się pobrać kursu NBP: {ex.Message}");
+                }
+            }
+            else
+            {
+                (invoice.ExchangeRate, invoice.ExchangeRateDate, invoice.ExchangeRateTable) = (null, null, null);
+            }
         }
 
         if (before is not null)

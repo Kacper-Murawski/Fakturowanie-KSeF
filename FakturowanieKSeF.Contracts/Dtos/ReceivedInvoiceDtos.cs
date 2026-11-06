@@ -53,7 +53,8 @@ public sealed record DocumentLineDto(int Number, string Name, string? Unit, deci
 /// <summary>Faktura korygowana wskazana na fakturze korygującej (DaneFaKorygowanej).</summary>
 public sealed record DocumentCorrectedInvoiceDto(string Number, DateOnly? IssueDate, string? KsefNumber);
 
-public sealed record DocumentVatSummaryDto(string Label, decimal Net, decimal? Vat);
+/// <param name="VatPln">Kwota podatku w PLN dla faktury w walucie obcej (P_14_xW).</param>
+public sealed record DocumentVatSummaryDto(string Label, decimal Net, decimal? Vat, decimal? VatPln = null);
 
 /// <summary>Treść faktury odczytana z dokumentu XML w strukturze FA.</summary>
 public sealed record InvoiceDocumentDto(
@@ -73,7 +74,9 @@ public sealed record InvoiceDocumentDto(
     string? CorrectionReason = null,
     IReadOnlyList<DocumentCorrectedInvoiceDto>? CorrectedInvoices = null,
     /// <summary>Data zapłaty, gdy faktura jest oznaczona jako zapłacona (Zaplacono = 1, DataZaplaty).</summary>
-    DateOnly? PaidOn = null)
+    DateOnly? PaidOn = null,
+    /// <summary>Kurs waluty z wierszy faktury (KursWaluty) - faktura w walucie obcej.</summary>
+    decimal? ExchangeRate = null)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsCorrection => InvoiceType.StartsWith("KOR", StringComparison.Ordinal);

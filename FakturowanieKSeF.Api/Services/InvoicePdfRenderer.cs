@@ -160,6 +160,16 @@ public sealed class InvoicePdfRenderer
                         t.Span(refund ? "Do zwrotu: " : doc.IsCorrection ? "Do dopłaty: " : "Do zapłaty: ").FontSize(11);
                         t.Span($"{Math.Abs(doc.TotalGross).ToString("N2", Pl)} {doc.Currency}").FontSize(13).Bold();
                     });
+
+                    // Waluta obca: kwota podatku w złotych (art. 106e ust. 11 ustawy o VAT) i kurs przeliczenia
+                    if (doc.Currency != "PLN" && doc.VatSummary.Any(s => s.VatPln is not null))
+                    {
+                        c.Item().PaddingTop(4).AlignRight()
+                            .Text($"Podatek VAT w PLN: {doc.VatSummary.Sum(s => s.VatPln ?? 0).ToString("N2", Pl)} PLN").SemiBold();
+                        if (doc.ExchangeRate is { } rate)
+                            c.Item().AlignRight().Text($"Kurs {doc.Currency}: {rate.ToString("0.0000##", Pl)} PLN (średni kurs NBP)").FontSize(8)
+                                .FontColor(Colors.Grey.Darken1);
+                    }
                 });
             });
         });
