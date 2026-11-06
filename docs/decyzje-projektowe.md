@@ -662,3 +662,44 @@ Konkurencyjne programy mają katalog produktów i usług.
 **Uzasadnienie:** szybsze wystawianie faktur przy minimalnym kodzie, bez ryzyka zmiany wystawionych dokumentów.
 Katalog jest tylko źródłem podpowiedzi, więc nie wpływa na reguły faktury, XML FA(3) ani wysyłkę do KSeF.
 
+---
+
+## D36. Wysyłka e-mail przez kolejkę w bazie (outbox) i serwer SMTP
+
+**Kontekst:** funkcje etapu B (wysyłka faktur, przypomnienia o płatności, powiadomienia) wymagają poczty.
+Serwer SMTP bywa chwilowo niedostępny, a wysyłka trwa kilka sekund - nie może blokować żądania ani gubić wiadomości.
+Aplikacja w modelu SaaS wysyła pocztę w imieniu wielu firm, więc trzeba ją chronić przed użyciem do rozsyłania spamu.
+
+**Decyzja:**
+- **kolejka w bazie (wzorzec outbox):** endpoint zapisuje wiadomość w tabeli `EmailMessages` w tej samej transakcji
+  co inne zmiany i zwraca 202; wysyła ją usługa w tle (`EmailWorker`), budzona sygnałem od razu po zapisie,
+- ponawianie po błędzie z rosnącymi odstępami (1 min, 5 min, 15 min, 1 h); po wyczerpaniu prób stan *błąd wysyłki*
+  z komunikatem widocznym w historii; stan i historia wiadomości są widoczne przy fakturze,
+- załączniki (PDF z kodem QR i XML faktury w postaci wysłanej do KSeF) powstają w chwili wysyłki z faktury -
+  nie są przechowywane w kolejce (faktura przyjęta w KSeF się nie zmienia),
+- nadawcą technicznym jest adres aplikacji (`Email:From`), a nazwą wyświetlaną i adresem odpowiedzi - nazwa
+  i e-mail firmy użytkownika; wysyłanie „z adresu” firmy użytkownika byłoby odrzucane przez SPF/DMARC jako podszywanie,
+- treść wyłącznie tekstowa (bez HTML) i znaki sterujące usuwane z nagłówków - brak wstrzykiwania treści i nagłówków,
+- **dzienny limit** wiadomości do kontrahentów na firmę (domyślnie 100, licznik z bazy - odporny na restart),
+- fakturę można wysłać dopiero po przyjęciu przez KSeF (z numerem KSeF i kodem QR); każda wiadomość do kontrahenta
+  zawiera ostrzeżenie, że pochodzi z wersji testowej i faktura z testowego KSeF nie ma mocy prawnej,
+- MailKit jako klient SMTP; lokalnie skrzynka testowa **Mailpit** w `docker compose` (przechwytuje wszystkie
+  wiadomości, podgląd w przeglądarce), w testach automatycznych atrapa `FakeEmailSender`; dane serwera SMTP
+  produkcyjnie wyłącznie w zmiennych środowiskowych (`Email__SmtpHost`, `Email__SmtpPassword`…). Bez konfiguracji
+  SMTP funkcje e-mail są niedostępne (409), a aplikacja działa dalej.
+
+**Alternatywy:**
+- wysyłka bezpośrednio w żądaniu HTTP: prostsza, ale błąd serwera poczty to błąd dla użytkownika i utrata wiadomości,
+  a powolny serwer blokuje żądanie,
+- zewnętrzna kolejka (RabbitMQ, Azure Service Bus): kolejny komponent do utrzymania - przy skali aplikacji kolejka
+  w PostgreSQL wystarcza i daje atomowy zapis z danymi biznesowymi,
+- API dostawcy poczty transakcyjnej (SendGrid, Mailgun, Amazon SES): lepsza dostarczalność i statystyki, ale
+  uzależnienie od dostawcy; SMTP jest obsługiwany przez wszystkich dostawców, w tym te usługi,
+- `System.Net.Mail.SmtpClient`: wbudowany, ale oznaczony przez Microsoft jako niezalecany dla nowych projektów
+  (brak obsługi nowoczesnych protokołów) - zalecany jest MailKit,
+- treść HTML: ładniejsza, ale wymaga kodowania danych i szablonów; tekst jest czytelny w każdym programie pocztowym.
+
+**Uzasadnienie:** wiadomości nie giną przy awarii poczty, żądania są szybkie, a ten sam mechanizm obsługuje wszystkie
+funkcje etapu B. Limity i ostrzeżenie o środowisku testowym ograniczają nadużycia. Wysyłka przez prawdziwy serwer SMTP
+została sprawdzona z lokalnym serwerem testowym (nagłówki From/Reply-To, załącznik).
+

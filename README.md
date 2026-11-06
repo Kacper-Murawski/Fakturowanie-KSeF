@@ -26,7 +26,7 @@ Wymagania: .NET 10 SDK, Docker.
 ```bash
 git clone --recursive <adres-repozytorium>                  # --recursive pobiera też klienta KSeF MF
 git submodule update --init                                # (jeśli sklonowano bez --recursive)
-docker compose up -d                                       # baza PostgreSQL
+docker compose up -d                                       # baza PostgreSQL + skrzynka testowa Mailpit
 dotnet build                                               # pobranie pakietów i kompilacja (wymagane przed dotnet ef)
 dotnet tool install --global dotnet-ef                     # jednorazowo
 dotnet ef database update --project FakturowanieKSeF.Api   # migracje
@@ -34,6 +34,7 @@ dotnet run --project FakturowanieKSeF.Api                  # aplikacja + API
 ```
 
 Aplikacja: http://localhost:5085, dokumentacja API (Swagger): http://localhost:5085/swagger.
+Wiadomości e-mail wysyłane przez aplikację (lokalnie nie trafiają do odbiorców): http://localhost:8025 (Mailpit).
 
 Jeśli `dotnet ef database update` zgłasza `relation "..." already exists`, baza zawiera tabele ze starszej wersji
 projektu. Wyczyść ją (usuwa dane testowe): `docker compose down -v`, `docker compose up -d`, ponownie `dotnet ef database update`.

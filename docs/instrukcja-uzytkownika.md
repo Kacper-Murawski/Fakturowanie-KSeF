@@ -103,6 +103,18 @@ wystawisz po przyjęciu poprzedniej przez KSeF.
 
 ![Faktura korygująca przyjęta w KSeF](zrzuty/20-korekta-przyjeta.png)
 
+### Wysyłka faktury e-mailem
+
+Fakturę przyjętą w KSeF wyślesz nabywcy przyciskiem **Wyślij e-mailem** w sekcji **E-mail**. Adres podpowiada się
+z danych kontrahenta. Możesz dopisać krótką wiadomość. W załączniku nabywca dostanie PDF z kodem QR i plik XML faktury.
+Odpowiedzi trafią na adres e-mail Twojej firmy. Wiadomość jest wysyłana w tle - stan (*w kolejce*, *wysłano*,
+*błąd wysyłki*) widać w historii pod formularzem. Przy chwilowej awarii serwera poczty aplikacja ponawia wysyłkę.
+
+W wersji deweloperskiej wiadomości nie trafiają do prawdziwych odbiorców - przechwytuje je skrzynka testowa
+Mailpit (http://localhost:8025).
+
+![Wysyłka faktury e-mailem](zrzuty/25-wysylka-email.png)
+
 ## 6. Wydruk (PDF) i kod QR
 
 PDF zawiera kod QR weryfikacji z numerem KSeF pod spodem. Odbiorca, który dostał fakturę poza KSeF

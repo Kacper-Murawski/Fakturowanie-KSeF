@@ -520,5 +520,48 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.ClickAsync("nav >> text=Katalog");
         await Expect(page.Locator("[data-testid=products] tbody tr")).ToHaveCountAsync(2);
     }
+
+    [E2EFact]
+    public async Task WysylkaFakturyEmailem_AdresZKontrahenta_IHistoriaWysylek()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        // Kontrahent z adresem e-mail
+        var buyerEmail = $"ksiegowosc_{Guid.NewGuid():N}@kontrahent.example";
+        await page.GotoAsync("/kontrahenci/nowy");
+        await page.FillAsync("#name", "Odbiorca Maili S.A.");
+        await page.FillAsync("#nip", "1234563218");
+        await page.FillAsync("#email", buyerEmail);
+        await page.FillAsync("#customer-street", "ul. Polna 5");
+        await page.FillAsync("#customer-postal", "30-001");
+        await page.FillAsync("#customer-city", "Kraków");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/kontrahenci$"));
+
+        await page.GotoAsync("/faktury/nowa");
+        await page.SelectOptionAsync("#customer", new SelectOptionValue { Label = "Odbiorca Maili S.A. (NIP 123-456-32-18)" });
+        await FillItemAsync(page, 0, "Usługa", "1", "100");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await page.ClickAsync("text=Wyślij do KSeF");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+
+        // Formularz podpowiada adres kontrahenta
+        var panel = page.Locator("[data-testid=email-panel]");
+        await panel.Locator("button:has-text('Wyślij e-mailem')").ClickAsync();
+        await Expect(page.Locator("#email-to")).ToHaveValueAsync(buyerEmail);
+        await page.FillAsync("#email-message", "Dziękujemy za zamówienie.");
+        await E2EFixture.ScreenshotAsync(page, "25-wysylka-email");
+        await panel.Locator("button[type=submit]").ClickAsync();
+
+        // Usługa w tle wysyła wiadomość, historia odświeża się sama
+        await Expect(panel.Locator("[data-testid=email-history]")).ToContainTextAsync("wysłano", new() { Timeout = 30_000 });
+        var mail = Assert.Single(fx.App.Email.To(buyerEmail));
+        Assert.Contains("Dziękujemy za zamówienie.", mail.Body);
+        Assert.Equal(2, mail.Attachments!.Count);
+    }
 }
 

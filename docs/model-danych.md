@@ -22,6 +22,8 @@ erDiagram
     Invoices |o--o{ Payments : "wpłaty nabywcy"
     ReceivedInvoices |o--o{ Payments : "zapłaty sprzedawcy"
     Companies ||--o{ Payments : "rozliczenia"
+    Companies ||--o{ EmailMessages : "kolejka e-mail"
+    Invoices |o--o{ EmailMessages : "załączniki (PDF, XML)"
 
     AspNetUsers {
         string Id PK
@@ -175,6 +177,22 @@ erDiagram
         bool IsDeleted
     }
 
+    EmailMessages {
+        int Id PK
+        int CompanyId FK
+        int InvoiceId FK "opcjonalnie - załączniki"
+        string Kind "Invoice, PaymentReminder, ..."
+        string To
+        string Subject
+        text Body "zwykły tekst"
+        string Status "Pending, Sent, Failed"
+        int Attempts
+        timestamptz NextAttemptAt
+        string LastError
+        timestamptz CreatedAt
+        timestamptz SentAt
+    }
+
     Payments {
         int Id PK
         int CompanyId FK
@@ -196,6 +214,7 @@ erDiagram
 | `Companies` | Firma użytkownika: sprzedawca na fakturach sprzedażowych, nabywca na fakturach z KSeF. Zawiera zaszyfrowany token KSeF. |
 | `Customers` | Książka adresowa kontrahentów firmy (B2B z NIP lub B2C bez NIP). |
 | `Products` | Katalog towarów i usług firmy - podpowiedzi nazwy, ceny i stawki na fakturze (D35). Faktura nie odwołuje się do katalogu; dane są kopiowane do `InvoiceItems`. |
+| `EmailMessages` | Kolejka i historia wiadomości e-mail (outbox, D36): wysyła je usługa w tle z ponawianiem; załączniki powstają przy wysyłce z faktury `InvoiceId`. |
 | `Invoices` | Faktury sprzedażowe: nagłówek, kopie danych stron, sumy, status i numer KSeF. |
 | `InvoiceItems` | Pozycje faktury (FaWiersz). |
 | `KsefSubmissions` | Historia prób wysyłki faktury do KSeF: wysłany XML, skrót, numery referencyjne, status, numer KSeF, UPO. |

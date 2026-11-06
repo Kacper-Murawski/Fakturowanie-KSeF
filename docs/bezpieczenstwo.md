@@ -17,6 +17,8 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 | **Zmanipulowane kwoty z przeglądarki** | Kwoty liczy wyłącznie serwer, klient ich nie przesyła (D16) | Testy kalkulatora i API |
 | **Nieprawidłowe dane wejściowe** | Walidacja wszystkich żądań (DataAnnotations, D14), także obiektów zagnieżdżonych i list; ograniczenia długości zgodne z bazą i FA(3) | Testy walidacji API i E2E |
 | **Wstrzyknięcie formuł do arkusza (CSV injection)** | Pola tekstowe eksportu CSV zaczynające się od `=`, `+`, `-`, `@` poprzedzane apostrofem - nazwy kontrahentów z faktur otrzymanych pochodzą od osób trzecich (D34) | `CsvFormatTests`, test eksportu z „złośliwą” nazwą sprzedawcy |
+| **Użycie aplikacji do rozsyłania spamu lub podszywania się** | Dzienny limit wiadomości do kontrahentów na firmę (licznik w bazie); wysyłka tylko faktur własnej firmy przyjętych w KSeF; nadawcą technicznym jest adres aplikacji (SPF/DMARC), firma tylko jako nazwa i adres odpowiedzi; ostrzeżenie o środowisku testowym w każdej wiadomości (D36) | `EmailApiTests` (limit, izolacja, szkic) |
+| **Wstrzyknięcie nagłówków i treści do wiadomości e-mail** | Znaki sterujące usuwane z nagłówków, adresy parsowane przez MailKit, treść wyłącznie tekstowa (bez HTML) (D36) | `EmailMessageTests` (próba dopisania nagłówka Bcc w temacie) |
 | **SQL injection** | Wyłącznie zapytania parametryzowane (EF Core / LINQ) | Brak SQL budowanego z tekstu |
 | **Wyścigi i podwójne operacje** | Optymistyczna kontrola współbieżności (`xmin`), unikalne indeksy (numer faktury, NIP, numer KSeF) (D17) | Testy konfliktu wersji i podwójnej wysyłki |
 | **Utrata lub duplikacja dokumentów podatkowych** | Miękkie usuwanie, `ON DELETE RESTRICT`, faktury wysłane nienaruszalne; brak oznaczania faktury jako odrzuconej po jej przyjęciu do przetwarzania przez KSeF (D12, D25) | Testy modelu danych i awarii wysyłki |
@@ -31,7 +33,7 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
   odszyfrować tokeny. Na produkcji klucze należy chronić certyfikatem lub magazynem sekretów
   (`ProtectKeysWith...`) (D23, etap 9).
 - **HTTPS** jest wymagany produkcyjnie: ciasteczko ma wtedy flagę `Secure`. Realizacja w ramach wdrożenia (etap 9).
-- **Sekrety** (hasło do bazy) są w repozytorium wyłącznie dla konfiguracji deweloperskiej. Produkcyjnie trafią
+- **Sekrety** (hasło do bazy, hasło do serwera SMTP) są w repozytorium wyłącznie dla konfiguracji deweloperskiej. Produkcyjnie trafią
   do zmiennych środowiskowych.
 - Brak uwierzytelniania dwuskładnikowego i potwierdzania adresu e-mail. Identity je obsługuje,
   a ich włączenie planowane jest po MVP.

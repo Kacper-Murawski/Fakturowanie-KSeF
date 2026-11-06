@@ -1,0 +1,122 @@
+@* Wysyłka faktury e-mailem i historia wiadomości (D36) *@
+@implements IDisposable
+@inject ApiClient Api
+
+<section class="card mb-3" data-testid="email-panel">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">E-mail</h2>
+            @if (!formOpen)
+            {
+                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenForm">Wyślij e-mailem</button>
+            }
+        </div>
+
+        @if (formOpen)
+        {
+            <EditForm Model="model" OnValidSubmit="SendAsync" FormName="invoice-email" class="mt-3">
+                <DeepValidator @ref="validator" />
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small" for="email-to">Adres odbiorcy</label>
+                        <InputTextLive id="email-to" type="email" class="form-control" @bind-Value="model.To" />
+                        <ValidationMessage For="() => model.To" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small" for="email-message">Dodatkowa wiadomość (opcjonalnie)</label>
+                        <InputTextArea id="email-message" class="form-control" rows="3" @bind-Value="model.Message" />
+                    </div>
+                </div>
+                <div class="form-text">W załączniku: PDF z kodem QR i XML faktury w postaci z KSeF. Odpowiedzi trafią na adres e-mail Twojej firmy.</div>
+                <div class="d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-primary btn-sm" disabled="@busy">@(busy ? "Wysyłanie…" : "Wyślij")</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => formOpen = false">Anuluj</button>
+                </div>
+            </EditForm>
+        }
+
+        <ProblemAlert Problem="problem" />
+
+        @if (messages.Count > 0)
+        {
+            <table class="table table-sm mt-3 mb-0" data-testid="email-history">
+                <thead><tr><th>Data</th><th>Do</th><th>Rodzaj</th><th>Stan</th></tr></thead>
+                <tbody>
+                    @foreach (var m in messages)
+                    {
+                        <tr>
+                            <td>@Format.DateTime(m.SentAt ?? m.CreatedAt)</td>
+                            <td>@m.To</td>
+                            <td>@(m.Kind == EmailKind.PaymentReminder ? "przypomnienie o płatności" : "faktura")</td>
+                            <td>
+                                @switch (m.Status)
+                                {
+                                    case EmailStatus.Sent:
+                                        <span class="badge bg-success">wysłano</span>
+                                        break;
+                                    case EmailStatus.Failed:
+                                        <span class="badge bg-danger" title="@m.LastError">błąd wysyłki</span>
+                                        break;
+                                    default:
+                                        <span class="badge bg-secondary" title="@m.LastError">@(m.Attempts > 0 ? "ponowna próba wkrótce" : "w kolejce")</span>
+                                        break;
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public int InvoiceId { get; set; }
+    /// <summary>Kontrahent faktury - jego adres e-mail jest podpowiadany jako odbiorca.</summary>
+    [Parameter] public int? CustomerId { get; set; }
+
+    private List<EmailMessageDto> messages = [];
+    private SendInvoiceEmailRequest model = new();
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private bool formOpen;
+    private bool busy;
+    private Timer? refresh;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        messages = (await Api.GetAsync<List<EmailMessageDto>>($"api/invoices/{InvoiceId}/emails")).Value ?? [];
+        // Dopóki są wiadomości w kolejce - odświeżanie stanu
+        refresh?.Dispose();
+        refresh = messages.Any(m => m.Status == EmailStatus.Pending)
+            ? new Timer(_ => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }), null, TimeSpan.FromSeconds(2), Timeout.InfiniteTimeSpan)
+            : null;
+    }
+
+    private async Task OpenForm()
+    {
+        problem = null;
+        model = new SendInvoiceEmailRequest { To = messages.FirstOrDefault()?.To ?? "" };
+        if (model.To.Length == 0 && CustomerId is { } id)
+            model.To = (await Api.GetAsync<CustomerDto>($"api/customers/{id}")).Value?.Email ?? "";
+        formOpen = true;
+    }
+
+    private async Task SendAsync()
+    {
+        busy = true;
+        var result = await Api.PostAsync<EmailMessageDto>($"api/invoices/{InvoiceId}/email", model);
+        busy = false;
+        problem = result.Problem;
+        if (result.Value is not null)
+        {
+            formOpen = false;
+            await LoadAsync();
+        }
+        else if (problem is not null) validator?.ShowServerErrors(problem);
+    }
+
+    public void Dispose() => refresh?.Dispose();
+}

@@ -12,5 +12,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Testowa skrzynka pocztowa (tylko development): przechwytuje WSZYSTKIE wiadomości wysyłane przez aplikację,
+  # nic nie trafia do prawdziwych odbiorców. Podgląd: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.20.0
+    container_name: ksef_mailpit
+    restart: always
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   postgres_data:

@@ -28,7 +28,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 4 | „Wystaw podobną” - kopia faktury jako nowy szkic (D31) | wysoki | ✅ |
 | 5 | Faktury korygujące (D32) | wysoki | ✅ |
 | 5a | Oznaczenie „Zapłacono” przy wystawianiu (D33) | wysoki | ✅ |
-| 6 | Wysyłka faktury e-mailem | średni | do decyzji |
+| 6 | Wysyłka faktury e-mailem (D36) | średni | ✅ |
 | 7 | Faktury cykliczne | średni | do decyzji |
 | 8 | Przypomnienia o płatności | średni | do decyzji |
 | 9 | Powiadomienie o nowej fakturze kosztowej | średni | do decyzji |
@@ -105,6 +105,13 @@ jest oznaczenie w samej fakturze, że w chwili wystawienia jest już zapłacona 
 sprzedaży za gotówkę lub kartą. W formularzu faktury pole **Zapłacono przy wystawieniu** zapisuje to oznaczenie
 w XML, a przy wysyłce aplikacja rejestruje płatność w rozliczeniu, więc faktura od razu jest opłacona. Wpłaty
 po wystawieniu nadal rejestruje się w rozliczeniu (pkt 3). Szczegóły: D33.
+
+## 6. Wysyłka faktury e-mailem
+
+Przy fakturze przyjętej w KSeF przycisk **Wyślij e-mailem** wysyła ją do nabywcy: PDF z kodem QR i XML w postaci
+z KSeF w załączniku, z opcjonalną wiadomością. Adres podpowiada się z danych kontrahenta. Wiadomość trafia do kolejki
+w bazie i wysyła ją usługa w tle (z ponawianiem po błędzie), a przy fakturze widać historię wysyłek. Lokalnie
+wszystkie wiadomości przechwytuje Mailpit. Szczegóły: D36.
 
 ## 11. Katalog produktów i usług
 

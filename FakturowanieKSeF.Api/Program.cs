@@ -5,6 +5,7 @@ using FakturowanieKSeF.Api.Endpoints;
 using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Integrations.VatWhiteList;
 using FakturowanieKSeF.Api.Services;
+using FakturowanieKSeF.Api.Services.Email;
 using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Ksef.Fa3;
 using Microsoft.AspNetCore.DataProtection;
@@ -70,6 +71,13 @@ builder.Services.AddSingleton<KsefTokenProtector>();
 builder.Services.AddScoped<ReceivedInvoiceSync>();
 builder.Services.AddSingleton<InvoicePdfRenderer>();
 builder.Services.AddScoped<AccountingExport>();
+
+// Poczta: kolejka wiadomości w bazie + usługa wysyłki w tle (D36). Lokalnie Mailpit z docker compose.
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddSingleton<EmailWorkSignal>();
+builder.Services.AddScoped<EmailOutbox>();
+builder.Services.AddHostedService<EmailWorker>();
 builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 
 // Wykaz podatników VAT (Biała lista MF) - podpowiadanie danych po NIP, z pamięcią podręczną i limitami (D28)
@@ -142,6 +150,7 @@ api.MapReceivedInvoiceEndpoints();
 api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
 api.MapExportEndpoints();
+api.MapEmailEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

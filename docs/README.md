@@ -7,7 +7,7 @@ Materiały źródłowe do pracy inżynierskiej. Proponowane przyporządkowanie d
 | Analiza problemu, KSeF, wymagania | [`spike-ksef/README.md`](spike-ksef/README.md), [`integracja-ksef.md`](integracja-ksef.md), [`plan-mvp.md`](plan-mvp.md) |
 | Przypadki użycia | [`przypadki-uzycia.md`](przypadki-uzycia.md) |
 | Architektura i technologie | [`architektura.md`](architektura.md) |
-| Decyzje projektowe (z alternatywami i uzasadnieniem) | [`decyzje-projektowe.md`](decyzje-projektowe.md) (D1–D35) |
+| Decyzje projektowe (z alternatywami i uzasadnieniem) | [`decyzje-projektowe.md`](decyzje-projektowe.md) (D1–D36) |
 | Model danych (ERD) | [`model-danych.md`](model-danych.md) |
 | API | [`api.md`](api.md) |
 | Struktura FA(3) i generowanie XML | [`fa3-xml.md`](fa3-xml.md) |

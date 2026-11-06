@@ -29,11 +29,13 @@ flowchart LR
         GW["Bramka KSeF (IKsefGateway)<br/>+ blokada produkcji"]
         MF["Oficjalny klient KSeF MF<br/>(submoduł, MIT)"]
         WL["Wyszukiwanie w wykazie VAT<br/>(VatRegistryLookup: pamięć podręczna + limity)"]
+        WE["Usługa w tle: wysyłka e-mail<br/>(EmailOutbox: kolejka w bazie)"]
     end
 
     DB[("PostgreSQL 16")]
     KSEF["KSeF 2.0 - środowisko TESTOWE<br/>api-test.ksef.mf.gov.pl"]
     BL["Wykaz podatników VAT (Biała lista MF)<br/>wl-api.mf.gov.pl - dane publiczne"]
+    SMTP["Serwer poczty SMTP<br/>(lokalnie: Mailpit)"]
 
     UI -- "HTTPS, JSON<br/>ciasteczko HttpOnly" --> API
     API --> ID
@@ -48,6 +50,9 @@ flowchart LR
     MF -- "HTTPS (tylko host testowy)" --> KSEF
     API --> WL
     WL -- "HTTPS, tylko odczyt" --> BL
+    API -- "zapis do kolejki" --> DB
+    WE --> DB
+    WE -- "SMTP (TLS)" --> SMTP
 ```
 
 ## Projekty (warstwy)
@@ -122,6 +127,7 @@ sequenceDiagram
 | XML FA(3) | `XmlWriter` + walidacja XSD (oficjalne schematy MF) | D21 |
 | PDF / QR | QuestPDF, QRCoder | D27 |
 | Dane kontrahentów | API wykazu podatników VAT MF (Biała lista), `IMemoryCache` | D28 |
+| Poczta | MailKit (SMTP), kolejka w PostgreSQL; lokalnie Mailpit | D36 |
 | Testy | xUnit, WebApplicationFactory, Playwright, PdfPig | D7, etap 10 |
 | CI | GitHub Actions (build, testy, E2E w Chromium) | D7 |
 | Środowisko uruchomieniowe | Docker (PostgreSQL), docelowo kontener aplikacji + reverse proxy z HTTPS | etap 9 |
@@ -133,7 +139,7 @@ sequenceDiagram
 - **Niezmienność wystawionych dokumentów:** kopie danych stron na fakturze (D12), brak edycji po wysyłce,
   miękkie usuwanie i `ON DELETE RESTRICT`.
 - **Trwała maszyna stanów dla operacji asynchronicznych:** wysyłka i odbiór faktur odporne na restart
-  i błędy sieci, z ochroną przed duplikatami (D25, D26).
+  i błędy sieci, z ochroną przed duplikatami (D25, D26); poczta wysyłana z kolejki w bazie z ponawianiem (D36).
 - **Optymistyczna kontrola współbieżności:** wersja rekordu (`xmin`) chroni przed nadpisaniem zmian i podwójną
   wysyłką (D17).
 - **Obrona wielowarstwowa:** izolacja danych w każdym zapytaniu, blokada produkcyjnego KSeF na trzech poziomach,
