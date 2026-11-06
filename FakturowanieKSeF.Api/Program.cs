@@ -80,6 +80,8 @@ builder.Services.AddScoped<EmailOutbox>();
 builder.Services.AddHostedService<EmailWorker>();
 builder.Services.AddScoped<PaymentReminders>();
 builder.Services.AddScoped<ReceivedInvoiceNotifier>();
+builder.Services.AddScoped<RecurringInvoices>();
+builder.Services.AddHostedService<RecurringInvoiceWorker>();
 builder.Services.AddHostedService<PaymentReminderWorker>();
 builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 
@@ -155,6 +157,7 @@ api.MapPaymentEndpoints();
 api.MapExportEndpoints();
 api.MapEmailEndpoints();
 api.MapNotificationEndpoints();
+api.MapRecurringInvoiceEndpoints();
 
 // Nieznany adres pod /api zwraca 404, zamiast strony klienta
 api.Map("/{**slug}", () => Results.NotFound());

@@ -14,6 +14,15 @@ public static class Format
 
     public static string Quantity(decimal value) => value.ToString("0.######", Pl);
 
+    public static string Interval(int months) => months switch
+    {
+        1 => "co miesiąc",
+        3 => "co kwartał",
+        6 => "co pół roku",
+        12 => "co rok",
+        _ => $"co {months} mies."
+    };
+
     public static string Date(DateOnly? date) => date?.ToString("dd.MM.yyyy", Pl) ?? "—";
 
     public static string DateTime(DateTime? value) => value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", Pl) ?? "—";

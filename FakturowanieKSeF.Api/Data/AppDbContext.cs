@@ -19,6 +19,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
+    public DbSet<RecurringInvoice> RecurringInvoices => Set<RecurringInvoice>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<KsefSubmission> KsefSubmissions => Set<KsefSubmission>();
@@ -91,6 +92,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
 
             e.HasOne(m => m.Company).WithMany().HasForeignKey(m => m.CompanyId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(m => m.Invoice).WithMany().HasForeignKey(m => m.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+            e.HasQueryFilter(m => !m.Company.IsDeleted); // zgodnie z filtrem firmy (firm się nie usuwa)
+        });
+
+        // ---------------- RecurringInvoice (faktury cykliczne) ----------------
+        builder.Entity<RecurringInvoice>(e =>
+        {
+            e.HasIndex(r => new { r.IsActive, r.NextIssueDate });
+            e.HasOne(r => r.Company).WithMany().HasForeignKey(r => r.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            // Wzoru używanego przez harmonogram nie można usunąć (409 w API); generator i tak sprawdza jego istnienie
+            e.HasOne(r => r.TemplateInvoice).WithMany().HasForeignKey(r => r.TemplateInvoiceId).OnDelete(DeleteBehavior.Restrict);
+            e.HasQueryFilter(r => !r.IsDeleted && !r.TemplateInvoice.IsDeleted);
         });
 
         // ---------------- Invoice ----------------

@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **239 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **250 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -42,6 +42,7 @@ jednostkowe, integracyjne i E2E.
 | Poczta e-mail | `EmailMessageTests`, `EmailApiTests` | budowa wiadomości MIME (nadawca, odpowiedź, załącznik, wstrzyknięcie nagłówka); treść faktury i korekty; kolejka i wysyłka z PDF i XML (XML identyczny z wysłanym do KSeF); ponawianie i stan błędu; dzienny limit; walidacja; izolacja |
 | Przypomnienia o płatności | `PaymentReminderTests` | treść (dni po terminie, kwota pozostała, rachunek); przypomnienie ręczne z kwotą po wpłacie częściowej; brak dla faktury opłaconej i szkicu; automatyczne: wyłączone/włączone, bez duplikatu tego samego dnia, co 7 dni, najwyżej 3, pomijanie opłaconych, niedawno po terminie i bez adresu; ustawienia; izolacja |
 | Powiadomienia o fakturach kosztowych | `ReceivedNotificationTemplateTests`, `ReceivedNotificationTests` | treść (kolejność po terminie, ostrzeżenie o białej liście tylko dla PLN > 15 000 zł, link, skracanie listy); jedna wiadomość na synchronizację; brak przy synchronizacji bez nowych faktur; domyślnie wyłączone; adres konta; walidacja adresu |
+| Faktury cykliczne | `RecurringScheduleTests`, `RecurringInvoiceApiTests` | kolejne daty (koniec miesiąca, rok przestępny); szkic na wzór z aktualnymi danymi kontrahenta i terminem; brak duplikatu tego samego dnia; jeden szkic po przestoju; data końcowa; wstrzymanie; walidacja; blokada usunięcia wzoru; powiadomienie; izolacja |
 | Eksport dla księgowej | `CsvFormatTests`, `ExportApiTests` | format CSV (BOM, separator, ochrona przed formułami, kwoty ujemne); okres; tylko faktury przyjęte w KSeF i otrzymane w okresie; kwoty per stawka z XML; zawartość paczki ZIP (XML zgodny z wysłanym, UPO); izolacja |
 | Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests`, testy rachunku w `ReceivedInvoicesTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF (wyszukiwanie, sprawdzenie rachunku); pamięć podręczna; limity dzienne; awaria MF; zapis wyniku sprawdzenia, rachunki zagraniczne, izolacja |
 | Interfejs (E2E) | `UserScenariosE2ETests` | główne scenariusze użytkownika i regresje błędów interfejsu |

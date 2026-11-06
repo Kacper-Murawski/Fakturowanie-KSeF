@@ -23,6 +23,8 @@ erDiagram
     ReceivedInvoices |o--o{ Payments : "zapłaty sprzedawcy"
     Companies ||--o{ Payments : "rozliczenia"
     Companies ||--o{ EmailMessages : "kolejka e-mail"
+    Companies ||--o{ RecurringInvoices : "faktury cykliczne"
+    Invoices ||--o{ RecurringInvoices : "wzór"
     Invoices |o--o{ EmailMessages : "załączniki (PDF, XML)"
 
     AspNetUsers {
@@ -197,6 +199,24 @@ erDiagram
         timestamptz SentAt
     }
 
+    RecurringInvoices {
+        int Id PK
+        int CompanyId FK
+        int TemplateInvoiceId FK "faktura-wzór"
+        string Name
+        int IntervalMonths "1, 3, 6, 12"
+        int DayOfMonth "dzień wystawienia"
+        date NextIssueDate
+        date EndDate
+        bool IsActive
+        bool NotifyByEmail
+        int IssuedCount
+        date LastIssuedOn
+        int LastInvoiceId
+        string LastError
+        bool IsDeleted
+    }
+
     Payments {
         int Id PK
         int CompanyId FK
@@ -219,6 +239,7 @@ erDiagram
 | `Customers` | Książka adresowa kontrahentów firmy (B2B z NIP lub B2C bez NIP). |
 | `Products` | Katalog towarów i usług firmy - podpowiedzi nazwy, ceny i stawki na fakturze (D35). Faktura nie odwołuje się do katalogu; dane są kopiowane do `InvoiceItems`. |
 | `EmailMessages` | Kolejka i historia wiadomości e-mail (outbox, D36): wysyła je usługa w tle z ponawianiem; załączniki powstają przy wysyłce z faktury `InvoiceId`. |
+| `RecurringInvoices` | Harmonogramy faktur cyklicznych (D39): usługa w tle tworzy w terminie szkic na wzór faktury `TemplateInvoiceId`. |
 | `Invoices` | Faktury sprzedażowe: nagłówek, kopie danych stron, sumy, status i numer KSeF. |
 | `InvoiceItems` | Pozycje faktury (FaWiersz). |
 | `KsefSubmissions` | Historia prób wysyłki faktury do KSeF: wysłany XML, skrót, numery referencyjne, status, numer KSeF, UPO. |

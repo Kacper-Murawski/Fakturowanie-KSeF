@@ -29,7 +29,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 5 | Faktury korygujące (D32) | wysoki | ✅ |
 | 5a | Oznaczenie „Zapłacono” przy wystawianiu (D33) | wysoki | ✅ |
 | 6 | Wysyłka faktury e-mailem (D36) | średni | ✅ |
-| 7 | Faktury cykliczne | średni | do decyzji |
+| 7 | Faktury cykliczne (D39) | średni | ✅ |
 | 8 | Przypomnienia o płatności (D37) | średni | ✅ |
 | 9 | Powiadomienie o nowej fakturze kosztowej (D38) | średni | ✅ |
 | 10 | Pulpit z wykresami | średni | do decyzji |
@@ -112,6 +112,13 @@ Przy fakturze przyjętej w KSeF przycisk **Wyślij e-mailem** wysyła ją do nab
 z KSeF w załączniku, z opcjonalną wiadomością. Adres podpowiada się z danych kontrahenta. Wiadomość trafia do kolejki
 w bazie i wysyła ją usługa w tle (z ponawianiem po błędzie), a przy fakturze widać historię wysyłek. Lokalnie
 wszystkie wiadomości przechwytuje Mailpit. Szczegóły: D36.
+
+## 7. Faktury cykliczne
+
+Na stronie faktury przycisk **Ustaw jako cykliczną** tworzy harmonogram (co miesiąc, kwartał, pół roku lub rok,
+opcjonalnie do wybranej daty). W terminie aplikacja przygotowuje szkic na wzór tej faktury, z aktualnymi danymi
+kontrahenta, nowym numerem i datami. Szkic nie trafia do KSeF automatycznie - użytkownik sprawdza go i wysyła,
+a opcjonalnie dostaje e-mail z przypomnieniem. Szczegóły: D39.
 
 ## 8. Przypomnienia o płatności
 

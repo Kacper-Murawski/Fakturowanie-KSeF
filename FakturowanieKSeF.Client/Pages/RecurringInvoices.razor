@@ -1,0 +1,87 @@
+@page "/cykliczne"
+@inject ApiClient Api
+
+<PageTitle>Faktury cykliczne - Fakturowanie KSeF</PageTitle>
+
+<h1>Faktury cykliczne</h1>
+<p class="text-muted">
+    W wybranym dniu aplikacja przygotowuje <strong>szkic</strong> faktury na wzór wskazanej faktury (aktualne dane kontrahenta,
+    nowy numer i daty). Szkic sprawdzasz i wysyłasz do KSeF samodzielnie. Harmonogram dodasz przyciskiem
+    <strong>Ustaw jako cykliczną</strong> na stronie faktury.
+</p>
+
+<ProblemAlert Problem="problem" />
+
+@if (list is null)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+else if (list.Count == 0)
+{
+    <p class="text-muted">Nie masz jeszcze faktur cyklicznych.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" data-testid="recurring-list">
+            <thead>
+                <tr><th>Nazwa / wzór</th><th>Nabywca</th><th class="text-end">Kwota</th><th>Co</th><th>Najbliższe wystawienie</th><th>Ostatnia faktura</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in list)
+                {
+                    <tr class="@(r.IsActive ? "" : "text-muted")">
+                        <td>
+                            <a href="cykliczne/@r.Id">@(r.Name ?? $"Na wzór {r.TemplateNumber}")</a>
+                            @if (r.Name is not null) { <div class="small text-muted">wzór @r.TemplateNumber</div> }
+                            @if (!r.IsActive) { <span class="badge bg-secondary">wstrzymana</span> }
+                            @if (r.LastError is not null) { <div class="small text-danger">@r.LastError</div> }
+                        </td>
+                        <td>@r.BuyerName</td>
+                        <td class="text-end">@Format.Money(r.TotalGross, r.Currency)</td>
+                        <td>@Format.Interval(r.IntervalMonths)</td>
+                        <td>@(r.IsActive ? Format.Date(r.NextIssueDate) : "—")@(r.EndDate is null ? "" : $" (do {Format.Date(r.EndDate)})")</td>
+                        <td>
+                            @if (r.LastInvoiceId is not null)
+                            {
+                                <a href="faktury/@r.LastInvoiceId">@Format.Date(r.LastIssuedOn)</a>
+                                <span class="small text-muted">(łącznie @r.IssuedCount)</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń harmonogram (faktury pozostają)"
+                                    disabled="@busy" @onclick="() => DeleteAsync(r)">✕</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<RecurringInvoiceDto>? list;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.GetAsync<List<RecurringInvoiceDto>>("api/recurring-invoices");
+        problem = result.Problem;
+        list = result.Value ?? [];
+    }
+
+    private async Task DeleteAsync(RecurringInvoiceDto r)
+    {
+        busy = true;
+        problem = (await Api.DeleteAsync($"api/recurring-invoices/{r.Id}")).Problem;
+        busy = false;
+        await LoadAsync();
+    }
+}

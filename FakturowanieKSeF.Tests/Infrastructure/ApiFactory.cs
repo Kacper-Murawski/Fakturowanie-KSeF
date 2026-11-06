@@ -68,7 +68,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             ["Email:SmtpHost"] = "smtp.atrapa.invalid",
             ["Email:From"] = "faktury@fakturowanie.test",
             ["Email:Worker:Enabled"] = "false",
-            ["Reminders:Worker:Enabled"] = "false"
+            ["Reminders:Worker:Enabled"] = "false",
+            ["Recurring:Worker:Enabled"] = "false"
         };
         foreach (var (key, value) in AdditionalSettings()) settings[key] = value;
 

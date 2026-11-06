@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.RegularExpressions;
 using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Tests.Infrastructure;
@@ -646,6 +647,44 @@ public class UserScenariosE2ETests(E2EFixture fx)
         var mail = Assert.Single(fx.App.Email.To(address));
         Assert.Contains("FV/POW/11/2026", mail.Body);
         Assert.Contains("Hurtownia Dostawca sp. z o.o.", mail.Body);
+    }
+
+    [E2EFact]
+    public async Task FakturaCykliczna_HarmonogramZFaktury_ISzkicPrzygotowanyWTerminie()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Klient Abonamentowy sp. z o.o.", "1234563218");
+        await FillItemAsync(page, 0, "Abonament serwisowy", "1", "300");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        var templateNumber = (await page.Locator("h1").InnerTextAsync()).Replace("Faktura VAT ", "");
+
+        await page.ClickAsync("text=Ustaw jako cykliczną");
+        await Expect(page.Locator("[data-testid=recurring-template]")).ToContainTextAsync(templateNumber);
+        await page.FillAsync("#recurring-name", "Abonament serwisowy");
+        await page.SelectOptionAsync("#interval", "1");
+        var today = DateTime.Today;
+        await page.FillAsync("#next-date", today.ToString("yyyy-MM-dd"));
+        await E2EFixture.ScreenshotAsync(page, "28-faktura-cykliczna");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/cykliczne$"));
+        await Expect(page.Locator("[data-testid=recurring-list]")).ToContainTextAsync("Abonament serwisowy");
+        await Expect(page.Locator("[data-testid=recurring-list]")).ToContainTextAsync("co miesiąc");
+
+        // Termin nadszedł - przebieg usługi w tle
+        using (var scope = fx.App.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<FakturowanieKSeF.Api.Services.RecurringInvoices>().RunAsync();
+
+        await page.ReloadAsync();
+        await Expect(page.Locator("[data-testid=recurring-list]")).ToContainTextAsync("łącznie 1");
+        await E2EFixture.ScreenshotAsync(page, "29-faktury-cykliczne-lista");
+        await page.Locator("[data-testid=recurring-list] td a[href^='faktury/']").ClickAsync();
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Szkic");
+        await Expect(page.Locator("h1")).Not.ToContainTextAsync(templateNumber);
+        await Expect(page.Locator(".invoice-sheet")).ToContainTextAsync("Abonament serwisowy");
     }
 }
 

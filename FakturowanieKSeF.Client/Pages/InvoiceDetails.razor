@@ -44,6 +44,7 @@ else
             @if (invoice.Kind == InvoiceKind.Vat)
             {
                 <a class="btn btn-outline-primary" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami">Wystaw podobną</a>
+                <a class="btn btn-outline-primary" href="cykliczne/nowa?wzor=@invoice.Id" title="Szkice tej faktury co miesiąc, kwartał lub rok">Ustaw jako cykliczną</a>
             }
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/pdf" download>Pobierz PDF</a>
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>

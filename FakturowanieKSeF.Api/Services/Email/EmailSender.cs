@@ -55,7 +55,7 @@ public sealed class SmtpEmailSender(Microsoft.Extensions.Options.IOptions<EmailO
         if (!o.IsConfigured) throw new InvalidOperationException("Wysyłka e-mail nie jest skonfigurowana (Email:SmtpHost).");
 
         using var client = new SmtpClient();
-        await client.ConnectAsync(o.SmtpHost, o.SmtpPort, o.Security, ct);
+        await client.ConnectAsync(o.SmtpHost!, o.SmtpPort, o.Security, ct);
         if (!string.IsNullOrEmpty(o.SmtpUsername))
             await client.AuthenticateAsync(o.SmtpUsername, o.SmtpPassword ?? "", ct);
         await client.SendAsync(Build(email, o), ct);

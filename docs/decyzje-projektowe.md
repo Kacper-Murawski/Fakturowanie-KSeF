@@ -761,3 +761,37 @@ płatności.
 **Uzasadnienie:** użytkownik dowiaduje się o nowych kosztach bez logowania, a jedna wiadomość na synchronizację
 (co najmniej 15 minut) ogranicza ich liczbę. Ostrzeżenie o białej liście łączy powiadomienie z obowiązkiem podatkowym.
 
+---
+
+## D39. Faktury cykliczne jako szkice tworzone według harmonogramu
+
+**Kontekst:** firmy z powtarzalną sprzedażą (abonamenty, najem, obsługa serwisowa) wystawiają co okres tę samą fakturę.
+Automatyczne wystawianie oszczędza czas, ale faktura przyjęta w KSeF jest ostateczna - pomyłki (np. zmieniona cena,
+zakończona umowa) da się naprawić tylko korektą.
+
+**Decyzja:**
+- harmonogram (`RecurringInvoices`) wskazuje fakturę-wzór (faktura VAT firmy), okres (co 1, 3, 6 lub 12 miesięcy),
+  datę najbliższego wystawienia i opcjonalną datę końcową; można go wstrzymać i wznowić,
+- usługa w tle (co godzinę) tworzy w terminie **szkic** faktury - nie wysyła go do KSeF; użytkownik sprawdza szkic
+  i wysyła go sam, a opcjonalnie dostaje e-mail z listą przygotowanych szkiców (D36),
+- szkic powstaje tą samą ścieżką co faktura z formularza (`ApplyAsync`): aktualne dane kontrahenta z książki adresowej
+  (a gdy kontrahenta usunięto - dane nabywcy ze wzoru), pozycje i warunki płatności wzoru, nowy numer, data wystawienia
+  dzisiejsza, termin z tym samym odstępem co we wzorze (jak „Wystaw podobną”, D31),
+- kolejne daty: ten sam dzień miesiąca, w krótszym miesiącu - ostatni dzień (31.01 → 28.02 → 31.03),
+- po przestoju aplikacji (kilka pominiętych okresów) powstaje **jeden** szkic, a termin przesuwa się na najbliższy
+  przyszły - bez lawiny zaległych faktur; ponowne uruchomienie tego samego dnia nie tworzy duplikatu (termin
+  przesuwany w tym samym zapisie co utworzenie szkicu),
+- faktury będącej wzorem nie można usunąć (409); usunięcie harmonogramu nie usuwa utworzonych faktur.
+
+**Alternatywy:**
+- automatyczna wysyłka do KSeF: pełna automatyzacja, ale każdy błąd wzoru staje się ostateczną fakturą wymagającą
+  korekty; przy szkicu użytkownik ma kontrolę, a wysyłka to jedno kliknięcie - możliwy kierunek rozwoju jako opcja,
+- osobna kopia danych faktury w harmonogramie (zamiast wzoru): niezależność od wzoru, ale zdublowany formularz
+  pozycji i nabywcy; wzorem jest prawdziwa faktura, którą użytkownik zna,
+- wyrównywanie zaległych okresów (szkic za każdy pominięty miesiąc): poprawne księgowo dla najmu, ale po dłuższym
+  przestoju zaskakuje użytkownika wieloma dokumentami - zaległe faktury łatwo dodać przyciskiem „Wystaw podobną”.
+
+**Uzasadnienie:** powtarzalne faktury przygotowują się same, a decyzja o wystawieniu dokumentu w KSeF pozostaje
+po stronie użytkownika. Wykorzystanie ścieżki formularza gwarantuje te same reguły i obliczenia co przy ręcznym
+wystawianiu.
+

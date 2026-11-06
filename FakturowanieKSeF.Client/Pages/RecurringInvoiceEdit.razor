@@ -1,0 +1,118 @@
+@page "/cykliczne/nowa"
+@page "/cykliczne/{Id:int}"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Faktura cykliczna - Fakturowanie KSeF</PageTitle>
+
+<h1>@(Id is null ? "Nowa faktura cykliczna" : "Faktura cykliczna")</h1>
+
+<ProblemAlert Problem="problem" />
+
+@if (model is not null && template is not null)
+{
+    <div class="alert alert-light border small" data-testid="recurring-template">
+        Wzór: <a href="faktury/@template.Id">@template.Number</a> - @template.BuyerName,
+        <strong>@Format.Money(template.TotalGross, template.Currency)</strong>.
+        Każdy szkic dostanie nowy numer, datę wystawienia z harmonogramu i termin płatności z tym samym odstępem co we wzorze.
+    </div>
+
+    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="recurring" class="form-narrow">
+        <DeepValidator @ref="validator" />
+        <div class="mb-3">
+            <label class="form-label" for="recurring-name">Nazwa (opcjonalnie)</label>
+            <InputTextLive id="recurring-name" class="form-control" @bind-Value="model.Name" placeholder="np. Abonament serwisowy" />
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+                <label class="form-label" for="interval">Wystawiaj co</label>
+                <InputSelect id="interval" class="form-select" @bind-Value="model.IntervalMonths">
+                    @foreach (var months in SaveRecurringInvoiceRequest.AllowedIntervals)
+                    {
+                        <option value="@months">@Format.Interval(months)</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => model.IntervalMonths" />
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label" for="next-date">@(Id is null ? "Pierwsze wystawienie" : "Najbliższe wystawienie")</label>
+                <InputDate id="next-date" class="form-control" @bind-Value="model.NextIssueDate" />
+                <ValidationMessage For="() => model.NextIssueDate" />
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label" for="end-date">Do (opcjonalnie)</label>
+                <InputDate id="end-date" class="form-control" @bind-Value="model.EndDate" />
+                <ValidationMessage For="() => model.EndDate" />
+            </div>
+        </div>
+        <div class="form-text mb-3">Kolejne faktury powstają w tym samym dniu miesiąca (w krótszych miesiącach - w ostatnim dniu).</div>
+        <div class="form-check mb-2">
+            <InputCheckbox id="recurring-active" class="form-check-input" @bind-Value="model.IsActive" />
+            <label class="form-check-label" for="recurring-active">Aktywna (odznacz, aby wstrzymać)</label>
+        </div>
+        <div class="form-check mb-3">
+            <InputCheckbox id="recurring-notify" class="form-check-input" @bind-Value="model.NotifyByEmail" />
+            <label class="form-check-label" for="recurring-notify">Powiadom mnie e-mailem o przygotowanym szkicu</label>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" disabled="@busy">Zapisz</button>
+            <a class="btn btn-outline-secondary" href="cykliczne">Anuluj</a>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    [SupplyParameterFromQuery(Name = "wzor")] public int? TemplateId { get; set; }
+
+    private sealed record TemplateInfo(int Id, string Number, string BuyerName, decimal TotalGross, string Currency);
+
+    private SaveRecurringInvoiceRequest? model;
+    private TemplateInfo? template;
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id is { } id)
+        {
+            var result = await Api.GetAsync<RecurringInvoiceDto>($"api/recurring-invoices/{id}");
+            problem = result.Problem;
+            if (result.Value is not { } r) return;
+            template = new TemplateInfo(r.TemplateInvoiceId, r.TemplateNumber, r.BuyerName, r.TotalGross, r.Currency);
+            model = new SaveRecurringInvoiceRequest
+            {
+                Name = r.Name, TemplateInvoiceId = r.TemplateInvoiceId, IntervalMonths = r.IntervalMonths, NextIssueDate = r.NextIssueDate,
+                EndDate = r.EndDate, IsActive = r.IsActive, NotifyByEmail = r.NotifyByEmail
+            };
+        }
+        else if (TemplateId is { } templateId)
+        {
+            var result = await Api.GetAsync<InvoiceDto>($"api/invoices/{templateId}");
+            problem = result.Problem;
+            if (result.Value is not { } i) return;
+            template = new TemplateInfo(i.Id, i.Number, i.Buyer.Name, i.TotalGross, i.Currency);
+            // Domyślnie: ten sam dzień w następnym miesiącu
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var next = new DateOnly(today.Year, today.Month, 1).AddMonths(1);
+            model = new SaveRecurringInvoiceRequest
+            {
+                TemplateInvoiceId = i.Id,
+                NextIssueDate = new DateOnly(next.Year, next.Month, Math.Min(i.IssueDate.Day, DateTime.DaysInMonth(next.Year, next.Month)))
+            };
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        var result = Id is null
+            ? await Api.PostAsync<RecurringInvoiceDto>("api/recurring-invoices", model!)
+            : await Api.PutAsync<RecurringInvoiceDto>($"api/recurring-invoices/{Id}", model!);
+        busy = false;
+        problem = result.Problem;
+        if (result.Value is not null) Navigation.NavigateTo("cykliczne");
+        else if (problem is not null) validator?.ShowServerErrors(problem);
+    }
+}
