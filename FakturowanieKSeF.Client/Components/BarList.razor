@@ -1,0 +1,34 @@
+@* Poziome paski jednej serii (jeden kolor), wartość przy końcu paska - ranking lub przedziały (D40) *@
+
+<div class="viz-barlist" data-testid="@TestId">
+    @foreach (var item in Items)
+    {
+        var share = max > 0 ? (double)(item.Value / max) * 100 : 0;
+        <div class="viz-barlist-row" title="@($"{item.Label}: {Format.Money(item.Value)}{(item.Note is null ? "" : $" ({item.Note})")}")">
+            <div class="viz-barlist-label">
+                @if (item.Href is not null) { <a href="@item.Href">@item.Label</a> } else { @item.Label }
+                @if (item.Note is not null) { <span class="text-muted small"> · @item.Note</span> }
+            </div>
+            <div class="viz-barlist-track">
+                <div class="viz-barlist-area">
+                    @if (item.Value > 0)
+                    {
+                        <div class="viz-barlist-bar" style="width: @(share.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                    }
+                </div>
+                <span class="viz-barlist-value">@Format.Money(item.Value)</span>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    public sealed record Item(string Label, decimal Value, string? Note = null, string? Href = null);
+
+    [Parameter, EditorRequired] public IReadOnlyList<Item> Items { get; set; } = [];
+    [Parameter] public string? TestId { get; set; }
+
+    private decimal max;
+
+    protected override void OnParametersSet() => max = Items.Count == 0 ? 0 : Items.Max(i => i.Value);
+}

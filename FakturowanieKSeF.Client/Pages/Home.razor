@@ -73,6 +73,44 @@ else
         </div>
     }
 
+    @if (dashboard is { } d)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-lg-8">
+                <section class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h6 mb-1">Sprzedaż i koszty netto - ostatnie 12 miesięcy</h2>
+                        <p class="small text-muted mb-2">Sprzedaż: faktury przekazane do KSeF (z korektami). Koszty: faktury otrzymane z KSeF. Kwoty w PLN.</p>
+                        <MonthlyChart Months="d.Months" />
+                    </div>
+                </section>
+            </div>
+            <div class="col-lg-4 d-flex flex-column gap-3">
+                <section class="card">
+                    <div class="card-body">
+                        <h2 class="h6">Należności według terminu</h2>
+                        <BarList TestId="aging" Items="@(d.ReceivablesAging.Select(a => new BarList.Item(a.Label, a.Amount,
+                            a.Count == 0 ? null : $"{a.Count} {Faktur(a.Count)}")).ToList())" />
+                    </div>
+                </section>
+                <section class="card">
+                    <div class="card-body">
+                        <h2 class="h6">Najwięksi nabywcy (12 miesięcy, netto)</h2>
+                        @if (d.TopCustomers.Count == 0)
+                        {
+                            <p class="small text-muted mb-0">Brak sprzedaży w tym okresie.</p>
+                        }
+                        else
+                        {
+                            <BarList TestId="top-customers" Items="@(d.TopCustomers.Select(c => new BarList.Item(c.Name, c.SalesNet,
+                                $"{c.Count} {Faktur(c.Count)}", $"faktury?q={Uri.EscapeDataString(c.Nip ?? c.Name)}")).ToList())" />
+                        }
+                    </div>
+                </section>
+            </div>
+        </div>
+    }
+
     <div class="d-flex gap-2">
         <a class="btn btn-primary" href="faktury/nowa">Wystaw fakturę</a>
         <a class="btn btn-outline-secondary" href="kontrahenci/nowy">Dodaj kontrahenta</a>
@@ -83,6 +121,7 @@ else
     private bool loading = true;
     private CompanyDto? company;
     private PaymentsSummaryDto? payments;
+    private DashboardDto? dashboard;
     private List<(string label, InvoiceStatus status, int count)> counters = [];
 
     protected override async Task OnInitializedAsync()
@@ -105,6 +144,7 @@ else
                 counters.Add((label, status, page.Value?.TotalCount ?? 0));
             }
             payments = (await Api.GetAsync<PaymentsSummaryDto>("api/payments/summary")).Value;
+            dashboard = (await Api.GetAsync<DashboardDto>("api/dashboard")).Value;
         }
 
         loading = false;

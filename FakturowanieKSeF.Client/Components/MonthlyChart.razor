@@ -1,0 +1,105 @@
+@* Sprzedaż i koszty netto w kolejnych miesiącach - kolumny pogrupowane parami (D40).
+   SVG bez bibliotek JS: kolumny <= 24 px, zaokrąglony koniec 4 px, prosta podstawa, 2 px odstępu w parze,
+   włosowa siatka; wartości w podpowiedzi (title), w tabeli pod wykresem i na osi. *@
+@using System.Globalization
+
+<figure class="viz mb-0" data-testid="monthly-chart">
+    <div class="viz-legend" aria-hidden="true">
+        <span><i class="viz-swatch" style="background: var(--viz-series-1)"></i>Sprzedaż</span>
+        <span><i class="viz-swatch" style="background: var(--viz-series-2)"></i>Koszty</span>
+    </div>
+    <svg viewBox="0 0 @W @H" class="viz-svg" role="img"
+         aria-label="Sprzedaż i koszty netto w ostatnich @Months.Count miesiącach. Dane w tabeli pod wykresem.">
+        @foreach (var tick in ticks)
+        {
+            var y = Y(tick);
+            <g>
+                <line x1="@F(Left)" x2="@F(W - Right)" y1="@F(y)" y2="@F(y)" class="@(tick == 0 ? "viz-baseline" : "viz-grid")" />
+                <text x="@F(Left - 8)" y="@F(y + 4)" text-anchor="end" class="viz-tick">@Compact(tick)</text>
+            </g>
+        }
+        @for (var n = 0; n < Months.Count; n++)
+        {
+            var m = Months[n];
+            var center = Left + Band * (n + 0.5);
+            var name = MonthName(m, full: true);
+            <g class="viz-group">
+                <path d="@Column(center - Gap / 2 - BarWidth, m.SalesNet)" class="viz-bar" style="fill: var(--viz-series-1)" tabindex="0">
+                    <title>Sprzedaż, @name: @Format.Money(m.SalesNet)</title>
+                </path>
+                <path d="@Column(center + Gap / 2, m.CostsNet)" class="viz-bar" style="fill: var(--viz-series-2)" tabindex="0">
+                    <title>Koszty, @name: @Format.Money(m.CostsNet)</title>
+                </path>
+                <text x="@F(center)" y="@F(H - Bottom + 18)" text-anchor="middle" class="viz-tick">@MonthName(m, full: false)</text>
+            </g>
+        }
+    </svg>
+    <details class="mt-2">
+        <summary class="small text-muted">Dane w tabeli</summary>
+        <table class="table table-sm small mt-2 mb-0 viz-table">
+            <thead><tr><th>Miesiąc</th><th class="text-end">Sprzedaż netto</th><th class="text-end">Koszty netto</th></tr></thead>
+            <tbody>
+                @foreach (var m in Months)
+                {
+                    <tr><td>@MonthName(m, full: true)</td><td class="text-end">@Format.Amount(m.SalesNet)</td><td class="text-end">@Format.Amount(m.CostsNet)</td></tr>
+                }
+            </tbody>
+        </table>
+    </details>
+</figure>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<MonthlyTotalsDto> Months { get; set; } = [];
+
+    private const double W = 720, H = 240, Left = 64, Right = 8, Top = 12, Bottom = 28, Gap = 2, Radius = 4;
+    private static readonly CultureInfo Pl = CultureInfo.GetCultureInfo("pl-PL");
+
+    private List<decimal> ticks = [0];
+    private decimal axisMax = 1;
+
+    private double Band => (W - Left - Right) / Math.Max(Months.Count, 1);
+    private double BarWidth => Math.Min(24, (Band - 12 - Gap) / 2);
+
+    protected override void OnParametersSet()
+    {
+        var max = Months.Count == 0 ? 0 : Months.Max(m => Math.Max(m.SalesNet, m.CostsNet));
+        // „Ładne” podziałki: krok 1, 2 lub 5 × 10^n, cztery przedziały
+        var step = NiceStep(max <= 0 ? 1 : max / 4);
+        axisMax = Math.Max(step * Math.Ceiling(max / step), step);
+        ticks = Enumerable.Range(0, (int)(axisMax / step) + 1).Select(i => i * step).ToList();
+    }
+
+    private static decimal NiceStep(decimal raw)
+    {
+        var magnitude = (decimal)Math.Pow(10, Math.Floor(Math.Log10((double)raw)));
+        var normalized = raw / magnitude;
+        return (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
+    }
+
+    private double Y(decimal value) => Top + (H - Top - Bottom) * (1 - (double)(value / axisMax));
+
+    /// <summary>Kolumna od podstawy: zaokrąglony tylko koniec z danymi (4 px), podstawa prosta.</summary>
+    private string Column(double x, decimal value)
+    {
+        if (value <= 0) return "";
+        var top = Y(value);
+        var baseY = Y(0);
+        var r = Math.Min(Radius, Math.Min(BarWidth / 2, baseY - top));
+        return $"M{F(x)},{F(baseY)} V{F(top + r)} Q{F(x)},{F(top)} {F(x + r)},{F(top)} H{F(x + BarWidth - r)} "
+               + $"Q{F(x + BarWidth)},{F(top)} {F(x + BarWidth)},{F(top + r)} V{F(baseY)} Z";
+    }
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+    /// <summary>Oś: pełne liczby poniżej 10 000, wyżej skrótowo (10 tys., 1,5 mln).</summary>
+    private static string Compact(decimal v) =>
+        v >= 1_000_000 ? $"{(v / 1_000_000).ToString("0.#", Pl)} mln"
+        : v >= 10_000 ? $"{(v / 1_000).ToString("0.#", Pl)} tys."
+        : v.ToString("N0", Pl);
+
+    private static string MonthName(MonthlyTotalsDto m, bool full)
+    {
+        var date = new DateTime(m.Year, m.Month, 1);
+        return full ? date.ToString("LLLL yyyy", Pl) : date.ToString(m.Month == 1 ? "MMM yy" : "MMM", Pl).TrimEnd('.');
+    }
+}

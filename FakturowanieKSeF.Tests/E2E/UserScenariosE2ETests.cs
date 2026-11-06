@@ -686,5 +686,40 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator("h1")).Not.ToContainTextAsync(templateNumber);
         await Expect(page.Locator(".invoice-sheet")).ToContainTextAsync("Abonament serwisowy");
     }
+
+    [E2EFact]
+    public async Task PulpitZWykresami_SprzedazNalezności_INajwiekszyNabywcy()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        foreach (var (buyer, price, monthsAgo) in new[] { ("Stały Klient S.A.", "4200", 0), ("Stały Klient S.A.", "3100", 1), ("Nowy Klient sp. z o.o.", "1800", 0) })
+        {
+            await page.GotoAsync("/faktury/nowa");
+            await FillManualBuyerAsync(page, buyer, "1234563218");
+            await FillItemAsync(page, 0, "Usługa", "1", price);
+            var issue = DateTime.Today.AddMonths(-monthsAgo);
+            await page.FillAsync("#issue", issue.ToString("yyyy-MM-dd"));
+            await page.FillAsync("#due", issue.AddDays(14).ToString("yyyy-MM-dd"));
+            await page.ClickAsync("button[type=submit]");
+            await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+            await page.ClickAsync("text=Wyślij do KSeF");
+            await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+        }
+
+        await page.ClickAsync("nav >> text=Pulpit");
+        var chart = page.Locator("[data-testid=monthly-chart]");
+        await Expect(chart.Locator("path.viz-bar[d^='M']")).ToHaveCountAsync(2); // dwa miesiące ze sprzedażą
+        await Expect(chart.Locator("title").First).ToContainTextAsync("Sprzedaż");
+        await Expect(page.Locator("[data-testid=top-customers]")).ToContainTextAsync("Stały Klient S.A.");
+        await Expect(page.Locator("[data-testid=top-customers] .viz-barlist-row").First).ToContainTextAsync("7\u00a0300,00");
+        await E2EFixture.ScreenshotAsync(page, "30-pulpit-wykresy");
+
+        // Tabela danych (dostępność): wartości osiągalne bez najeżdżania myszą
+        await chart.Locator("summary").ClickAsync();
+        await Expect(chart.Locator("table")).ToContainTextAsync("6\u00a0000,00");
+    }
 }
 
