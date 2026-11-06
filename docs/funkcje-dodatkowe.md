@@ -41,7 +41,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 16 | Faktura proforma (D42) | niski | ✅ |
 | 17 | Tryb offline KSeF (kod QR II) | badawczy | do decyzji |
 | 18 | Dostęp księgowej do firmy (role) | badawczy | do decyzji |
-| 19 | Import faktur sprzedażowych wystawionych poza aplikacją | badawczy | do decyzji |
+| 19 | Import faktur sprzedażowych wystawionych poza aplikacją (D44) | badawczy | ✅ |
 
 ## 1. Dane kontrahenta z wykazu podatników VAT
 
@@ -168,6 +168,13 @@ odzyskiwania. Od tej pory logowanie wymaga hasła i kodu z telefonu. Wyłączeni
 W formularzu nowej faktury przełącznik **Faktura proforma** tworzy dokument z serii `PRO/n/MM/RRRR`. Proforma nie trafia
 do KSeF ani do rozliczeń, a jej PDF jest wyraźnie oznaczony jako niebędący fakturą VAT. Można ją wysłać e-mailem,
 a po zapłacie przycisk **Wystaw fakturę VAT** tworzy szkic faktury z tymi samymi danymi. Szczegóły: D42.
+
+## 19. Import faktur sprzedażowych wystawionych poza aplikacją
+
+Faktury, w których firma jest sprzedawcą, a które wystawiono w innym programie lub w aplikacji MF, aplikacja pobiera
+z KSeF (cyklicznie i przyciskiem na liście faktur). Trafiają na listę jako faktury tylko do odczytu, oznaczone
+„spoza aplikacji”, i są uwzględniane w rozliczeniach, eksporcie i wykresach. Faktury wysłane z aplikacji nie są
+dublowane. Szczegóły: D44.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).

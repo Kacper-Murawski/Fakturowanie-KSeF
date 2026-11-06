@@ -210,6 +210,14 @@ Po najechaniu na kolumnę widać dokładną kwotę, a wszystkie wartości są w 
 
 ![Pulpit z wykresami](zrzuty/30-pulpit-wykresy.png)
 
+### Faktury wystawione poza aplikacją
+
+Jeśli część faktur wystawiasz w innym programie albo w aplikacji Ministerstwa Finansów, aplikacja pobierze je z KSeF
+(automatycznie co 15 minut albo przyciskiem **Pobierz z KSeF wystawione poza aplikacją** na liście faktur). Są oznaczone
+jako „spoza aplikacji” i tylko do odczytu, ale możesz rejestrować do nich wpłaty, wysłać je e-mailem i wystawić korektę.
+
+![Import faktur sprzedażowych z KSeF](zrzuty/34-import-sprzedazy-z-ksef.png)
+
 ## 9. Faktury otrzymane
 
 W menu **Faktury otrzymane** znajdują się faktury wystawione na NIP Twojej firmy przez innych podatników,

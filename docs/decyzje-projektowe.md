@@ -930,3 +930,33 @@ centrum danych w chmurze zostały zablokowane przez zabezpieczenie MF przed auto
 zamiast danych). API NBP działało z tego samego adresu. Na serwerze produkcyjnym trzeba to sprawdzić; aplikacja
 pokazuje wtedy czytelny komunikat, a dane kontrahenta można wpisać ręcznie (D28).
 
+---
+
+## D44. Import faktur sprzedażowych wystawionych poza aplikacją (z KSeF)
+
+**Kontekst:** firma może wystawiać faktury także w innym programie, w bezpłatnej aplikacji MF albo mieć je z okresu
+sprzed korzystania z aplikacji. Bez nich rozliczenia, eksport dla księgowej i wykresy są niekompletne. KSeF udostępnia
+metadane faktur także w roli sprzedawcy (`Podmiot1`), więc można je pobrać tak jak faktury zakupowe.
+
+**Decyzja:**
+- przyrostowe pobieranie do HWM z osobnym punktem kontrolnym (`Company.IssuedInvoicesSyncedUntil`), w tym samym cyklu
+  usługi w tle co faktury otrzymane (D26) i ręcznie przyciskiem na liście faktur (najwyżej raz na minutę),
+- zaimportowana faktura jest zwykłą fakturą przyjętą w KSeF z `Origin = KsefImport`: dane i pozycje odczytane z XML,
+  kwoty sum z dokumentu (`P_13_x`, `P_14_x`, `P_15`), XML zapisany jak dokument wysłany (bez UPO - jest u wystawcy);
+  dzięki temu działają rozliczenia, przypomnienia, eksport, wykresy, PDF z kodem QR, e-mail i korekty,
+- **deduplikacja**: pomijane są faktury o znanym numerze KSeF oraz dokumenty wysłane przez aplikację rozpoznane po
+  skrócie SHA-256 (także zanim usługa wysyłki zapisze numer KSeF),
+- obsługiwane rodzaje: VAT i KOR (korekta łączona z fakturą korygowaną po numerze KSeF); inne (zaliczkowe,
+  rozliczeniowe, uproszczone) i dokumenty z nieobsługiwaną stawką są pomijane i zliczane,
+- unikalność numeru faktury dotyczy faktur wystawionych w aplikacji - inny program mógł użyć tej samej numeracji,
+- zaimportowane faktury są tylko do odczytu (nie można ich edytować, usunąć ani wysłać ponownie).
+
+**Alternatywy:**
+- osobna tabela „faktury sprzedaży z KSeF”: czystsze rozdzielenie, ale rozliczenia, eksport, wykresy i korekty musiałyby
+  obsługiwać dwa źródła,
+- import plików XML z dysku: nie wymaga KSeF, ale użytkownik musi je pobrać ręcznie; w KSeF i tak wszystkie faktury są,
+- import wszystkich rodzajów faktur: zaliczki i rozliczenia wymagają osobnej logiki rozliczeń - poza zakresem.
+
+**Uzasadnienie:** kompletny obraz sprzedaży niezależnie od narzędzia, którym wystawiono fakturę, z ponownym użyciem
+mechanizmu odbioru (HWM, limity) i bez ryzyka zdublowania faktur wysłanych z aplikacji.
+

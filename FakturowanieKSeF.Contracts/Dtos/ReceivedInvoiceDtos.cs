@@ -85,4 +85,5 @@ public sealed record InvoiceDocumentDto(
 /// <summary>Stan synchronizacji faktur otrzymanych.</summary>
 public sealed record ReceivedSyncStatusDto(bool HasToken, DateTime? LastSyncAt, DateTime? SyncedUntil, string? LastError);
 
-public sealed record SyncResultDto(int Downloaded, bool Complete);
+/// <param name="Skipped">Dokumenty pominięte (np. rodzaj faktury nieobsługiwany przy imporcie sprzedaży - D44).</param>
+public sealed record SyncResultDto(int Downloaded, bool Complete, int Skipped = 0);

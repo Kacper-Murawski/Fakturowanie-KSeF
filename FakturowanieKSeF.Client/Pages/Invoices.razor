@@ -6,8 +6,22 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="mb-0">Faktury</h1>
-    <a class="btn btn-primary" href="faktury/nowa">Nowa faktura</a>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" disabled="@importing" @onclick="ImportAsync"
+                title="Faktury sprzedażowe wystawione w innym programie lub aplikacji MF, przesłane do KSeF">
+            @(importing ? "Pobieranie…" : "Pobierz z KSeF wystawione poza aplikacją")
+        </button>
+        <a class="btn btn-primary" href="faktury/nowa">Nowa faktura</a>
+    </div>
 </div>
+
+@if (importResult is { } ir)
+{
+    <div class="alert alert-success" role="status" data-testid="import-result">
+        Pobrano faktury wystawione poza aplikacją: @ir.Downloaded@(ir.Skipped > 0 ? $" (pominięto nieobsługiwane: {ir.Skipped})" : "").
+        @(ir.Complete ? "" : "Pozostałe zostaną pobrane w kolejnym przebiegu.")
+    </div>
+}
 
 <ProblemAlert Problem="problem" />
 
@@ -77,6 +91,10 @@ else
                             {
                                 <span class="badge bg-info text-dark ms-1" title="Faktura proforma - nie trafia do KSeF">PRO</span>
                             }
+                            @if (i.Origin == InvoiceOrigin.KsefImport)
+                            {
+                                <span class="badge bg-light text-dark border ms-1" title="Wystawiona poza aplikacją, pobrana z KSeF">spoza aplikacji</span>
+                            }
                         </td>
                         <td>@Format.Date(i.IssueDate)</td>
                         <td>@i.BuyerName<div class="small text-muted">@(i.BuyerNip is null ? "" : "NIP " + Format.Nip(i.BuyerNip))</div></td>
@@ -129,6 +147,21 @@ else
     private CancellationTokenSource? debounce;
 
     protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private bool importing;
+    private SyncResultDto? importResult;
+
+    /// <summary>Import faktur sprzedażowych wystawionych poza aplikacją (D44).</summary>
+    private async Task ImportAsync()
+    {
+        importing = true;
+        importResult = null;
+        var result = await Api.PostAsync<SyncResultDto>("api/invoices/import-from-ksef", new { });
+        importing = false;
+        problem = result.Problem;
+        importResult = result.Value;
+        if (importResult is not null) await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {

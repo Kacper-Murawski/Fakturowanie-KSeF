@@ -83,11 +83,30 @@ public sealed class FakeKsefGateway : IKsefGateway
         return Task.FromResult(new KsefMetadataPage(page, all.Count > (pageOffset + 1) * pageSize, false, Hwm));
     }
 
+    /// <summary>Faktury wystawione przez firmę (NIP sprzedawcy) - np. w innym programie (D44).</summary>
+    public Dictionary<string, List<(KsefInvoiceMetadata Meta, string Xml)>> Issued { get; } = [];
+
+    public Task<KsefMetadataPage> QueryIssuedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from, int pageOffset,
+        int pageSize, CancellationToken ct = default)
+    {
+        lock (Queries) Queries.Add((nip, from, pageOffset));
+        var all = (Issued.TryGetValue(nip, out var list) ? list : [])
+            .Where(x => x.Meta.PermanentStorageDate >= from && (Hwm is null || x.Meta.PermanentStorageDate <= Hwm))
+            .OrderBy(x => x.Meta.PermanentStorageDate)
+            .Select(x => x.Meta)
+            .ToList();
+        var page = all.Skip(pageOffset * pageSize).Take(pageSize).ToList();
+        return Task.FromResult(new KsefMetadataPage(page, all.Count > (pageOffset + 1) * pageSize, false, Hwm));
+    }
+
     public Task<string> DownloadInvoiceAsync(string nip, string ksefToken, string ksefNumber, CancellationToken ct = default)
     {
         if (DownloadFailure is not null) throw DownloadFailure;
         Downloads++;
-        return Task.FromResult(Received[nip].Single(x => x.Meta.KsefNumber == ksefNumber).Xml);
+        var source = Received.TryGetValue(nip, out var received) && received.Any(x => x.Meta.KsefNumber == ksefNumber)
+            ? received
+            : Issued[nip];
+        return Task.FromResult(source.Single(x => x.Meta.KsefNumber == ksefNumber).Xml);
     }
 
     public Task<string?> GetUpoAsync(string nip, string ksefToken, string sessionReferenceNumber, string ksefNumber,

@@ -122,6 +122,16 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("IssuedInvoicesLastSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IssuedInvoicesLastSyncError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("IssuedInvoicesSyncedUntil")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("KsefTokenEncrypted")
                         .HasColumnType("text");
 
@@ -380,6 +390,13 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("App");
+
                     b.Property<DateOnly?>("PaidOn")
                         .HasColumnType("date");
 
@@ -431,9 +448,11 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.HasIndex("CompanyId", "IssueDate");
 
+                    b.HasIndex("CompanyId", "KsefNumber");
+
                     b.HasIndex("CompanyId", "Number")
                         .IsUnique()
-                        .HasFilter("\"IsDeleted\" = false");
+                        .HasFilter("\"IsDeleted\" = false AND \"Origin\" = 'App'");
 
                     b.ToTable("Invoices");
                 });

@@ -88,6 +88,12 @@ public interface IKsefGateway
     /// </summary>
     Task<KsefMetadataPage> QueryReceivedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from, int pageOffset, int pageSize, CancellationToken ct = default);
 
+    /// <summary>
+    /// Metadane faktur, w których firma jest sprzedawcą (Podmiot1) - także wystawionych poza aplikacją (inny program,
+    /// aplikacja MF); zasady jak w <see cref="QueryReceivedInvoicesAsync"/> (D44).
+    /// </summary>
+    Task<KsefMetadataPage> QueryIssuedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from, int pageOffset, int pageSize, CancellationToken ct = default);
+
     /// <summary>Pełny XML faktury o podanym numerze KSeF.</summary>
     Task<string> DownloadInvoiceAsync(string nip, string ksefToken, string ksefNumber, CancellationToken ct = default);
 }
@@ -205,13 +211,21 @@ public sealed class KsefGateway(
         }
     }
 
-    public async Task<KsefMetadataPage> QueryReceivedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from,
-        int pageOffset, int pageSize, CancellationToken ct = default)
+    public Task<KsefMetadataPage> QueryReceivedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from,
+        int pageOffset, int pageSize, CancellationToken ct = default) =>
+        QueryAsync(InvoiceSubjectType.Subject2, nip, ksefToken, from, pageOffset, pageSize, ct); // firma jest nabywcą
+
+    public Task<KsefMetadataPage> QueryIssuedInvoicesAsync(string nip, string ksefToken, DateTimeOffset from,
+        int pageOffset, int pageSize, CancellationToken ct = default) =>
+        QueryAsync(InvoiceSubjectType.Subject1, nip, ksefToken, from, pageOffset, pageSize, ct); // firma jest sprzedawcą
+
+    private async Task<KsefMetadataPage> QueryAsync(InvoiceSubjectType subject, string nip, string ksefToken, DateTimeOffset from,
+        int pageOffset, int pageSize, CancellationToken ct)
     {
         var accessToken = await GetAccessTokenAsync(nip, ksefToken, ct);
         var page = await ksefClient.QueryInvoiceMetadataAsync(new InvoiceQueryFilters
         {
-            SubjectType = InvoiceSubjectType.Subject2, // faktury, w których firma jest nabywcą
+            SubjectType = subject,
             DateRange = new DateRange
             {
                 DateType = DateType.PermanentStorage,

@@ -75,6 +75,10 @@ public static class VatRateExtensions
         _ => 0m
     };
 
+    /// <summary>Stawka z kodu P_12 struktury FA(3) (odwrotność <see cref="ToFaCode"/>); null - kod nieobsługiwany.</summary>
+    public static VatRate? FromFaCode(string? code) =>
+        Enum.GetValues<VatRate>().Cast<VatRate?>().FirstOrDefault(r => r!.Value.ToFaCode() == code?.Trim());
+
     /// <summary>Stawka z kwotą podatku (pola P_14_x w FA(3)): 23/22, 8/7, 5, 4, 3%.</summary>
     public static bool HasVatAmount(this VatRate rate) => rate.GetPercentage() > 0;
 

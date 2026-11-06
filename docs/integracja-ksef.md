@@ -165,3 +165,10 @@ Przykład: [`przyklady/faktura-przyjeta-w-ksef.pdf`](przyklady/faktura-przyjeta-
 
 Środowisko testowe KSeF jest **współdzielone przez integratorów** i okresowo czyszczone (dokumentacja MF).
 Aplikacja ostrzega w ustawieniach KSeF, żeby używać wyłącznie danych fikcyjnych (np. losowego NIP).
+
+## Import faktur sprzedażowych wystawionych poza aplikacją (D44)
+
+Ten sam mechanizm co odbiór faktur zakupowych, ale zapytanie o metadane w roli sprzedawcy (`SubjectType = Subject1`),
+z osobnym punktem kontrolnym HWM. Pobrane faktury są zapisywane jako faktury przyjęte w KSeF (`Origin = KsefImport`).
+Dokumenty wysłane przez aplikację są pomijane - rozpoznawane po numerze KSeF lub skrócie SHA-256 dokumentu.
+
