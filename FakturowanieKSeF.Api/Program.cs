@@ -135,6 +135,7 @@ auth.MapPost("/logout", async (SignInManager<ApplicationUser> signInManager) =>
 api.MapHealthChecks("/health");
 api.MapCompanyEndpoints();
 api.MapCustomerEndpoints();
+api.MapProductEndpoints();
 api.MapInvoiceEndpoints();
 api.MapKsefSettingsEndpoints();
 api.MapReceivedInvoiceEndpoints();

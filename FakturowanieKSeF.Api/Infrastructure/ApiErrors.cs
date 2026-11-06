@@ -29,6 +29,7 @@ public static class ApiErrors
         ["IX_Invoices_CompanyId_Number"] = "Faktura o tym numerze już istnieje.",
         ["IX_Customers_CompanyId_Nip"] = "Kontrahent o tym numerze NIP już istnieje.",
         ["IX_Companies_OwnerId"] = "To konto ma już przypisaną firmę.",
+        ["IX_Products_CompanyId_Name"] = "Pozycja o tej nazwie już jest w katalogu.",
     };
 
     /// <summary>

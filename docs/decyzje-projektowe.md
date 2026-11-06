@@ -634,3 +634,31 @@ samodzielnie, ale wymaga to nadania im uprawnień w KSeF - eksport jest prostsz�
 są zgodne z dokumentami w KSeF. CSV otwiera się w Excelu bez konfiguracji, a XML i UPO są dowodem wystawienia
 i doręczenia faktury.
 
+---
+
+## D35. Katalog towarów i usług jako podpowiedź (kopiowanie do pozycji faktury)
+
+**Kontekst:** przy powtarzalnej sprzedaży użytkownik wpisuje na każdej fakturze te same nazwy, ceny i stawki VAT.
+Konkurencyjne programy mają katalog produktów i usług.
+
+**Decyzja:**
+- tabela `Products` (nazwa, jednostka, cena netto, stawka VAT) należąca do firmy; nazwa unikalna w katalogu firmy
+  (indeks z warunkiem `IsDeleted = false`), miękkie usuwanie, ograniczenia pól jak dla pozycji faktury (P_7, P_8A, P_9A),
+- katalog jest **podpowiedzią**: pole nazwy pozycji na fakturze podpowiada nazwy z katalogu (lista `datalist`
+  przeglądarki), a wpisanie lub wybranie nazwy z katalogu (bez rozróżniania wielkości liter) uzupełnia jednostkę,
+  cenę i stawkę; dane są kopiowane do pozycji i można je zmienić,
+- faktura nie przechowuje odwołania do pozycji katalogu - zmiana ceny lub usunięcie pozycji nie wpływa na faktury
+  (tak samo jak kopie danych nabywcy, D11),
+- pozycję spoza katalogu można zapisać w katalogu jednym kliknięciem z formularza faktury („zapisz w katalogu”),
+- katalog nie prowadzi stanów magazynowych ani cenników dla różnych kontrahentów (poza zakresem).
+
+**Alternatywy:**
+- pozycja faktury z kluczem obcym do produktu: umożliwia raporty sprzedaży per produkt, ale wiąże dokument podatkowy
+  z danymi, które się zmieniają, i komplikuje usuwanie pozycji katalogu; nazwa na fakturze i tak musi być kopią,
+- własna lista rozwijana z wyszukiwaniem (komponent JS lub Blazor): ładniejsza, ale więcej kodu i trudniejsza
+  obsługa klawiatury i dostępności; `datalist` działa natywnie we wszystkich przeglądarkach,
+- automatyczne tworzenie katalogu z historii faktur: wygodne, ale zaśmieca katalog jednorazowymi pozycjami.
+
+**Uzasadnienie:** szybsze wystawianie faktur przy minimalnym kodzie, bez ryzyka zmiany wystawionych dokumentów.
+Katalog jest tylko źródłem podpowiedzi, więc nie wpływa na reguły faktury, XML FA(3) ani wysyłkę do KSeF.
+

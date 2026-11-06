@@ -1,0 +1,147 @@
+@page "/katalog"
+@inject ApiClient Api
+
+<PageTitle>Katalog towarów i usług - Fakturowanie KSeF</PageTitle>
+
+<h1>Katalog towarów i usług</h1>
+<p class="text-muted">
+    Pozycje z katalogu podpowiadają się w polu nazwy na fakturze. Po wybraniu pozycji jej jednostka, cena netto i stawka VAT
+    są wpisywane automatycznie (na fakturze można je zmienić). Zmiana katalogu nie wpływa na wystawione faktury.
+</p>
+
+<section class="card mb-3">
+    <div class="card-body">
+        <h2 class="h5">@(editedId is null ? "Nowa pozycja" : "Edycja pozycji")</h2>
+        <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="product">
+            <DeepValidator @ref="validator" />
+            <div class="row g-2 align-items-start">
+                <div class="col-md-5">
+                    <label class="form-label" for="product-name">Nazwa</label>
+                    <InputTextLive id="product-name" class="form-control" @bind-Value="model.Name" />
+                    <ValidationMessage For="() => model.Name" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="product-unit">J.m.</label>
+                    <InputTextLive id="product-unit" class="form-control" @bind-Value="model.Unit" placeholder="np. szt., godz." />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="product-price">Cena netto</label>
+                    <InputNumber id="product-price" class="form-control" @bind-Value="model.UnitNetPrice" step="0.01" />
+                    <ValidationMessage For="() => model.UnitNetPrice" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="product-vat">Stawka VAT</label>
+                    <InputSelect id="product-vat" class="form-select" @bind-Value="model.VatRate">
+                        @foreach (var rate in VatRateExtensions.Selectable)
+                        {
+                            <option value="@rate">@rate.ToDisplayName()</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary" disabled="@busy">@(editedId is null ? "Dodaj do katalogu" : "Zapisz zmiany")</button>
+                @if (editedId is not null)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="Reset">Anuluj</button>
+                }
+            </div>
+        </EditForm>
+    </div>
+</section>
+
+<ProblemAlert Problem="problem" />
+
+@if (products is null)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+else if (products.Count == 0)
+{
+    <p class="text-muted">Katalog jest pusty.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" data-testid="products">
+            <thead>
+                <tr><th>Nazwa</th><th>J.m.</th><th class="text-end">Cena netto</th><th>VAT</th><th class="text-end">Cena brutto</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var p in products)
+                {
+                    <tr>
+                        <td>@p.Name</td>
+                        <td>@p.Unit</td>
+                        <td class="text-end">@Format.Amount(p.UnitNetPrice)</td>
+                        <td>@p.VatRate.ToDisplayName()</td>
+                        <td class="text-end">@Format.Amount(InvoiceCalculator.CalculateLine(new LineInput(1, p.UnitNetPrice, p.VatRate)).GrossAmount)</td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(p)">Edytuj</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń z katalogu" disabled="@busy"
+                                    @onclick="() => DeleteAsync(p)">✕</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<ProductDto>? products;
+    private SaveProductRequest model = new();
+    private int? editedId;
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.GetAsync<List<ProductDto>>("api/products");
+        problem = result.Problem;
+        products = result.Value ?? [];
+    }
+
+    private void Edit(ProductDto p)
+    {
+        editedId = p.Id;
+        model = new SaveProductRequest { Name = p.Name, Unit = p.Unit, UnitNetPrice = p.UnitNetPrice, VatRate = p.VatRate };
+        problem = null;
+    }
+
+    private void Reset()
+    {
+        editedId = null;
+        model = new SaveProductRequest();
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        var result = editedId is null
+            ? await Api.PostAsync<ProductDto>("api/products", model)
+            : await Api.PutAsync<ProductDto>($"api/products/{editedId}", model);
+        busy = false;
+
+        problem = result.Problem;
+        if (result.Value is not null)
+        {
+            Reset();
+            await LoadAsync();
+        }
+        else if (problem is not null) validator?.ShowServerErrors(problem);
+    }
+
+    private async Task DeleteAsync(ProductDto p)
+    {
+        busy = true;
+        var result = await Api.DeleteAsync($"api/products/{p.Id}");
+        busy = false;
+        problem = result.Problem;
+        if (editedId == p.Id) Reset();
+        await LoadAsync();
+    }
+}

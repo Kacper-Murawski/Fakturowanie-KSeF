@@ -22,6 +22,11 @@ po polsku.
 |---|---|---|
 | GET | `/api/company` | Dane firmy zalogowanego użytkownika (404, jeśli nie utworzono) |
 | PUT | `/api/company` | Utworzenie (201) lub aktualizacja (200) danych firmy |
+| GET | `/api/products?q=` | Katalog towarów i usług firmy, wyszukiwanie po nazwie (D35) |
+| GET | `/api/products/{id}` | Pozycja katalogu |
+| POST | `/api/products` | Dodanie pozycji (`name`, `unit`, `unitNetPrice`, `vatRate`); 409 - nazwa już jest w katalogu |
+| PUT | `/api/products/{id}` | Edycja pozycji (nie zmienia wystawionych faktur) |
+| DELETE | `/api/products/{id}` | Usunięcie pozycji (miękkie) |
 | GET | `/api/customers?q=` | Lista kontrahentów, wyszukiwanie po nazwie lub NIP |
 | GET | `/api/customers/{id}` | Szczegóły kontrahenta |
 | POST | `/api/customers` | Dodanie kontrahenta |

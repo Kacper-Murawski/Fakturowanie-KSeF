@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
 
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Product> Products => Set<Product>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<KsefSubmission> KsefSubmissions => Set<KsefSubmission>();
@@ -58,6 +59,24 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
                 .OnDelete(DeleteBehavior.Restrict);
 
             e.HasQueryFilter(c => !c.IsDeleted);
+        });
+
+        // ---------------- Product (katalog towarów i usług) ----------------
+        builder.Entity<Product>(e =>
+        {
+            // Nazwa unikalna w katalogu firmy - po niej pozycja faktury jest dopasowywana do katalogu
+            e.HasIndex(p => new { p.CompanyId, p.Name })
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
+
+            e.Property(p => p.VatRate).HasConversion<string>().HasMaxLength(20);
+
+            e.HasOne(p => p.Company)
+                .WithMany()
+                .HasForeignKey(p => p.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasQueryFilter(p => !p.IsDeleted);
         });
 
         // ---------------- Invoice ----------------

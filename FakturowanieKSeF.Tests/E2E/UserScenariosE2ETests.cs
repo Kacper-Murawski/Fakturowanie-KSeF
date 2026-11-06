@@ -478,5 +478,47 @@ public class UserScenariosE2ETests(E2EFixture fx)
         using var zip = new System.IO.Compression.ZipArchive(File.OpenRead(await download.PathAsync()));
         Assert.Contains(zip.Entries, e => e.FullName.StartsWith("sprzedaz/FV_1_") && e.FullName.EndsWith("_UPO.xml"));
     }
+
+    [E2EFact]
+    public async Task KatalogProduktow_PodpowiadaPozycjeNaFakturze_IZapisujeNowa()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+
+        // Katalog: usługa w cenie 1 234,50 zł netto, 8% (przecinek dziesiętny w polu liczbowym pl-PL)
+        await page.ClickAsync("nav >> text=Katalog");
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Katalog towarów i usług");
+        await page.FillAsync("#product-name", "Przegląd klimatyzacji");
+        await page.FillAsync("#product-unit", "usł.");
+        await page.FillAsync("#product-price", "1234.50");
+        await page.SelectOptionAsync("#product-vat", "Rate8");
+        await page.ClickAsync("button:has-text('Dodaj do katalogu')");
+        await Expect(page.Locator("[data-testid=products] tbody tr")).ToHaveCountAsync(1);
+        await Expect(page.Locator("[data-testid=products]")).ToContainTextAsync("1 333,26"); // brutto
+        await E2EFixture.ScreenshotAsync(page, "23-katalog");
+
+        // Faktura: wpisanie nazwy z katalogu uzupełnia jednostkę, cenę i stawkę
+        await page.ClickAsync("nav >> text=Nowa faktura");
+        await FillManualBuyerAsync(page, "Klient Katalogowy", "1234563218");
+        var row = Row(page, 0);
+        await row.Locator("input[aria-label^='Nazwa pozycji']").FillAsync("przegląd klimatyzacji");
+        await Expect(row.Locator("input[aria-label^='Nazwa pozycji']")).ToHaveValueAsync("Przegląd klimatyzacji");
+        await Expect(row.Locator("input[aria-label='Jednostka miary']")).ToHaveValueAsync("usł.");
+        await Expect(row.Locator("input[aria-label='Cena netto']")).ToHaveValueAsync("1234.5");
+        await Expect(row.Locator("select[aria-label='Stawka VAT']")).ToHaveValueAsync("Rate8");
+        await Expect(page.Locator("[data-testid=total-gross]")).ToContainTextAsync("1 333,26");
+
+        // Nowa pozycja spoza katalogu - „zapisz w katalogu”
+        await page.ClickAsync("text=+ Dodaj pozycję");
+        await FillItemAsync(page, 1, "Dojazd do klienta", "1", "50");
+        await Row(page, 1).Locator("button:has-text('zapisz w katalogu')").ClickAsync();
+        await Expect(Row(page, 1).Locator("button:has-text('zapisz w katalogu')")).ToHaveCountAsync(0);
+        await E2EFixture.ScreenshotAsync(page, "24-pozycja-z-katalogu");
+
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await page.ClickAsync("nav >> text=Katalog");
+        await Expect(page.Locator("[data-testid=products] tbody tr")).ToHaveCountAsync(2);
+    }
 }
 

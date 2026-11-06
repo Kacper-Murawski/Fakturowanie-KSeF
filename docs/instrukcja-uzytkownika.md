@@ -43,6 +43,16 @@ sprawdzeń jest ograniczona; po jej wyczerpaniu dane można wpisać ręcznie.
 
 ![Kontrahent uzupełniony z wykazu VAT](zrzuty/15-kontrahent-z-wykazu-vat.png)
 
+**Katalog towarów i usług.** W menu **Katalog** zapisz towary i usługi, które często sprzedajesz: nazwę,
+jednostkę, cenę netto i stawkę VAT. Na fakturze pole nazwy pozycji podpowiada nazwy z katalogu, a po wybraniu jednej
+z nich jednostka, cena i stawka uzupełnią się same (możesz je zmienić). Pozycję wpisaną na fakturze, której nie ma
+w katalogu, dodasz przyciskiem **zapisz w katalogu** pod jej nazwą. Zmiana lub usunięcie pozycji katalogu nie zmienia
+wystawionych faktur.
+
+![Katalog towarów i usług](zrzuty/23-katalog.png)
+
+![Pozycja z katalogu na fakturze](zrzuty/24-pozycja-z-katalogu.png)
+
 ## 4. Wystawianie faktury
 
 Wybierz **Nowa faktura**:

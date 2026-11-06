@@ -12,6 +12,7 @@ Kolumny typów własnych (adres, strony faktury) są w tabeli właściciela z pr
 erDiagram
     AspNetUsers ||--o| Companies : "posiada (1 konto = 1 firma)"
     Companies ||--o{ Customers : "książka adresowa"
+    Companies ||--o{ Products : "katalog towarów i usług"
     Companies ||--o{ Invoices : "wystawia"
     Companies ||--o{ ReceivedInvoices : "otrzymuje z KSeF"
     Customers |o--o{ Invoices : "źródło danych nabywcy"
@@ -164,6 +165,16 @@ erDiagram
         string BankAccountCheckRequestId "identyfikator zapytania MF"
     }
 
+    Products {
+        int Id PK
+        int CompanyId FK
+        string Name "unikalna w firmie, kopiowana do P_7"
+        string Unit "P_8A"
+        numeric UnitNetPrice "P_9A, 22,8"
+        string VatRate "P_12"
+        bool IsDeleted
+    }
+
     Payments {
         int Id PK
         int CompanyId FK
@@ -184,6 +195,7 @@ erDiagram
 | `AspNetUsers` | Konta użytkowników (ASP.NET Core Identity): e-mail, hash hasła, blokady konta. |
 | `Companies` | Firma użytkownika: sprzedawca na fakturach sprzedażowych, nabywca na fakturach z KSeF. Zawiera zaszyfrowany token KSeF. |
 | `Customers` | Książka adresowa kontrahentów firmy (B2B z NIP lub B2C bez NIP). |
+| `Products` | Katalog towarów i usług firmy - podpowiedzi nazwy, ceny i stawki na fakturze (D35). Faktura nie odwołuje się do katalogu; dane są kopiowane do `InvoiceItems`. |
 | `Invoices` | Faktury sprzedażowe: nagłówek, kopie danych stron, sumy, status i numer KSeF. |
 | `InvoiceItems` | Pozycje faktury (FaWiersz). |
 | `KsefSubmissions` | Historia prób wysyłki faktury do KSeF: wysłany XML, skrót, numery referencyjne, status, numer KSeF, UPO. |
