@@ -727,6 +727,75 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.ToTable("ReceivedInvoices");
                 });
 
+            modelBuilder.Entity("FakturowanieKSeF.Models.RecurringInvoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DayOfMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("IntervalMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("IssuedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("LastInvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("LastIssuedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("NextIssueDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("NotifyByEmail")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("TemplateInvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("TemplateInvoiceId");
+
+                    b.HasIndex("IsActive", "NextIssueDate");
+
+                    b.ToTable("RecurringInvoices");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")
@@ -1204,6 +1273,25 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.RecurringInvoice", b =>
+                {
+                    b.HasOne("FakturowanieKSeF.Models.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FakturowanieKSeF.Models.Invoice", "TemplateInvoice")
+                        .WithMany()
+                        .HasForeignKey("TemplateInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("TemplateInvoice");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

@@ -74,6 +74,18 @@ fakturach powtarzalnych, np. comiesięcznym abonamencie. Nic nie jest zapisywane
 
 ![Wystaw podobną](zrzuty/18-wystaw-podobna.png)
 
+### Faktury cykliczne
+
+Jeśli co miesiąc (kwartał, rok) wystawiasz tę samą fakturę, otwórz ją i wybierz **Ustaw jako cykliczną**. Podaj okres,
+datę pierwszego wystawienia i opcjonalnie datę końcową. W wyznaczonym dniu aplikacja przygotuje **szkic** na wzór tej
+faktury: z aktualnymi danymi kontrahenta, nowym numerem, dzisiejszą datą wystawienia i terminem płatności z tym samym
+odstępem. Szkic nie jest wysyłany do KSeF automatycznie - sprawdź go (np. cenę) i wyślij. Harmonogramy znajdziesz
+w menu **Faktury cykliczne**; możesz je wstrzymać, zmienić lub usunąć (faktury już utworzone pozostają).
+
+![Harmonogram faktury cyklicznej](zrzuty/28-faktura-cykliczna.png)
+
+![Lista faktur cyklicznych](zrzuty/29-faktury-cykliczne-lista.png)
+
 ## 5. Wysyłka do KSeF
 
 W podglądzie szkicu wybierz **Wyślij do KSeF** i potwierdź. Faktura otrzyma status „Wysłana do KSeF”,

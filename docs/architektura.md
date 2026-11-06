@@ -31,6 +31,7 @@ flowchart LR
         WL["Wyszukiwanie w wykazie VAT<br/>(VatRegistryLookup: pamięć podręczna + limity)"]
         WE["Usługa w tle: wysyłka e-mail<br/>(EmailOutbox: kolejka w bazie)"]
         WP["Usługa w tle: przypomnienia o płatności<br/>(PaymentReminders, co godzinę)"]
+        WC["Usługa w tle: faktury cykliczne<br/>(RecurringInvoices - szkice, co godzinę)"]
     end
 
     DB[("PostgreSQL 16")]
@@ -55,6 +56,7 @@ flowchart LR
     API -- "zapis do kolejki" --> DB
     WE --> DB
     WP -- "faktury po terminie → kolejka" --> DB
+    WC -- "szkice faktur" --> DB
     WE -- "SMTP (TLS)" --> SMTP
 ```
 

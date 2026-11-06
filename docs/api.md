@@ -39,7 +39,7 @@ po polsku.
 | GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |
 | POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32). Opcjonalne `paidOn` - faktura zapłacona przy wystawieniu (`Zaplacono` w FA(3); nie później niż data wystawienia), przy wysyłce rejestrowana jako płatność (D33) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
-| DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona) |
+| DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona); 409 - faktura jest wzorem faktury cyklicznej (D39) |
 | POST | `/api/invoices/{id}/send` | Wysłanie faktury do KSeF (body: `version`); 202 i status `Pending`, dalej asynchronicznie - zob. `docs/integracja-ksef.md` |
 | GET | `/api/invoices/{id}/upo` | UPO faktury przyjętej przez KSeF (404, jeśli jeszcze niedostępne) |
 | GET | `/api/company/ksef` | Stan integracji z KSeF (czy token jest skonfigurowany; sam token nigdy nie jest zwracany) |
@@ -65,6 +65,11 @@ po polsku.
 | GET | `/api/invoices/{id}/email-recipient` | Podpowiedź adresu nabywcy: e-mail kontrahenta albo ostatni adres, na który wysłano fakturę |
 | GET | `/api/company/notifications` | Ustawienia powiadomień: automatyczne przypomnienia, liczba dni po terminie, czy poczta jest skonfigurowana |
 | PUT | `/api/company/notifications` | Zmiana ustawień (`autoReminders`, `reminderDaysAfterDue` 0-60, `notifyReceivedInvoices`, `notificationEmail` - puste: adres konta) (D37, D38) |
+| GET | `/api/recurring-invoices` | Harmonogramy faktur cyklicznych z danymi wzoru, najbliższą datą i ostatnią utworzoną fakturą (D39) |
+| GET | `/api/recurring-invoices/{id}` | Harmonogram |
+| POST | `/api/recurring-invoices` | Utworzenie (`templateInvoiceId` - faktura VAT firmy, `intervalMonths` 1/3/6/12, `nextIssueDate` - nie w przeszłości, `endDate`, `name`, `isActive`, `notifyByEmail`) |
+| PUT | `/api/recurring-invoices/{id}` | Zmiana okresu, dat, wstrzymanie/wznowienie (wzoru nie można zmienić) |
+| DELETE | `/api/recurring-invoices/{id}` | Usunięcie harmonogramu (utworzone faktury pozostają) |
 | GET | `/api/exports/summary?from=&to=` | Podsumowanie okresu dla księgowej: liczba i kwoty faktur sprzedaży (przyjętych w KSeF, wg daty wystawienia) i zakupu (wg daty otrzymania w KSeF). 400 - brak okresu, koniec przed początkiem, okres dłuższy niż 366 dni (D34) |
 | GET | `/api/exports/sales.csv?from=&to=` | Zestawienie sprzedaży (CSV: średnik, przecinek dziesiętny, UTF-8 z BOM; kwoty per stawka) |
 | GET | `/api/exports/purchases.csv?from=&to=` | Zestawienie zakupów (CSV, jak wyżej; z wynikiem sprawdzenia rachunku na białej liście) |

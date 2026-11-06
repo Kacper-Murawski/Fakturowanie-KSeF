@@ -301,6 +301,9 @@ public static class InvoiceEndpoints
                 if (invoice.Status is not (InvoiceStatus.Draft or InvoiceStatus.Rejected))
                     return ApiErrors.Conflict("Faktury wysłanej do KSeF nie można usunąć.");
 
+                if (await db.RecurringInvoices.AnyAsync(r => r.TemplateInvoiceId == invoice.Id, ct))
+                    return ApiErrors.Conflict("Ta faktura jest wzorem faktury cyklicznej - najpierw usuń harmonogram.");
+
                 db.Invoices.Remove(invoice); // miękkie usunięcie
                 await db.SaveChangesAsync(ct);
                 return Results.NoContent();
@@ -337,7 +340,7 @@ public static class InvoiceEndpoints
         });
     }
 
-    private static async Task<IResult?> ApplyAsync(Invoice invoice, SaveInvoiceRequest request, Company company,
+    internal static async Task<IResult?> ApplyAsync(Invoice invoice, SaveInvoiceRequest request, Company company,
         AppDbContext db, CancellationToken ct)
     {
         var kind = request.IsCorrection ? InvoiceKind.Correction : InvoiceKind.Vat;
@@ -509,6 +512,6 @@ public static class InvoiceEndpoints
             p.First.Name == p.Second.Name.Trim() && p.First.Unit == Mapping.EmptyToNull(p.Second.Unit)
             && p.First.Quantity == p.Second.Quantity && p.First.UnitNetPrice == p.Second.UnitNetPrice && p.First.VatRate == p.Second.VatRate);
 
-    private static bool IsDuplicateNumber(DbUpdateException ex) =>
+    internal static bool IsDuplicateNumber(DbUpdateException ex) =>
         ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_Invoices_CompanyId_Number" };
 }
