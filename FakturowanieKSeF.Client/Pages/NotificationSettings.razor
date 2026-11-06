@@ -33,6 +33,23 @@
                         </div>
                     </div>
                 }
+                <div class="form-check mb-2">
+                    <InputCheckbox id="notify-received" class="form-check-input" @bind-Value="model.NotifyReceivedInvoices" />
+                    <label class="form-check-label" for="notify-received">Powiadamiaj mnie o nowych fakturach kosztowych z KSeF</label>
+                </div>
+                @if (model.NotifyReceivedInvoices)
+                {
+                    <div class="mb-2 ms-4">
+                        <label class="form-label small" for="notification-email">Adres powiadomień</label>
+                        <InputTextLive id="notification-email" type="email" class="form-control" @bind-Value="model.NotificationEmail"
+                                       placeholder="@(settings.AccountEmail ?? "")" />
+                        <ValidationMessage For="() => model.NotificationEmail" />
+                        <div class="form-text">
+                            Puste - adres Twojego konta. Po każdej synchronizacji z nowymi fakturami dostaniesz jedną wiadomość z ich listą
+                            (sprzedawca, kwota, termin) i ostrzeżeniem o fakturach powyżej 15 000 zł (sprawdzenie rachunku na białej liście).
+                        </div>
+                    </div>
+                }
                 <button type="submit" class="btn btn-outline-primary btn-sm" disabled="@busy">Zapisz ustawienia</button>
                 @if (saved)
                 {
@@ -62,7 +79,11 @@
     private void Apply(NotificationSettingsDto s)
     {
         settings = s;
-        model = new SaveNotificationSettingsRequest { AutoReminders = s.AutoReminders, ReminderDaysAfterDue = s.ReminderDaysAfterDue };
+        model = new SaveNotificationSettingsRequest
+        {
+            AutoReminders = s.AutoReminders, ReminderDaysAfterDue = s.ReminderDaysAfterDue,
+            NotifyReceivedInvoices = s.NotifyReceivedInvoices, NotificationEmail = s.NotificationEmail
+        };
     }
 
     private async Task SaveAsync()

@@ -24,6 +24,7 @@ public sealed class ReceivedInvoiceSync(
     KsefTokenProtector tokenProtector,
     TimeProvider time,
     IConfiguration configuration,
+    FakturowanieKSeF.Api.Services.Email.ReceivedInvoiceNotifier notifier,
     ILogger<ReceivedInvoiceSync> logger)
 {
     public const int PageSize = 100;
@@ -48,6 +49,7 @@ public sealed class ReceivedInvoiceSync(
         DateTimeOffset? checkpoint = null; // data trwałego zapisu, do której wszystko jest już w bazie
         var downloaded = 0;
         var complete = false;
+        List<ReceivedInvoice> added = [];
 
         try
         {
@@ -68,7 +70,7 @@ public sealed class ReceivedInvoiceSync(
                         }
 
                         var xml = await gateway.DownloadInvoiceAsync(company.Nip, token, meta.KsefNumber, ct);
-                        db.ReceivedInvoices.Add(new ReceivedInvoice
+                        var received = new ReceivedInvoice
                         {
                             CompanyId = company.Id,
                             KsefNumber = meta.KsefNumber,
@@ -85,7 +87,9 @@ public sealed class ReceivedInvoiceSync(
                             Xml = xml,
                             InvoiceHash = meta.InvoiceHash,
                             DownloadedAt = time.GetUtcNow().UtcDateTime
-                        });
+                        };
+                        db.ReceivedInvoices.Add(received);
+                        added.Add(received);
                         await db.SaveChangesAsync(ct); // każda faktura zapisana trwale - przerwanie niczego nie gubi
                         downloaded++;
                     }
@@ -117,6 +121,17 @@ public sealed class ReceivedInvoiceSync(
             company.ReceivedInvoicesSyncedUntil = c.UtcDateTime;
 
         await db.SaveChangesAsync(ct);
+
+        // Powiadomienie o nowych fakturach - jego błąd nie może zepsuć synchronizacji (faktury są już zapisane)
+        try
+        {
+            await notifier.NotifyAsync(company, added, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Nie udało się dodać powiadomienia o nowych fakturach firmy {CompanyId}", company.Id);
+        }
+
         logger.LogInformation("Synchronizacja faktur otrzymanych firmy {CompanyId}: pobrano {Count}, kompletna: {Complete}", company.Id, downloaded, complete);
         return new SyncResultDto(downloaded, complete);
     }

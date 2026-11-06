@@ -75,6 +75,40 @@ public static class EmailTemplates
         return (subject, b.ToString());
     }
 
+    /// <summary>Próg z art. 19 ustawy Prawo przedsiębiorców - powyżej niego zapłata na rachunek spoza białej listy ma skutki podatkowe (D29).</summary>
+    public const decimal WhiteListThreshold = 15000m;
+
+    public const int MaxListedInvoices = 20;
+
+    public static (string Subject, string Body) ReceivedInvoices(Company company, IReadOnlyList<ReceivedInvoice> invoices, string? appUrl)
+    {
+        var subject = $"Nowe faktury kosztowe w KSeF: {invoices.Count} - {company.Name}";
+
+        var b = new StringBuilder();
+        b.AppendLine("Dzień dobry,").AppendLine();
+        b.AppendLine($"do KSeF trafiły nowe faktury wystawione na firmę {company.Name} (NIP {company.Nip}):").AppendLine();
+
+        var n = 0;
+        foreach (var r in invoices.OrderBy(r => r.DueDate ?? DateOnly.MaxValue).ThenBy(r => r.IssueDate).Take(MaxListedInvoices))
+        {
+            b.AppendLine($"{++n}. {r.InvoiceNumber} - {r.SellerName} (NIP {r.SellerNip})");
+            b.Append($"   kwota {Money(r.TotalGross, r.Currency)}");
+            b.AppendLine(r.DueDate is { } due ? $", termin płatności {Date(due)}" : "");
+            if (r.Currency == "PLN" && r.TotalGross > WhiteListThreshold)
+                b.AppendLine("   Kwota powyżej 15 000 zł - przed zapłatą sprawdź rachunek sprzedawcy na białej liście.");
+        }
+        if (invoices.Count > MaxListedInvoices)
+            b.AppendLine($"... i {invoices.Count - MaxListedInvoices} kolejnych.");
+
+        b.AppendLine();
+        b.AppendLine(string.IsNullOrWhiteSpace(appUrl)
+            ? "Faktury są dostępne w aplikacji w zakładce „Faktury otrzymane”."
+            : $"Faktury są dostępne w aplikacji: {appUrl.TrimEnd('/')}/faktury-otrzymane");
+        b.AppendLine("Powiadomienia wyłączysz na stronie „Moja firma” w sekcji „Powiadomienia e-mail”.");
+        b.AppendLine().AppendLine("--").AppendLine("Fakturowanie KSeF (wersja testowa - dane z testowego środowiska KSeF).");
+        return (subject, b.ToString());
+    }
+
     internal static void AppendSignature(StringBuilder b, Company company)
     {
         b.AppendLine().AppendLine("Pozdrawiamy").AppendLine(company.Name);

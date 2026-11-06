@@ -184,6 +184,13 @@ najlepiej wykonać je w dniu zlecenia przelewu („Sprawdź ponownie”).
 
 ![Rachunek sprawdzony na białej liście](zrzuty/16-faktura-otrzymana-biala-lista.png)
 
+### Powiadomienia o nowych fakturach kosztowych
+
+Na stronie **Moja firma** w sekcji **Powiadomienia e-mail** zaznacz **Powiadamiaj mnie o nowych fakturach kosztowych
+z KSeF**. Po każdym pobraniu nowych faktur z KSeF dostaniesz jedną wiadomość z ich listą: sprzedawca, kwota i termin
+płatności. Przy fakturach powyżej 15 000 zł wiadomość przypomni o sprawdzeniu rachunku sprzedawcy na białej liście.
+Adres powiadomień możesz zmienić; puste pole oznacza adres Twojego konta.
+
 ## 10. Eksport dla księgowej
 
 W menu **Eksport dla księgowej** wybierz miesiąc (domyślnie poprzedni) albo dowolny okres (od-do). Aplikacja pokaże

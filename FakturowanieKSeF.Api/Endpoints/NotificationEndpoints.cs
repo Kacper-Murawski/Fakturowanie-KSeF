@@ -55,10 +55,10 @@ public static class NotificationEndpoints
 
         var settings = api.MapGroup("/company/notifications").WithTags("Firma").RequireAuthorization();
 
-        settings.MapGet("/", async (CurrentCompany current, EmailOutbox outbox, CancellationToken ct) =>
+        settings.MapGet("/", async (CurrentCompany current, EmailOutbox outbox, AppDbContext db, CancellationToken ct) =>
             await current.FindAsync(ct) is not { } company
                 ? ApiErrors.CompanyRequired()
-                : Results.Ok(new NotificationSettingsDto(company.AutoRemindersEnabled, company.ReminderDaysAfterDue, outbox.IsConfigured)))
+                : Results.Ok(await ToDtoAsync(company, outbox, db, ct)))
             .WithSummary("Ustawienia powiadomień e-mail");
 
         settings.MapPut("/", async (SaveNotificationSettingsRequest request, CurrentCompany current, AppDbContext db,
@@ -68,9 +68,17 @@ public static class NotificationEndpoints
 
                 company.AutoRemindersEnabled = request.AutoReminders;
                 company.ReminderDaysAfterDue = request.ReminderDaysAfterDue;
+                company.NotifyReceivedInvoices = request.NotifyReceivedInvoices;
+                company.NotificationEmail = Mapping.EmptyToNull(request.NotificationEmail);
                 await db.SaveChangesAsync(ct);
-                return Results.Ok(new NotificationSettingsDto(company.AutoRemindersEnabled, company.ReminderDaysAfterDue, outbox.IsConfigured));
+                return Results.Ok(await ToDtoAsync(company, outbox, db, ct));
             })
             .WithSummary("Zmiana ustawień powiadomień e-mail");
     }
+
+    private static async Task<NotificationSettingsDto> ToDtoAsync(FakturowanieKSeF.Models.Company company, EmailOutbox outbox,
+        AppDbContext db, CancellationToken ct) =>
+        new(company.AutoRemindersEnabled, company.ReminderDaysAfterDue, outbox.IsConfigured,
+            company.NotifyReceivedInvoices, company.NotificationEmail,
+            await db.Users.Where(u => u.Id == company.OwnerId).Select(u => u.Email).SingleOrDefaultAsync(ct));
 }

@@ -733,3 +733,31 @@ wysyła przypomnienia automatycznie. Zbyt częste wiadomości szkodzą relacji z
 **Uzasadnienie:** automatyzacja ściągania należności przy ochronie relacji z kontrahentem (rzadkie, ograniczone
 wiadomości) i bez dodatkowych tabel - przypomnienia to wiadomości z kolejki D36 z regułami wyliczanymi z ich historii.
 
+---
+
+## D38. Powiadomienia o nowych fakturach kosztowych po synchronizacji z KSeF
+
+**Kontekst:** w KSeF faktury zakupowe nie przychodzą e-mailem od sprzedawcy - trafiają do KSeF, a aplikacja pobiera
+je cyklicznie (D26). Bez powiadomienia użytkownik musi sam zaglądać do listy faktur otrzymanych i może przeoczyć termin
+płatności.
+
+**Decyzja:**
+- po synchronizacji, która pobrała nowe faktury, aplikacja dodaje do kolejki (D36) **jedną zbiorczą wiadomość**
+  z listą: numer, sprzedawca z NIP, kwota, termin płatności (sortowanie po najbliższym terminie, najwyżej 20 pozycji),
+- przy fakturach w PLN powyżej 15 000 zł wiadomość przypomina o sprawdzeniu rachunku sprzedawcy na białej liście
+  przed zapłatą (D29),
+- funkcja włączana w ustawieniach firmy (domyślnie wyłączona); adres - ustawiony w powiadomieniach albo adres konta,
+- powiadomienie dotyczy wyłącznie faktur nowych w danej synchronizacji (cyklicznej i ręcznej); błąd dodania
+  powiadomienia nie przerywa synchronizacji - faktury są już zapisane,
+- wiadomość do użytkownika nie ma załączników ani adresu odpowiedzi i nie podlega dziennemu limitowi wiadomości
+  do kontrahentów; opcjonalny link do aplikacji z konfiguracji `App:PublicUrl`.
+
+**Alternatywy:**
+- osobna wiadomość dla każdej faktury: przy większej liczbie faktur zasypuje skrzynkę,
+- dzienne podsumowanie o stałej godzinie: mniej wiadomości, ale opóźnia informację o fakturze z krótkim terminem,
+- powiadomienia w przeglądarce (Web Push) lub w aplikacji: wymagają otwartej aplikacji lub zgody przeglądarki
+  i PWA (funkcja 14) - e-mail działa zawsze.
+
+**Uzasadnienie:** użytkownik dowiaduje się o nowych kosztach bez logowania, a jedna wiadomość na synchronizację
+(co najmniej 15 minut) ogranicza ich liczbę. Ostrzeżenie o białej liście łączy powiadomienie z obowiązkiem podatkowym.
+

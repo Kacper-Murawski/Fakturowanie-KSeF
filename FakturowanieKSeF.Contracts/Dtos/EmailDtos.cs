@@ -28,7 +28,14 @@ public sealed class SendInvoiceEmailRequest
 }
 
 /// <summary>Ustawienia powiadomień e-mail firmy (D37).</summary>
-public sealed record NotificationSettingsDto(bool AutoReminders, int ReminderDaysAfterDue, bool EmailConfigured);
+/// <param name="AccountEmail">Adres konta - domyślny adres powiadomień, gdy <paramref name="NotificationEmail"/> jest pusty.</param>
+public sealed record NotificationSettingsDto(
+    bool AutoReminders,
+    int ReminderDaysAfterDue,
+    bool EmailConfigured,
+    bool NotifyReceivedInvoices = false,
+    string? NotificationEmail = null,
+    string? AccountEmail = null);
 
 /// <summary>Zmiana ustawień powiadomień.</summary>
 public sealed class SaveNotificationSettingsRequest
@@ -38,4 +45,12 @@ public sealed class SaveNotificationSettingsRequest
 
     [Range(0, 60, ErrorMessage = "Podaj liczbę dni od 0 do 60.")]
     public int ReminderDaysAfterDue { get; set; } = 3;
+
+    /// <summary>Powiadomienia o nowych fakturach kosztowych z KSeF.</summary>
+    public bool NotifyReceivedInvoices { get; set; }
+
+    /// <summary>Adres powiadomień (puste - adres konta).</summary>
+    [EmailAddress(ErrorMessage = "Nieprawidłowy adres e-mail.")]
+    [MaxLength(254)]
+    public string? NotificationEmail { get; set; }
 }
