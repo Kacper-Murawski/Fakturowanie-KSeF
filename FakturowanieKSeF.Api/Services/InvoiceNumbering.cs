@@ -11,7 +11,12 @@ namespace FakturowanieKSeF.Api.Services;
 /// </summary>
 public sealed class InvoiceNumbering(AppDbContext db)
 {
-    public static string Prefix(InvoiceKind kind) => kind == InvoiceKind.Correction ? "KOR/" : "FV/";
+    public static string Prefix(InvoiceKind kind) => kind switch
+    {
+        InvoiceKind.Correction => "KOR/",
+        InvoiceKind.Proforma => "PRO/",
+        _ => "FV/"
+    };
 
     public static string Format(int sequence, DateOnly issueDate, InvoiceKind kind = InvoiceKind.Vat) =>
         $"{Prefix(kind)}{sequence}/{issueDate:MM}/{issueDate:yyyy}";

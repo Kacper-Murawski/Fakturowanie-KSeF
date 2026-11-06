@@ -94,26 +94,7 @@ public sealed class RecurringInvoices(
         var customerExists = template.CustomerId is { } cid
             && await db.Customers.AnyAsync(c => c.Id == cid && c.CompanyId == schedule.CompanyId, ct);
 
-        var request = new SaveInvoiceRequest
-        {
-            IssueDate = today,
-            IssuePlace = template.IssuePlace,
-            Currency = template.Currency,
-            PaymentMethod = template.PaymentMethod,
-            // Termin zachowuje odstęp od daty wystawienia (jak „Wystaw podobną”)
-            DueDate = template.DueDate is { } d ? today.AddDays(d.DayNumber - template.IssueDate.DayNumber) : null,
-            BankAccountNumber = template.BankAccountNumber,
-            ExemptionBasis = template.ExemptionBasis,
-            CustomerId = customerExists ? template.CustomerId : null,
-            Buyer = customerExists ? null : new SaveInvoiceBuyerRequest
-            {
-                Name = template.Buyer.Name, Nip = template.Buyer.Nip, Address = template.Buyer.Address.ToDto()
-            },
-            Items = template.Items.Where(i => !i.BeforeCorrection).OrderBy(i => i.Position).Select(i => new SaveInvoiceItemRequest
-            {
-                Name = i.Name, Unit = i.Unit, Quantity = i.Quantity, UnitNetPrice = i.UnitNetPrice, VatRate = i.VatRate
-            }).ToList()
-        };
+        var request = InvoiceTemplates.RequestFrom(template, customerExists, today);
 
         for (var attempt = 1; ; attempt++)
         {

@@ -26,7 +26,8 @@ public sealed class InvoicePdfRenderer
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public byte[] Render(InvoiceDocumentDto doc, PdfVerificationQr? qr, string? notice)
+    /// <param name="title">Tytuł dokumentu zamiast „Faktura VAT” (np. „Faktura proforma”).</param>
+    public byte[] Render(InvoiceDocumentDto doc, PdfVerificationQr? qr, string? notice, string? title = null)
     {
         return Document.Create(container => container.Page(page =>
         {
@@ -34,18 +35,18 @@ public sealed class InvoicePdfRenderer
             page.Margin(32);
             page.DefaultTextStyle(t => t.FontSize(9));
 
-            page.Header().Element(h => Header(h, doc, notice));
+            page.Header().Element(h => Header(h, doc, notice, title));
             page.Content().PaddingVertical(12).Element(c => Content(c, doc));
             page.Footer().Element(f => Footer(f, qr));
         })).WithMetadata(new DocumentMetadata
         {
-            Title = $"Faktura {doc.InvoiceNumber}",
+            Title = $"{title ?? "Faktura"} {doc.InvoiceNumber}",
             Creator = "Fakturowanie KSeF (projekt inżynierski)",
             Subject = "Wizualizacja faktury ustrukturyzowanej FA(3)"
         }).GeneratePdf();
     }
 
-    private static void Header(IContainer container, InvoiceDocumentDto doc, string? notice)
+    private static void Header(IContainer container, InvoiceDocumentDto doc, string? notice, string? title)
     {
         container.Column(col =>
         {
@@ -53,7 +54,7 @@ public sealed class InvoicePdfRenderer
             {
                 row.RelativeItem().Column(c =>
                 {
-                    c.Item().Text($"Faktura {TypeLabel(doc.InvoiceType)}").FontSize(18).Bold();
+                    c.Item().Text(title ?? $"Faktura {TypeLabel(doc.InvoiceType)}").FontSize(18).Bold();
                     c.Item().Text($"nr {doc.InvoiceNumber}").FontSize(12).SemiBold();
                 });
                 row.ConstantItem(200).AlignRight().Column(c =>

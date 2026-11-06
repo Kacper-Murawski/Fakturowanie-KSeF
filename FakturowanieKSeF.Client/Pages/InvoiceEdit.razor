@@ -33,6 +33,23 @@ else
         <ProblemAlert Problem="problem" />
         <ValidationSummary class="text-danger small" />
 
+        @if (Id is null && !IsCorrection)
+        {
+            <div class="btn-group mb-3" role="group" aria-label="Rodzaj dokumentu" data-testid="document-kind">
+                <input type="radio" class="btn-check" name="kind" id="kind-vat" checked="@(!model.IsProforma)" @onchange="() => SetProformaAsync(false)" />
+                <label class="btn btn-outline-primary" for="kind-vat">Faktura VAT</label>
+                <input type="radio" class="btn-check" name="kind" id="kind-proforma" checked="@model.IsProforma" @onchange="() => SetProformaAsync(true)" />
+                <label class="btn btn-outline-primary" for="kind-proforma">Faktura proforma</label>
+            </div>
+        }
+        @if (model.IsProforma)
+        {
+            <div class="alert alert-secondary small" data-testid="proforma-info">
+                Proforma to dokument handlowy (np. prośba o przedpłatę) - <strong>nie jest fakturą VAT i nie trafia do KSeF</strong>.
+                Po zapłacie wystawisz na jej podstawie fakturę VAT jednym przyciskiem.
+            </div>
+        }
+
         @* ---------------- Nagłówek ---------------- *@
         <section class="card mb-3">
             <div class="card-body row g-3">
@@ -291,7 +308,7 @@ else
                         <ValidationMessage For="() => model.DueDate" />
                     </div>
                 }
-                @if (corrected is null)
+                @if (corrected is null && !model.IsProforma)
                 {
                     <div class="col-md-6">
                         <div class="form-check mt-md-4">
@@ -338,16 +355,21 @@ else
     /// <summary>Faktura korygowana dla nowej faktury korygującej (adres /faktury/nowa?korekta=5).</summary>
     [SupplyParameterFromQuery(Name = "korekta")] public int? CorrectedId { get; set; }
 
+    /// <summary>Nowa faktura proforma (adres /faktury/nowa?proforma=true) - D42.</summary>
+    [SupplyParameterFromQuery(Name = "proforma")] public bool? Proforma { get; set; }
+
     private InvoiceDto? corrected;
     private IReadOnlyList<InvoiceItemDto> before = [];
     private CorrectionTotals? correctionTotals;
     private bool IsCorrection => model?.CorrectedInvoiceId is not null;
 
-    private string Title => (Id, IsCorrection) switch
+    private string Title => (Id, IsCorrection, model?.IsProforma == true) switch
     {
-        (null, true) => "Nowa faktura korygująca",
-        (null, false) => "Nowa faktura",
-        (_, true) => $"Edycja korekty {originalNumber}",
+        (null, true, _) => "Nowa faktura korygująca",
+        (null, false, true) => "Nowa faktura proforma",
+        (null, false, false) => "Nowa faktura",
+        (_, true, _) => $"Edycja korekty {originalNumber}",
+        (_, _, true) => $"Edycja proformy {originalNumber}",
         _ => $"Edycja faktury {originalNumber}"
     };
 
@@ -382,7 +404,8 @@ else
                 IssueDate = today,
                 DueDate = today.AddDays(14),
                 Buyer = NewBuyer(),
-                Items = [new SaveInvoiceItemRequest()]
+                Items = [new SaveInvoiceItemRequest()],
+                IsProforma = Proforma == true
             };
             templateNumber = null; // przejście z „Wystaw podobną” do pustej „Nowej faktury” (ten sam komponent)
             corrected = null;
@@ -407,6 +430,7 @@ else
             {
                 Number = i.Number, IssueDate = i.IssueDate, IssuePlace = i.IssuePlace, SaleDate = i.SaleDate,
                 Currency = i.Currency, PaymentMethod = i.PaymentMethod, DueDate = i.DueDate, PaidOn = i.PaidOn,
+                IsProforma = i.Kind == InvoiceKind.Proforma,
                 BankAccountNumber = i.BankAccountNumber, CustomerId = i.CustomerId, Version = i.Version,
                 ExemptionBasis = i.ExemptionBasis,
                 Buyer = i.CustomerId is null
@@ -520,7 +544,7 @@ else
     private async Task SuggestNumberAsync()
     {
         if (Id is not null || model is null) return;
-        var kind = IsCorrection ? InvoiceKind.Correction : InvoiceKind.Vat;
+        var kind = IsCorrection ? InvoiceKind.Correction : model.IsProforma ? InvoiceKind.Proforma : InvoiceKind.Vat;
         var result = await Api.GetAsync<NextNumber>($"api/invoices/next-number?issueDate={model.IssueDate:yyyy-MM-dd}&kind={kind}");
         suggestedNumber = result.Value?.Number;
     }
@@ -605,5 +629,12 @@ else
         });
         if (result.Value is { } added) products = [.. products, added];
         else problem = result.Problem;
+    }
+
+    private async Task SetProformaAsync(bool proforma)
+    {
+        model!.IsProforma = proforma;
+        if (proforma) model.PaidOn = null;
+        await SuggestNumberAsync();
     }
 }

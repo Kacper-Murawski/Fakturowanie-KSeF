@@ -20,7 +20,7 @@ public static class EmailEndpoints
 
                 var invoice = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
-                if (invoice.Status != InvoiceStatus.Accepted)
+                if (invoice.Status != InvoiceStatus.Accepted && invoice.Kind != InvoiceKind.Proforma)
                     return ApiErrors.Conflict("Fakturę można wysłać e-mailem po przyjęciu przez KSeF (z numerem KSeF).");
                 if (!outbox.IsConfigured)
                     return ApiErrors.Conflict("Wysyłka e-mail nie jest skonfigurowana na serwerze.");

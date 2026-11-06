@@ -757,5 +757,46 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.ClickAsync("button[type=submit]");
         await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
     }
+
+    [E2EFact]
+    public async Task FakturaProforma_BezKsef_IZamianaNaFaktureVat()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+
+        await page.GotoAsync("/faktury/nowa");
+        await page.Locator("label[for=kind-proforma]").ClickAsync();
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Nowa faktura proforma");
+        await Expect(page.Locator("#number")).ToHaveAttributeAsync("placeholder", new Regex("^PRO/1/"));
+        await Expect(page.Locator("#paid")).ToHaveCountAsync(0); // proforma nie jest oznaczana jako zapłacona
+        await FillManualBuyerAsync(page, "Klient Przedpłata sp. z o.o.", "1234563218");
+        await FillItemAsync(page, 0, "Szkolenie zamknięte", "1", "4000");
+        await E2EFixture.ScreenshotAsync(page, "32-faktura-proforma");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        var proformaUrl = page.Url;
+
+        await Expect(page.Locator("h1")).ToContainTextAsync("Faktura proforma PRO/1/");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("nie trafia do KSeF");
+        await Expect(page.Locator("text=Wyślij do KSeF")).ToHaveCountAsync(0);
+        await Expect(page.Locator("text=Pobierz XML (FA(3))")).ToHaveCountAsync(0);
+
+        // Po zapłacie: faktura VAT na podstawie proformy (szkic do sprawdzenia)
+        await page.ClickAsync("text=Wystaw fakturę VAT");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+/edycja$"));
+        await Expect(page.Locator("h1")).ToContainTextAsync("Edycja faktury FV/1/");
+        await Expect(page.Locator("#buyer-name")).ToHaveValueAsync("Klient Przedpłata sp. z o.o.");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await Expect(page.Locator("[data-testid=proforma-source]")).ToContainTextAsync("PRO/1/");
+        await Expect(page.Locator("text=Wyślij do KSeF")).ToBeVisibleAsync();
+
+        await page.GotoAsync(proformaUrl);
+        await Expect(page.Locator("[data-testid=proforma-links]")).ToContainTextAsync("FV/1/");
+        await Expect(page.Locator("text=Wystaw fakturę VAT")).ToHaveCountAsync(0);
+
+        await page.ClickAsync("nav >> text=Faktury");
+        await Expect(page.Locator("tbody .badge[title^='Faktura proforma']")).ToHaveCountAsync(1);
+    }
 }
 
