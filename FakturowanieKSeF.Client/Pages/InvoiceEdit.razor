@@ -266,17 +266,39 @@ else
                         }
                     </InputSelect>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label" for="due">Termin płatności</label>
-                    <InputDate id="due" class="form-control" @bind-Value="model.DueDate" />
-                    <div class="btn-group btn-group-sm mt-1">
-                        @foreach (var days in new[] { 7, 14, 30 })
-                        {
-                            <button type="button" class="btn btn-outline-secondary" @onclick="() => model.DueDate = model.IssueDate.AddDays(days)">@days dni</button>
-                        }
+                @if (model.PaidOn is null)
+                {
+                    <div class="col-md-3">
+                        <label class="form-label" for="due">Termin płatności</label>
+                        <InputDate id="due" class="form-control" @bind-Value="model.DueDate" />
+                        <div class="btn-group btn-group-sm mt-1">
+                            @foreach (var days in new[] { 7, 14, 30 })
+                            {
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => model.DueDate = model.IssueDate.AddDays(days)">@days dni</button>
+                            }
+                        </div>
+                        <ValidationMessage For="() => model.DueDate" />
                     </div>
-                    <ValidationMessage For="() => model.DueDate" />
-                </div>
+                }
+                @if (corrected is null)
+                {
+                    <div class="col-md-6">
+                        <div class="form-check mt-md-4">
+                            <input id="paid" type="checkbox" class="form-check-input" checked="@(model.PaidOn is not null)"
+                                   @onchange="e => TogglePaid((bool)e.Value!)" />
+                            <label class="form-check-label" for="paid">Zapłacono przy wystawieniu (np. gotówką, kartą lub przedpłatą)</label>
+                        </div>
+                        @if (model.PaidOn is not null)
+                        {
+                            <div class="input-group input-group-sm mt-1" style="max-width: 16rem">
+                                <span class="input-group-text">Data zapłaty</span>
+                                <InputDate id="paid-on" class="form-control" @bind-Value="model.PaidOn" />
+                            </div>
+                            <div class="form-text">Informacja o zapłacie trafi do KSeF razem z fakturą, a faktura od razu będzie oznaczona jako opłacona.</div>
+                        }
+                        <ValidationMessage For="() => model.PaidOn" />
+                    </div>
+                }
                 @if (model.PaymentMethod == PaymentMethod.Transfer)
                 {
                     <div class="col-md-6">
@@ -371,7 +393,7 @@ else
             model = new SaveInvoiceRequest
             {
                 Number = i.Number, IssueDate = i.IssueDate, IssuePlace = i.IssuePlace, SaleDate = i.SaleDate,
-                Currency = i.Currency, PaymentMethod = i.PaymentMethod, DueDate = i.DueDate,
+                Currency = i.Currency, PaymentMethod = i.PaymentMethod, DueDate = i.DueDate, PaidOn = i.PaidOn,
                 BankAccountNumber = i.BankAccountNumber, CustomerId = i.CustomerId, Version = i.Version,
                 ExemptionBasis = i.ExemptionBasis,
                 Buyer = i.CustomerId is null
@@ -538,4 +560,11 @@ else
     }
 
     private sealed record NextNumber(string Number);
+
+    /// <summary>Zapłata przy wystawieniu (np. gotówka): domyślnie w dniu wystawienia, bez terminu płatności.</summary>
+    private void TogglePaid(bool paid)
+    {
+        model!.PaidOn = paid ? model.IssueDate : null;
+        if (paid) model.DueDate = null;
+    }
 }

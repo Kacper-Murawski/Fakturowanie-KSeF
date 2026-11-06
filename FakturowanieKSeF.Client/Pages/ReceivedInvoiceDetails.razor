@@ -126,6 +126,10 @@ else
                     {
                         <span>, termin: <strong>@Format.Date(doc.DueDate)</strong></span>
                     }
+                    @if (doc.PaidOn is not null)
+                    {
+                        <span>, <strong class="text-success">sprzedawca oznaczył fakturę jako zapłaconą @Format.Date(doc.PaidOn)</strong></span>
+                    }
                     @if (doc.BankAccount is not null)
                     {
                         <br /><span>Rachunek: <strong>@Format.BankAccount(doc.BankAccount)</strong></span>

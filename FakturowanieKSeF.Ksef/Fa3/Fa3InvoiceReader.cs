@@ -66,7 +66,8 @@ public static class Fa3InvoiceReader
             payment is null ? null : Text(One(payment, "RachunekBankowy") ?? payment, "NrRB"),
             Text(fa, "PrzyczynaKorekty"),
             Many(fa, "DaneFaKorygowanej").Select(d => new DocumentCorrectedInvoiceDto(
-                Text(d, "NrFaKorygowanej") ?? "", Date(d, "DataWystFaKorygowanej"), Text(d, "NrKSeFFaKorygowanej"))).ToList());
+                Text(d, "NrFaKorygowanej") ?? "", Date(d, "DataWystFaKorygowanej"), Text(d, "NrKSeFFaKorygowanej"))).ToList(),
+            payment is not null && Text(payment, "Zaplacono") == "1" ? Date(payment, "DataZaplaty") : null);
     }
 
     private static DocumentPartyDto Party(XElement? podmiot)

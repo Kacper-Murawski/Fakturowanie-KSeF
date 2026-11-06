@@ -34,6 +34,13 @@ public class Invoice : BaseEntity
 
     public DateOnly? DueDate { get; set; }
 
+    /// <summary>
+    /// Data zapłaty, gdy faktura w chwili wystawienia jest już zapłacona w całości (FA(3): Zaplacono = 1, DataZaplaty),
+    /// np. gotówką lub kartą przy sprzedaży. Informacja trafia do KSeF wraz z fakturą, a przy wysyłce aplikacja
+    /// rejestruje odpowiadającą jej płatność w rozliczeniach (D33).
+    /// </summary>
+    public DateOnly? PaidOn { get; set; }
+
     /// <summary>Numer rachunku bankowego (NrRB, 10-34 znaki).</summary>
     [MaxLength(34)]
     public string? BankAccountNumber { get; set; }

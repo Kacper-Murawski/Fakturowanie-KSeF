@@ -206,6 +206,47 @@ public class KsefLiveTests
         Assert.StartsWith(nip + "-", correctionKsef);
     }
 
+    [LiveKsefFact]
+    public async Task FakturaOznaczonaJakoZaplacona_JestPrzyjmowanaPrzezTestowyKsef()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddKsefTestClient();
+        await using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var gateway = scope.ServiceProvider.GetRequiredService<IKsefGateway>();
+
+        var nip = RandomNip();
+        var token = await gateway.GenerateTestTokenAsync(nip);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Sprzedaż za gotówkę zapłacona w dniu wystawienia: Platnosc/Zaplacono + DataZaplaty, bez terminu
+        var invoice = new Invoice
+        {
+            Number = $"FV/LIVE/{Guid.NewGuid().ToString("N")[..8]}", IssueDate = today, Currency = "PLN",
+            PaymentMethod = PaymentMethod.Cash, PaidOn = today,
+            Seller = new InvoiceParty { Name = "Firma Testowa (test automatyczny)", Nip = nip, Address = Addr() },
+            Buyer = new InvoiceParty { Name = "Odbiorca Testowy sp. z o.o.", Nip = "1234563218", Address = Addr() },
+            Items = [Line(1, "Naprawa sprzętu", 1, 200m, VatRate.Rate23)]
+        };
+        var xml = new Fa3XmlGenerator().GenerateBytes(invoice);
+        var validation = new Fa3SchemaValidator().Validate(xml);
+        Assert.True(validation.IsValid, string.Join("\n", validation.Errors));
+        Assert.Contains("<Zaplacono>1</Zaplacono>", System.Text.Encoding.UTF8.GetString(xml));
+
+        var sent = await gateway.SendInvoiceAsync(nip, token, xml);
+        KsefInvoiceStatus status;
+        var attempts = 0;
+        do
+        {
+            await Task.Delay(1000);
+            status = await gateway.GetInvoiceStatusAsync(nip, token, sent.SessionReferenceNumber, sent.InvoiceReferenceNumber);
+        } while (status.IsProcessing && ++attempts < 60);
+        await gateway.CloseSessionAsync(nip, token, sent.SessionReferenceNumber);
+
+        Assert.True(status.IsAccepted, $"KSeF nie przyjął dokumentu: {status.Code} {status.Description} {string.Join("; ", status.Details)}");
+    }
+
     private static Address Addr() => new() { Street = "ul. Testowa 1", PostalCode = "00-001", City = "Warszawa", CountryCode = "PL" };
 
     private static InvoiceItem Line(int pos, string name, decimal qty, decimal price, VatRate rate)

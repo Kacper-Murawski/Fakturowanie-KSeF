@@ -3,7 +3,8 @@ using System.ComponentModel.DataAnnotations;
 namespace FakturowanieKSeF.Contracts.Dtos;
 
 /// <summary>Zarejestrowana płatność (wpłata od nabywcy lub zapłata sprzedawcy).</summary>
-public sealed record PaymentDto(int Id, DateOnly PaidOn, decimal Amount, string? Note);
+/// <param name="FromInvoice">Zapłata oznaczona w samej fakturze wysłanej do KSeF (nie można jej usunąć).</param>
+public sealed record PaymentDto(int Id, DateOnly PaidOn, decimal Amount, string? Note, bool FromInvoice = false);
 
 /// <summary>Rozliczenie faktury: stan, kwoty i historia płatności.</summary>
 /// <param name="TotalDue">Kwota należna: brutto faktury powiększone o korekty (przyjęte lub wysłane do KSeF).</param>

@@ -172,6 +172,34 @@ public class Fa3XmlGeneratorTests
     }
 
     [Fact]
+    public void FakturaZaplaconaPrzyWystawieniu_MaZaplaconoIDateZaplaty_PrzedFormaPlatnosci()
+    {
+        var invoice = Faktura(Pozycja(1, "Towar", 1, 100m, VatRate.Rate23));
+        invoice.PaymentMethod = PaymentMethod.Card;
+        invoice.DueDate = null;
+        invoice.BankAccountNumber = null;
+        invoice.PaidOn = new DateOnly(2026, 11, 1);
+
+        var doc = GenerujIZwaliduj(invoice);
+
+        var platnosc = doc.Descendants(Ns + "Platnosc").Single().Elements().Select(e => e.Name.LocalName).ToList();
+        Assert.Equal(["Zaplacono", "DataZaplaty", "FormaPlatnosci"], platnosc);
+        Assert.Equal("1", Pole(doc, "Zaplacono"));
+        Assert.Equal("2026-11-01", Pole(doc, "DataZaplaty"));
+
+        // Odczyt (podgląd, PDF) rozpoznaje oznaczenie zapłaty
+        Assert.Equal(new DateOnly(2026, 11, 1), Fa3InvoiceReader.Read(doc.ToString()).PaidOn);
+    }
+
+    [Fact]
+    public void FakturaBezOznaczeniaZaplaty_NieMaElementuZaplacono()
+    {
+        var doc = GenerujIZwaliduj(Faktura(Pozycja(1, "Towar", 1, 100m, VatRate.Rate23)));
+        Assert.Null(Pole(doc, "Zaplacono"));
+        Assert.Null(Fa3InvoiceReader.Read(doc.ToString()).PaidOn);
+    }
+
+    [Fact]
     public void ZnakiSpecjalneIPolskieLitery_SaPoprawnieKodowane()
     {
         var invoice = Faktura(Pozycja(1, "Zażółć gęślą jaźń <&> \"cytat\"", 1.123456m, 0.12345678m, VatRate.Rate23));

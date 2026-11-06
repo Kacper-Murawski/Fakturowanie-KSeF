@@ -227,4 +227,80 @@ public class PaymentApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(1, summaryB.ReceivablesCount);
         Assert.Single((await clientA.GetFromJsonAsync<InvoiceDto>($"/api/invoices/{invoiceA.Id}"))!.Payment!.Payments);
     }
+
+    [Fact]
+    public async Task ZaplaconoPrzyWystawieniu_TrafiaDoXml_IRozliczenia_BezMozliwosciUsuniecia()
+    {
+        var client = await factory.CreateClientWithCompanyAsync();
+        (await client.PostAsync("/api/company/ksef/test-token", null)).EnsureSuccessStatusCode();
+
+        var request = TestUsers.SampleInvoice();
+        request.PaymentMethod = PaymentMethod.Cash;
+        request.DueDate = null;
+        request.PaidOn = request.IssueDate;
+        var draft = (await (await client.PostAsJsonAsync("/api/invoices", request)).Content.ReadFromJsonAsync<InvoiceDto>())!;
+        Assert.Equal(request.IssueDate, draft.PaidOn);
+        Assert.Contains("<Zaplacono>1</Zaplacono>", await client.GetStringAsync($"/api/invoices/{draft.Id}/xml"));
+
+        (await client.PostAsJsonAsync($"/api/invoices/{draft.Id}/send", new SendInvoiceRequest { Version = draft.Version })).EnsureSuccessStatusCode();
+        for (var i = 0; i < 5 && await factory.ProcessKsefAsync() > 0; i++) { }
+
+        var invoice = (await client.GetFromJsonAsync<InvoiceDto>($"/api/invoices/{draft.Id}"))!;
+        Assert.Equal(InvoiceStatus.Accepted, invoice.Status);
+        Assert.Equal(PaymentStatus.Paid, invoice.Payment!.Status);
+        var payment = Assert.Single(invoice.Payment.Payments);
+        Assert.True(payment.FromInvoice);
+        Assert.Equal(invoice.TotalGross, payment.Amount);
+        Assert.Equal(request.IssueDate, payment.PaidOn);
+
+        // Zapłata zapisana w fakturze w KSeF nie może zniknąć z rozliczenia
+        Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync($"/api/invoices/{invoice.Id}/payments/{payment.Id}")).StatusCode);
+
+        var paidList = (await client.GetFromJsonAsync<PagedResult<InvoiceListItemDto>>("/api/invoices?payment=Paid"))!;
+        Assert.Contains(paidList.Items, i => i.Id == invoice.Id);
+    }
+
+    [Fact]
+    public async Task ZaplaconoPrzyWystawieniu_PonownaWysylkaPoOdrzuceniu_NieDublujePlatnosci()
+    {
+        var client = await factory.CreateClientWithCompanyAsync();
+        (await client.PostAsync("/api/company/ksef/test-token", null)).EnsureSuccessStatusCode();
+
+        var request = TestUsers.SampleInvoice();
+        request.DueDate = null;
+        request.PaidOn = request.IssueDate;
+        var draft = (await (await client.PostAsJsonAsync("/api/invoices", request)).Content.ReadFromJsonAsync<InvoiceDto>())!;
+        (await client.PostAsJsonAsync($"/api/invoices/{draft.Id}/send", new SendInvoiceRequest { Version = draft.Version })).EnsureSuccessStatusCode();
+
+        // Symulacja odrzucenia przez KSeF przed przetworzeniem
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var entity = await db.Invoices.SingleAsync(i => i.Id == draft.Id);
+            entity.Status = InvoiceStatus.Rejected;
+            await db.SaveChangesAsync();
+        }
+
+        var rejected = (await client.GetFromJsonAsync<InvoiceDto>($"/api/invoices/{draft.Id}"))!;
+        (await client.PostAsJsonAsync($"/api/invoices/{draft.Id}/send", new SendInvoiceRequest { Version = rejected.Version })).EnsureSuccessStatusCode();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Equal(1, await db.Payments.CountAsync(p => p.InvoiceId == draft.Id && p.FromInvoice));
+        }
+    }
+
+    [Fact]
+    public async Task ZaplaconoPrzyWystawieniu_DataPoWystawieniu_JestOdrzucana()
+    {
+        var client = await factory.CreateClientWithCompanyAsync();
+        var request = TestUsers.SampleInvoice();
+        request.PaidOn = request.IssueDate.AddDays(1);
+
+        var response = await client.PostAsJsonAsync("/api/invoices", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("PaidOn", await response.Content.ReadAsStringAsync());
+    }
 }

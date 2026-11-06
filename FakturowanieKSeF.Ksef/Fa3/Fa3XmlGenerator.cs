@@ -297,6 +297,13 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
     {
         w.WriteStartElement("Platnosc", Namespace);
 
+        // Faktura zapłacona w całości przed lub w chwili wystawienia (np. gotówka, karta)
+        if (invoice.PaidOn is { } paidOn && invoice.Kind == InvoiceKind.Vat)
+        {
+            Element(w, "Zaplacono", "1");
+            Element(w, "DataZaplaty", Date(paidOn));
+        }
+
         if (invoice.DueDate is { } due)
         {
             w.WriteStartElement("TerminPlatnosci", Namespace);

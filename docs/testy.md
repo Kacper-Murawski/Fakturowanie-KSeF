@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **183 przypadki testowe**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **190 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -37,10 +37,10 @@ jednostkowe, integracyjne i E2E.
 | Integracja z KSeF | `KsefSettingsTests`, `KsefSendingTests`, `ReceivedInvoicesTests`, `KsefEnvironmentGuardTests`, `KsefClientRegistrationTests` | szyfrowanie tokenu; pełny przepływ wysyłki; odrzucenie i ponowna wysyłka; awarie przed i po wysyłce; podwójna wysyłka; synchronizacja do HWM, limity, deduplikacja; blokada produkcji |
 | PDF i QR | `InvoicePdfTests`, `KsefQrTests` | treść PDF odczytana z pliku (PdfPig); zgodność linku QR z klientem MF |
 | Faktury korygujące | `CorrectionCalculatorTests`, `CorrectionXmlTests`, `CorrectionApiTests` | różnica per stawka; XML KOR zgodny z XSD (obniżka, korekta do zera, dopłata), odczyt KOR; tworzenie, numeracja, wysyłka, kolejna korekta, blokada przy korekcie w toku, reguły, PDF, rozliczenie po korekcie, izolacja |
-| Rozliczenia | `PaymentRulesTests`, `PaymentApiTests` | stan rozliczenia i zaległości; wpłaty częściowe i pełne; nadpłata, data z przyszłości, szkic; filtry list; podsumowanie należności i zobowiązań; izolacja |
+| Rozliczenia | `PaymentRulesTests`, `PaymentApiTests` | stan rozliczenia i zaległości; wpłaty częściowe i pełne; nadpłata, data z przyszłości, szkic; filtry list; podsumowanie należności i zobowiązań; zapłata oznaczona w fakturze (XML, płatność przy wysyłce, brak duplikatu po odrzuceniu, blokada usunięcia); izolacja |
 | Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests`, testy rachunku w `ReceivedInvoicesTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF (wyszukiwanie, sprawdzenie rachunku); pamięć podręczna; limity dzienne; awaria MF; zapis wyniku sprawdzenia, rachunki zagraniczne, izolacja |
 | Interfejs (E2E) | `UserScenariosE2ETests` | główne scenariusze użytkownika i regresje błędów interfejsu |
-| Na żywo | `KsefLiveTests` | prawdziwy testowy KSeF: wysyłka, numer KSeF, UPO; faktura firmy A odebrana przez firmę B; faktura korygująca przyjęta przez KSeF |
+| Na żywo | `KsefLiveTests` | prawdziwy testowy KSeF: wysyłka, numer KSeF, UPO; faktura firmy A odebrana przez firmę B; faktura korygująca przyjęta przez KSeF; faktura oznaczona jako zapłacona przyjęta przez KSeF |
 
 ## Atrapa KSeF
 
@@ -76,3 +76,4 @@ co uzasadnia automatyczne testy E2E w CI.
 | Zgodność skrótu dokumentu (kod QR) z UPO | identyczny dla wszystkich sprawdzonych faktur |
 | Odbiór faktury firmy A przez firmę B | faktura dostępna do pobrania ok. 2 minuty po nadaniu numeru KSeF |
 | Faktura korygująca (KOR) do faktury przyjętej w KSeF | przyjęta, numer KSeF; cały test (faktura + korekta) ok. 9 s |
+| Faktura oznaczona jako zapłacona (`Zaplacono`, `DataZaplaty`), 5.11.2026 | przyjęta, numer KSeF; ok. 6 s |

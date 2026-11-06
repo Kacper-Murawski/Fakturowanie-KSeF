@@ -565,3 +565,36 @@ nie można zmienić ani usunąć, jedyną drogą jest faktura korygująca (Rodza
 **Uzasadnienie:** czytelność dla nabywcy (widać, co się zmieniło), ponowne użycie całego procesu faktury (walidacja
 XSD, wysyłka, UPO, PDF z kodem QR), kontrola spójności stanu przy kolejnych korektach. Zgodność potwierdzona
 przyjęciem korekty przez testowy KSeF.
+
+---
+
+## D33. Oznaczenie „Zapłacono” w fakturze FA(3) przy wystawianiu
+
+**Kontekst:** KSeF przechowuje faktury, ale nie obsługuje płatności - rozliczenia po wystawieniu są ewidencją
+aplikacji (D30). Struktura FA(3) pozwala jednak zapisać w samej fakturze, że w chwili wystawienia jest już zapłacona
+(`Platnosc/Zaplacono = 1`, `DataZaplaty`). Dotyczy to np. sprzedaży za gotówkę lub kartą oraz przedpłat. Po przyjęciu
+faktury przez KSeF tej informacji nie da się już zmienić.
+
+**Decyzja:**
+- faktura ma opcjonalne pole `PaidOn` (data zapłaty), ustawiane w formularzu polem „Zapłacono przy wystawieniu”;
+  data nie może być późniejsza niż data wystawienia, nie dotyczy faktur korygujących, a zaznaczenie zwalnia
+  z obowiązku terminu płatności,
+- generator zapisuje `Zaplacono` i `DataZaplaty` na początku elementu `Platnosc` (kolejność zgodna z XSD),
+- przy wysyłce do KSeF aplikacja rejestruje w rozliczeniu płatność na kwotę brutto z flagą `FromInvoice` - faktura
+  od razu jest *opłacona*, a filtry i podsumowania działają bez zmian; ponowna wysyłka po odrzuceniu zastępuje
+  wcześniejszy zapis (bez duplikatu), a takiej płatności nie można usunąć (409),
+- odczyt XML (podgląd faktur otrzymanych, PDF) rozpoznaje oznaczenie zapłaty i je pokazuje,
+- poza zakresem: zapłata częściowa przy wystawieniu (`ZnacznikZaplatyCzesciowej`, `ZaplataCzesciowa`) - zaliczki
+  rejestruje się w rozliczeniu po wystawieniu.
+
+**Alternatywy:**
+- wyliczanie „wirtualnej” wpłaty z pola `PaidOn` we wszystkich zapytaniach (bez rekordu `Payments`): brak
+  powielenia danych, ale zmiana każdego filtra, podsumowania i widoku rozliczenia,
+- rejestrowanie płatności już przy zapisie szkicu: szkic nie jest należnością (D30), a dane szkicu mogą się zmienić,
+- automatyczne oznaczanie faktur otrzymanych z `Zaplacono` jako opłaconych: wygodne, ale oznaczenie pochodzi od
+  sprzedawcy, a nie z ewidencji nabywcy - pokazywane jako informacja, decyzja należy do użytkownika.
+
+**Uzasadnienie:** jedyny moment, w którym informacja o zapłacie trafia do KSeF, jest wykorzystany, a rozliczenie
+pozostaje spójne z dokumentem w KSeF. Rekord płatności tworzony w chwili wysyłki (wystawienia) odpowiada zasadzie
+z D30, że rozliczeniu podlegają faktury przekazane do KSeF. Zgodność potwierdzona przyjęciem faktury przez testowy KSeF.
+
