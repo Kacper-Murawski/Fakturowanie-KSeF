@@ -62,9 +62,9 @@
         if (errors.Count == 0)
         {
             // Po rejestracji od razu logujemy i prowadzimy do uzupełnienia danych firmy
-            var loginError = await Auth.LoginAsync(model.Email, model.Password);
-            if (loginError is null) Navigation.NavigateTo("firma");
-            else errors.Add(loginError);
+            var login = await Auth.LoginAsync(model.Email, model.Password);
+            if (login.Succeeded) Navigation.NavigateTo("firma");
+            else errors.Add(login.Error ?? "Nie udało się zalogować.");
         }
         busy = false;
     }

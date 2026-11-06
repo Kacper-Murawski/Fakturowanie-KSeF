@@ -131,6 +131,17 @@ app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
+// Wbudowany endpoint 2FA Identity pozwala wyłączyć 2FA bez kodu (wystarczy sesja) - zastępuje go /api/account/2fa (D41)
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/auth/manage/2fa"))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -155,6 +166,7 @@ api.MapReceivedInvoiceEndpoints();
 api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
 api.MapDashboardEndpoints();
+api.MapAccountEndpoints();
 api.MapExportEndpoints();
 api.MapEmailEndpoints();
 api.MapNotificationEndpoints();

@@ -58,6 +58,12 @@ po polsku.
 | DELETE | `/api/invoices/{id}/payments/{paymentId}` | Usunięcie błędnej wpłaty; zwraca rozliczenie. 409 - zapłata oznaczona w fakturze w KSeF (`fromInvoice`, D33) |
 | POST | `/api/received-invoices/{id}/payments` | Rejestracja zapłaty za fakturę otrzymaną (jak wyżej) |
 | DELETE | `/api/received-invoices/{id}/payments/{paymentId}` | Usunięcie błędnej zapłaty |
+| POST | `/api/auth/login` (z 2FA) | Przy włączonym 2FA samo hasło zwraca 401 z `detail: RequiresTwoFactor`; logowanie z polem `twoFactorCode` lub `twoFactorRecoveryCode`. Wbudowany `/api/auth/manage/2fa` jest wyłączony (404) |
+| GET | `/api/account/2fa` | Stan logowania dwuskładnikowego: włączone, liczba pozostałych kodów odzyskiwania (D41) |
+| POST | `/api/account/2fa/setup` | Nowy klucz aplikacji uwierzytelniającej: klucz, URI `otpauth://`, kod QR (PNG, Base64); 409 - 2FA już włączone |
+| POST | `/api/account/2fa/enable` | Włączenie po potwierdzeniu kodem (`code`); zwraca 10 kodów odzyskiwania; 400 - zły kod |
+| POST | `/api/account/2fa/disable` | Wyłączenie - wymaga kodu z aplikacji lub kodu odzyskiwania |
+| POST | `/api/account/2fa/recovery-codes` | Nowe kody odzyskiwania - wymaga kodu z aplikacji |
 | GET | `/api/dashboard` | Dane wykresów pulpitu: sprzedaż i koszty netto w 12 miesiącach, wiekowanie należności, 5 największych nabywców (D40) |
 | GET | `/api/payments/summary` | Należności i zobowiązania: pozostało do zapłaty, w tym po terminie (kwoty w PLN) |
 | POST | `/api/invoices/{id}/email` | Wysłanie faktury e-mailem (`to`, `message`) - PDF i XML w załączniku; 202 - wiadomość w kolejce. 409 - faktura nieprzyjęta w KSeF lub poczta nieskonfigurowana, 429 - dzienny limit wiadomości firmy (D36) |

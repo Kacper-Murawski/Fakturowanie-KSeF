@@ -37,7 +37,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 12 | Waluty obce z kursem NBP | niski | do decyzji |
 | 13 | Eksport dla księgowej (CSV, paczka XML + UPO) (D34) | niski | ✅ |
 | 14 | Aplikacja mobilna (PWA) | niski | do decyzji |
-| 15 | Logowanie dwuskładnikowe | niski | do decyzji |
+| 15 | Logowanie dwuskładnikowe (D41) | niski | ✅ |
 | 16 | Faktura proforma | niski | do decyzji |
 | 17 | Tryb offline KSeF (kod QR II) | badawczy | do decyzji |
 | 18 | Dostęp księgowej do firmy (role) | badawczy | do decyzji |
@@ -150,6 +150,12 @@ katalogu nie zmienia wystawionych faktur. Szczegóły: D35.
 Strona **Eksport dla księgowej** pokazuje podsumowanie wybranego miesiąca (liczba faktur, netto, VAT, brutto) i pozwala
 pobrać zestawienia sprzedaży i zakupów w CSV (otwierane wprost w Excelu, kwoty per stawka VAT) oraz paczkę ZIP
 z zestawieniami, plikami XML faktur w postaci z KSeF i UPO. Szczegóły: D34.
+
+## 15. Logowanie dwuskładnikowe
+
+Na stronie **Bezpieczeństwo konta** (kliknięcie adresu e-mail w górnym pasku) użytkownik włącza logowanie
+dwuskładnikowe: skanuje kod QR w aplikacji uwierzytelniającej i potwierdza kodem. Dostaje 10 jednorazowych kodów
+odzyskiwania. Od tej pory logowanie wymaga hasła i kodu z telefonu. Wyłączenie 2FA wymaga kodu. Szczegóły: D41.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).

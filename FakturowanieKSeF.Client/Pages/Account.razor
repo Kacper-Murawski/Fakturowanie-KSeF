@@ -1,0 +1,147 @@
+@page "/konto"
+@inject ApiClient Api
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Bezpieczeństwo konta - Fakturowanie KSeF</PageTitle>
+
+<h1>Bezpieczeństwo konta</h1>
+<p class="text-muted">Konto: <strong>@email</strong></p>
+
+<section class="card form-narrow" data-testid="two-factor">
+    <div class="card-body">
+        <h2 class="h5">Logowanie dwuskładnikowe</h2>
+        <p class="small text-muted">
+            Oprócz hasła logowanie wymaga 6-cyfrowego kodu z aplikacji uwierzytelniającej w telefonie (np. Google Authenticator,
+            Microsoft Authenticator). Nawet po wycieku hasła nikt nie zaloguje się bez Twojego telefonu.
+        </p>
+
+        <ProblemAlert Problem="problem" />
+
+        @if (status is null)
+        {
+            <p class="text-muted mb-0">Wczytywanie…</p>
+        }
+        else if (recoveryCodes is not null)
+        {
+            <div class="alert alert-success" data-testid="recovery-codes">
+                <p class="fw-semibold mb-2">Zapisz kody odzyskiwania w bezpiecznym miejscu.</p>
+                <p class="small">Każdy z nich pozwala zalogować się raz, gdy nie masz dostępu do telefonu. Nie zobaczysz ich ponownie.</p>
+                <div class="recovery-codes">
+                    @foreach (var c in recoveryCodes)
+                    {
+                        <code>@c</code>
+                    }
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" @onclick="() => recoveryCodes = null">Zapisałem kody</button>
+        }
+        else if (status.Enabled)
+        {
+            <p><span class="badge bg-success">włączone</span> <span class="small text-muted">Pozostało kodów odzyskiwania: @status.RecoveryCodesLeft</span></p>
+            @if (status.RecoveryCodesLeft <= 3)
+            {
+                <div class="alert alert-warning small">Kończą się kody odzyskiwania - wygeneruj nowe.</div>
+            }
+            <div class="mb-2" style="max-width: 16rem">
+                <label class="form-label small" for="confirm-code">Kod z aplikacji (lub kod odzyskiwania przy wyłączaniu)</label>
+                <input id="confirm-code" class="form-control" autocomplete="one-time-code" maxlength="20" @bind="code" @bind:event="oninput" />
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="NewRecoveryCodesAsync">Nowe kody odzyskiwania</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" disabled="@busy" @onclick="DisableAsync">Wyłącz</button>
+            </div>
+        }
+        else if (setup is null)
+        {
+            <p><span class="badge bg-secondary">wyłączone</span></p>
+            <button type="button" class="btn btn-primary btn-sm" disabled="@busy" @onclick="SetupAsync">Włącz logowanie dwuskładnikowe</button>
+        }
+        else
+        {
+            <ol class="small ps-3">
+                <li>Zeskanuj kod QR w aplikacji uwierzytelniającej albo wpisz klucz ręcznie.</li>
+                <li>Wpisz 6-cyfrowy kod, który pokaże aplikacja.</li>
+            </ol>
+            <img src="data:image/png;base64,@setup.QrPngBase64" alt="Kod QR do dodania konta w aplikacji uwierzytelniającej"
+                 width="180" height="180" class="border rounded mb-2" />
+            <p class="small">Klucz: <code data-testid="shared-key">@setup.SharedKey</code></p>
+            <div class="d-flex gap-2 align-items-end">
+                <div style="max-width: 10rem">
+                    <label class="form-label small" for="setup-code">Kod z aplikacji</label>
+                    <input id="setup-code" class="form-control" inputmode="numeric" autocomplete="one-time-code" maxlength="7"
+                           @bind="code" @bind:event="oninput" />
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" disabled="@busy" @onclick="EnableAsync">Potwierdź i włącz</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => setup = null">Anuluj</button>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private string? email;
+    private TwoFactorStatusDto? status;
+    private TwoFactorSetupDto? setup;
+    private IReadOnlyList<string>? recoveryCodes;
+    private string? code;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        email = (await AuthState.GetAuthenticationStateAsync()).User.Identity?.Name;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.GetAsync<TwoFactorStatusDto>("api/account/2fa");
+        status = result.Value;
+        problem = result.Problem;
+    }
+
+    private async Task SetupAsync() => await RunAsync(async () =>
+    {
+        var result = await Api.PostAsync<TwoFactorSetupDto>("api/account/2fa/setup", new { });
+        setup = result.Value;
+        return result.Problem;
+    });
+
+    private async Task EnableAsync() => await RunAsync(async () =>
+    {
+        var result = await Api.PostAsync<RecoveryCodesDto>("api/account/2fa/enable", new TwoFactorCodeRequest { Code = code ?? "" });
+        if (result.Value is { } codes)
+        {
+            recoveryCodes = codes.RecoveryCodes;
+            setup = null;
+            await LoadAsync();
+        }
+        return result.Problem;
+    });
+
+    private async Task NewRecoveryCodesAsync() => await RunAsync(async () =>
+    {
+        var result = await Api.PostAsync<RecoveryCodesDto>("api/account/2fa/recovery-codes", new TwoFactorCodeRequest { Code = code ?? "" });
+        if (result.Value is { } codes)
+        {
+            recoveryCodes = codes.RecoveryCodes;
+            await LoadAsync();
+        }
+        return result.Problem;
+    });
+
+    private async Task DisableAsync() => await RunAsync(async () =>
+    {
+        var result = await Api.PostAsync<bool>("api/account/2fa/disable", new TwoFactorCodeRequest { Code = code ?? "" });
+        if (result.Problem is null) await LoadAsync();
+        return result.Problem;
+    });
+
+    private async Task RunAsync(Func<Task<ApiProblem?>> action)
+    {
+        busy = true;
+        problem = await action();
+        busy = false;
+        code = null;
+    }
+}

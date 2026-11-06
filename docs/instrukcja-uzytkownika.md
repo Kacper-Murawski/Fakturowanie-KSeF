@@ -15,6 +15,16 @@ do danych firmy.
 **Logowanie i wylogowanie.** Sesja trwa 8 godzin i wydłuża się przy aktywności. Po 5 nieudanych próbach logowania
 konto jest blokowane na 15 minut. Przycisk „Wyloguj” znajduje się w prawym górnym rogu.
 
+### Logowanie dwuskładnikowe
+
+Kliknij swój adres e-mail w górnym pasku, aby otworzyć stronę **Bezpieczeństwo konta**. Wybierz **Włącz logowanie
+dwuskładnikowe**, zeskanuj kod QR w aplikacji uwierzytelniającej (np. Google Authenticator, Microsoft Authenticator)
+i wpisz pokazany przez nią 6-cyfrowy kod. Zapisz 10 kodów odzyskiwania - każdy pozwala zalogować się raz, gdy nie masz
+dostępu do telefonu. Od tej pory po wpisaniu hasła aplikacja poprosi o kod z telefonu. Wyłączenie zabezpieczenia
+i wygenerowanie nowych kodów odzyskiwania wymagają podania kodu.
+
+![Włączanie logowania dwuskładnikowego](zrzuty/31-logowanie-dwuskladnikowe.png)
+
 ## 2. Moja firma i integracja z KSeF
 
 W menu **Moja firma** uzupełnij dane, które pojawią się jako sprzedawca na fakturach: nazwę, NIP, adres

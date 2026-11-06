@@ -10,6 +10,7 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 | **Kradzież sesji przez XSS** | Ciasteczko sesji `HttpOnly` (niedostępne dla skryptów); klient nie przechowuje tokenów (D18); Blazor domyślnie koduje dane w HTML | Test flag ciasteczka |
 | **CSRF** | `SameSite=Strict`; API przyjmuje JSON, a żądanie z obcej witryny wymagałoby zgody CORS, której API nie udziela; klient i API w jednej domenie (D6) | Konfiguracja, test flag ciasteczka |
 | **Zgadywanie haseł** | Polityka haseł (min. 8 znaków, różne klasy znaków); blokada konta na 15 minut po 5 nieudanych próbach; hasła haszowane (PBKDF2, Identity) | Test polskich komunikatów polityki haseł |
+| **Przejęcie hasła (wyciek, phishing)** | Opcjonalne logowanie dwuskładnikowe TOTP z jednorazowymi kodami odzyskiwania; wyłączenie 2FA i nowe kody tylko po podaniu kodu - przejęta sesja nie zdejmie zabezpieczenia (wbudowany endpoint Identity zablokowany) (D41) | `TwoFactorTests` (niezależny generator TOTP), test E2E |
 | **Przekierowanie na obcą stronę po logowaniu** | `returnUrl` akceptowany tylko jako adres względny | Kod logowania |
 | **Wyciek tokenu KSeF** | Token szyfrowany Data Protection (AES-256-CBC + HMAC-SHA256), odszyfrowywany tylko w pamięci serwera, nigdy w odpowiedziach API ani w logach; bufor tokenów dostępu kluczowany skrótem (D23) | Test: token nie występuje w odpowiedzi ani w bazie, odszyfrowanie tylko kluczem aplikacji |
 | **Omyłkowe wystawienie prawdziwej faktury (produkcyjny KSeF)** | Typ `KsefEnvironment` bez wartości produkcyjnej; `KsefTestOnlyHandler` blokuje każde żądanie spoza `api-test.ksef.mf.gov.pl` przed wysłaniem; polityka sieci środowiska deweloperskiego (D8) | 11 testów blokady (produkcja, DEMO, API 1.0, brak HTTPS, podszywanie się pod host, potok klienta MF) |
@@ -35,5 +36,5 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 - **HTTPS** jest wymagany produkcyjnie: ciasteczko ma wtedy flagę `Secure`. Realizacja w ramach wdrożenia (etap 9).
 - **Sekrety** (hasło do bazy, hasło do serwera SMTP) są w repozytorium wyłącznie dla konfiguracji deweloperskiej. Produkcyjnie trafią
   do zmiennych środowiskowych.
-- Brak uwierzytelniania dwuskładnikowego i potwierdzania adresu e-mail. Identity je obsługuje,
-  a ich włączenie planowane jest po MVP.
+- Brak potwierdzania adresu e-mail przy rejestracji (Identity je obsługuje). Logowanie dwuskładnikowe
+  jest dostępne (D41), ale opcjonalne - nie jest wymuszane.

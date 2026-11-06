@@ -40,21 +40,41 @@ public sealed class AuthService(HttpClient http) : AuthenticationStateProvider
         return _cached = Anonymous;
     }
 
-    /// <summary>Logowanie; zwraca komunikat błędu albo null przy sukcesie.</summary>
-    public async Task<string?> LoginAsync(string email, string password)
+    /// <summary>Wynik logowania: sukces, wymagany drugi składnik (kod z aplikacji) albo błąd z komunikatem.</summary>
+    public sealed record LoginResult(bool Succeeded, bool RequiresTwoFactor = false, string? Error = null);
+
+    /// <summary>
+    /// Logowanie. Przy włączonym 2FA pierwsza próba (samo hasło) zwraca <see cref="LoginResult.RequiresTwoFactor"/>;
+    /// kolejna przesyła hasło razem z kodem z aplikacji lub kodem odzyskiwania (D41).
+    /// </summary>
+    public async Task<LoginResult> LoginAsync(string email, string password, string? twoFactorCode = null, string? recoveryCode = null)
     {
-        var response = await http.PostAsJsonAsync("api/auth/login?useCookies=true", new { email, password });
+        var response = await http.PostAsJsonAsync("api/auth/login?useCookies=true", new
+        {
+            email, password,
+            twoFactorCode = Clean(twoFactorCode),
+            twoFactorRecoveryCode = string.IsNullOrWhiteSpace(recoveryCode) ? null : recoveryCode.Replace(" ", "").Trim()
+        });
         if (!response.IsSuccessStatusCode)
         {
             var problem = await ApiClient.ReadProblemAsync(response);
-            return problem.Detail == "LockedOut"
-                ? "Konto zostało tymczasowo zablokowane po kilku nieudanych próbach. Spróbuj za 15 minut."
-                : "Nieprawidłowy e-mail lub hasło.";
+            return problem.Detail switch
+            {
+                "LockedOut" => new(false, Error: "Konto zostało tymczasowo zablokowane po kilku nieudanych próbach. Spróbuj za 15 minut."),
+                "RequiresTwoFactor" when twoFactorCode is null && recoveryCode is null => new(false, RequiresTwoFactor: true),
+                // Błędny drugi składnik: Identity zwraca „Failed” - zostajemy na kroku kodu
+                _ when twoFactorCode is not null || recoveryCode is not null =>
+                    new(false, RequiresTwoFactor: true, Error: "Nieprawidłowy kod. Wpisz aktualny kod z aplikacji."),
+                _ => new(false, Error: "Nieprawidłowy e-mail lub hasło.")
+            };
         }
 
         Refresh();
-        return null;
+        return new(true);
     }
+
+    private static string? Clean(string? code) =>
+        string.IsNullOrWhiteSpace(code) ? null : code.Replace(" ", "").Replace("-", "").Trim();
 
     /// <summary>Rejestracja; zwraca listę błędów (pustą przy sukcesie).</summary>
     public async Task<IReadOnlyList<string>> RegisterAsync(string email, string password)
