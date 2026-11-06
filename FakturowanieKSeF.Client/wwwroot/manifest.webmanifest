@@ -1,0 +1,23 @@
+{
+  "name": "Fakturowanie KSeF",
+  "short_name": "Faktury KSeF",
+  "description": "Wystawianie i odbieranie faktur w Krajowym Systemie e-Faktur (wersja testowa).",
+  "lang": "pl",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#052767",
+  "categories": [ "business", "finance", "productivity" ],
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" },
+    { "src": "icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nowa faktura", "url": "./faktury/nowa", "icons": [ { "src": "icon-192.png", "sizes": "192x192" } ] },
+    { "name": "Faktury otrzymane", "url": "./faktury-otrzymane", "icons": [ { "src": "icon-192.png", "sizes": "192x192" } ] }
+  ]
+}

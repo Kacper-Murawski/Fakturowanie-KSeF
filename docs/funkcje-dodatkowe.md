@@ -36,7 +36,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 11 | Katalog produktów i usług (D35) | niski | ✅ |
 | 12 | Waluty obce z kursem NBP (D43) | niski | ✅ |
 | 13 | Eksport dla księgowej (CSV, paczka XML + UPO) (D34) | niski | ✅ |
-| 14 | Aplikacja mobilna (PWA) | niski | do decyzji |
+| 14 | Aplikacja mobilna (PWA) (D45) | niski | ✅ |
 | 15 | Logowanie dwuskładnikowe (D41) | niski | ✅ |
 | 16 | Faktura proforma (D42) | niski | ✅ |
 | 17 | Tryb offline KSeF (kod QR II) | badawczy | do decyzji |
@@ -156,6 +156,12 @@ NBP z ostatniego dnia roboczego przed dniem sprzedaży, pokazuje podatek w PLN j
 Strona **Eksport dla księgowej** pokazuje podsumowanie wybranego miesiąca (liczba faktur, netto, VAT, brutto) i pozwala
 pobrać zestawienia sprzedaży i zakupów w CSV (otwierane wprost w Excelu, kwoty per stawka VAT) oraz paczkę ZIP
 z zestawieniami, plikami XML faktur w postaci z KSeF i UPO. Szczegóły: D34.
+
+## 14. Aplikacja mobilna (PWA)
+
+Aplikację można zainstalować na telefonie lub komputerze z przeglądarki („Dodaj do ekranu głównego”). Ma własną ikonę,
+otwiera się w osobnym oknie i ma pełną funkcjonalność wersji przeglądarkowej. Service worker przechowuje tylko pliki
+aplikacji - nigdy danych z API. Szczegóły: D45.
 
 ## 15. Logowanie dwuskładnikowe
 

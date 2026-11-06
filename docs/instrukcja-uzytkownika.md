@@ -260,6 +260,17 @@ Przed eksportem zakupów zsynchronizuj faktury otrzymane, żeby paczka zawierał
 
 ![Eksport dla księgowej](zrzuty/22-eksport-dla-ksiegowej.png)
 
+## 11. Aplikacja na telefonie
+
+Aplikację możesz zainstalować na telefonie: otwórz ją w przeglądarce i wybierz **Dodaj do ekranu głównego**
+(Chrome: menu ⋮ → *Zainstaluj aplikację*; Safari: *Udostępnij* → *Do ekranu początkowego*). Pojawi się ikona
+„Faktury KSeF”, a aplikacja otworzy się w osobnym oknie. Działa tak samo jak w przeglądarce - menu jest pod przyciskiem
+☰ w górnym pasku. Do pracy potrzebne jest połączenie z internetem; dane nie są zapisywane na telefonie.
+
+![Pulpit na telefonie](zrzuty/35-telefon-pulpit.png)
+
+![Menu na telefonie](zrzuty/36-telefon-menu.png)
+
 ## Najczęstsze komunikaty
 
 | Komunikat | Znaczenie i rozwiązanie |
