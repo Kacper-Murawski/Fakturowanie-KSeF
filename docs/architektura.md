@@ -46,6 +46,7 @@ flowchart LR
     WR --> DB
     WS --> GW
     WR --> GW
+    WR -- "powiadomienie o nowych fakturach → kolejka" --> DB
     API --> GW
     GW --> MF
     MF -- "HTTPS (tylko host testowy)" --> KSEF

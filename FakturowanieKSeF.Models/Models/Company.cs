@@ -57,6 +57,13 @@ public class Company : BaseEntity
     /// <summary>Po ilu dniach od terminu płatności wysłać pierwsze automatyczne przypomnienie.</summary>
     public int ReminderDaysAfterDue { get; set; } = 3;
 
+    /// <summary>Powiadomienie e-mail o nowych fakturach kosztowych pobranych z KSeF (D38).</summary>
+    public bool NotifyReceivedInvoices { get; set; }
+
+    /// <summary>Adres powiadomień dla użytkownika; puste - adres e-mail konta właściciela.</summary>
+    [MaxLength(254)]
+    public string? NotificationEmail { get; set; }
+
     // --- Właściciel i relacje ---
 
     [Required]

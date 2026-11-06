@@ -613,5 +613,39 @@ public class UserScenariosE2ETests(E2EFixture fx)
         var mails = fx.App.Email.To(buyerEmail);
         Assert.Contains(mails, m => m.Subject.StartsWith("Przypomnienie o płatności") && m.Body.Contains("615,00 PLN"));
     }
+
+    [E2EFact]
+    public async Task PowiadomienieONowejFakturzeKosztowej_PoPobraniuZKsef()
+    {
+        var page = await fx.NewPageAsync();
+        var nip = await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        var address = $"wlasciciel_{Guid.NewGuid():N}@example.com";
+        var settings = page.Locator("[data-testid=notification-settings]");
+        await settings.Locator("#notify-received").CheckAsync();
+        await page.FillAsync("#notification-email", address);
+        await settings.Locator("button:has-text('Zapisz ustawienia')").ClickAsync();
+        await Expect(settings.GetByText("Zapisano.")).ToBeVisibleAsync();
+
+        // Sprzedawca wystawił fakturę na nasz NIP (atrapa KSeF)
+        var stored = DateTimeOffset.UtcNow.AddMinutes(-5);
+        var meta = new KsefInvoiceMetadata($"1234563218-20261105-N{nip[..6]}00000-01", "FV/POW/11/2026", new DateOnly(2026, 11, 5),
+            stored, stored, "1234563218", "Hurtownia Dostawca sp. z o.o.", 115m, 19.25m, 134.25m, "PLN");
+        lock (fx.App.Ksef.Received) fx.App.Ksef.Received[nip] = [(meta, ReceivedInvoicesTests.ForeignInvoiceXml("1234563218", nip, "FV/POW/11/2026", 3))];
+        fx.App.Ksef.Hwm = DateTimeOffset.UtcNow;
+
+        await page.ClickAsync("text=Faktury otrzymane");
+        await page.ClickAsync("button:has-text('Pobierz z KSeF')");
+        await Expect(page.Locator(".alert-success")).ToContainTextAsync("Pobrano nowe faktury: 1");
+
+        // Usługa w tle wysyła powiadomienie (atrapa poczty)
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (fx.App.Email.To(address).Count == 0 && DateTime.UtcNow < deadline) await Task.Delay(250);
+        var mail = Assert.Single(fx.App.Email.To(address));
+        Assert.Contains("FV/POW/11/2026", mail.Body);
+        Assert.Contains("Hurtownia Dostawca sp. z o.o.", mail.Body);
+    }
 }
 

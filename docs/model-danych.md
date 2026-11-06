@@ -56,6 +56,8 @@ erDiagram
         bool IsDeleted
         bool AutoRemindersEnabled "automatyczne przypomnienia (D37)"
         int ReminderDaysAfterDue "dni po terminie"
+        bool NotifyReceivedInvoices "powiadomienia o fakturach kosztowych (D38)"
+        string NotificationEmail "puste - adres konta"
     }
 
     Customers {

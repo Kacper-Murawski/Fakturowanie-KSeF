@@ -138,6 +138,13 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
+                    b.Property<string>("NotificationEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<bool>("NotifyReceivedInvoices")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("OwnerId")
                         .IsRequired()
                         .HasColumnType("text");

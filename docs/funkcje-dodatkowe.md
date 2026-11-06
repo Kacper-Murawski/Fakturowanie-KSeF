@@ -31,7 +31,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 6 | Wysyłka faktury e-mailem (D36) | średni | ✅ |
 | 7 | Faktury cykliczne | średni | do decyzji |
 | 8 | Przypomnienia o płatności (D37) | średni | ✅ |
-| 9 | Powiadomienie o nowej fakturze kosztowej | średni | do decyzji |
+| 9 | Powiadomienie o nowej fakturze kosztowej (D38) | średni | ✅ |
 | 10 | Pulpit z wykresami | średni | do decyzji |
 | 11 | Katalog produktów i usług (D35) | niski | ✅ |
 | 12 | Waluty obce z kursem NBP | niski | do decyzji |
@@ -118,6 +118,12 @@ wszystkie wiadomości przechwytuje Mailpit. Szczegóły: D36.
 Przy fakturze z kwotą pozostałą do zapłaty przycisk **Przypomnij o płatności** wysyła nabywcy wiadomość z pozostałą
 kwotą, terminem, numerem rachunku i fakturą w załączniku. W ustawieniach firmy można włączyć przypomnienia
 automatyczne: pierwsze N dni po terminie, kolejne co 7 dni, najwyżej 3 do faktury. Szczegóły: D37.
+
+## 9. Powiadomienie o nowej fakturze kosztowej
+
+Po synchronizacji z KSeF, która pobrała nowe faktury zakupowe, użytkownik dostaje jedną wiadomość z ich listą
+(sprzedawca, kwota, termin) i ostrzeżeniem o fakturach powyżej 15 000 zł (sprawdzenie rachunku na białej liście).
+Funkcję i adres powiadomień ustawia się na stronie „Moja firma”. Szczegóły: D38.
 
 ## 11. Katalog produktów i usług
 

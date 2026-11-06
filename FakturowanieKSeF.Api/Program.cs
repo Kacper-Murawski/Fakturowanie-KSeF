@@ -79,6 +79,7 @@ builder.Services.AddSingleton<EmailWorkSignal>();
 builder.Services.AddScoped<EmailOutbox>();
 builder.Services.AddHostedService<EmailWorker>();
 builder.Services.AddScoped<PaymentReminders>();
+builder.Services.AddScoped<ReceivedInvoiceNotifier>();
 builder.Services.AddHostedService<PaymentReminderWorker>();
 builder.Services.AddHostedService<ReceivedInvoicesWorker>();
 

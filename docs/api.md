@@ -64,7 +64,7 @@ po polsku.
 | POST | `/api/invoices/{id}/reminder` | Przypomnienie o płatności (`to`, `message`) z kwotą pozostałą do zapłaty i fakturą w załączniku; 409 - faktura opłacona, nieprzyjęta w KSeF lub korekta (D37) |
 | GET | `/api/invoices/{id}/email-recipient` | Podpowiedź adresu nabywcy: e-mail kontrahenta albo ostatni adres, na który wysłano fakturę |
 | GET | `/api/company/notifications` | Ustawienia powiadomień: automatyczne przypomnienia, liczba dni po terminie, czy poczta jest skonfigurowana |
-| PUT | `/api/company/notifications` | Zmiana ustawień (`autoReminders`, `reminderDaysAfterDue` 0-60) |
+| PUT | `/api/company/notifications` | Zmiana ustawień (`autoReminders`, `reminderDaysAfterDue` 0-60, `notifyReceivedInvoices`, `notificationEmail` - puste: adres konta) (D37, D38) |
 | GET | `/api/exports/summary?from=&to=` | Podsumowanie okresu dla księgowej: liczba i kwoty faktur sprzedaży (przyjętych w KSeF, wg daty wystawienia) i zakupu (wg daty otrzymania w KSeF). 400 - brak okresu, koniec przed początkiem, okres dłuższy niż 366 dni (D34) |
 | GET | `/api/exports/sales.csv?from=&to=` | Zestawienie sprzedaży (CSV: średnik, przecinek dziesiętny, UTF-8 z BOM; kwoty per stawka) |
 | GET | `/api/exports/purchases.csv?from=&to=` | Zestawienie zakupów (CSV, jak wyżej; z wynikiem sprawdzenia rachunku na białej liście) |
