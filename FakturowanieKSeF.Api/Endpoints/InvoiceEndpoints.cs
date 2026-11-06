@@ -211,41 +211,17 @@ public static class InvoiceEndpoints
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
 
-                var submitted = invoice.Status is InvoiceStatus.Pending or InvoiceStatus.Accepted
-                    ? invoice.KsefSubmissions.OrderByDescending(s => s.Id).FirstOrDefault()
-                    : null;
-
-                InvoiceDocumentDto document;
-                PdfVerificationQr? qr = null;
-                string? notice = null;
-
-                if (submitted is not null)
+                byte[] pdf;
+                try
                 {
-                    // Wydruk dokładnie wysłanego dokumentu + KOD I (pod kodem numer KSeF albo OFFLINE, gdy jeszcze go nie ma)
-                    document = Fa3InvoiceReader.Read(submitted.SentXml);
-                    qr = new PdfVerificationQr(
-                        KsefQr.InvoiceVerificationUrl(invoice.Seller.Nip!, invoice.IssueDate, submitted.InvoiceHash),
-                        submitted.KsefNumber ?? KsefQr.OfflineLabel);
+                    pdf = InvoiceFiles.Pdf(invoice, generator, renderer);
                 }
-                else
+                catch (Fa3GenerationException ex)
                 {
-                    try
-                    {
-                        document = Fa3InvoiceReader.Read(generator.Generate(invoice));
-                    }
-                    catch (Fa3GenerationException ex)
-                    {
-                        return Results.Problem(title: "Nie można przygotować wydruku faktury.", detail: ex.Message,
-                            statusCode: StatusCodes.Status422UnprocessableEntity);
-                    }
-                    notice = invoice.Status == InvoiceStatus.Rejected
-                        ? "FAKTURA ODRZUCONA PRZEZ KSeF - dokument nie ma mocy prawnej faktury."
-                        : "SZKIC - dokument nie został wysłany do KSeF i nie jest fakturą.";
+                    return Results.Problem(title: "Nie można przygotować wydruku faktury.", detail: ex.Message,
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
                 }
-
-                var pdf = renderer.Render(document, qr, notice);
-                var fileName = string.Concat(invoice.Number.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + ".pdf";
-                return Results.File(pdf, "application/pdf", fileName);
+                return Results.File(pdf, "application/pdf", InvoiceFiles.FileName(invoice.Number, "pdf"));
             })
             .WithSummary("Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych)");
 

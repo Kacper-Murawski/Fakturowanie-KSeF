@@ -41,6 +41,25 @@ public static class TestUsers
         return client;
     }
 
+    /// <summary>Faktura przyjęta w KSeF (atrapa); klient musi mieć firmę z tokenem KSeF.</summary>
+    public static async Task<InvoiceDto> AcceptedInvoiceAsync(this ApiFactory factory, HttpClient client, SaveInvoiceRequest? request = null)
+    {
+        var draft = (await (await client.PostAsJsonAsync("/api/invoices", request ?? SampleInvoice())).Content.ReadFromJsonAsync<InvoiceDto>())!;
+        (await client.PostAsJsonAsync($"/api/invoices/{draft.Id}/send", new SendInvoiceRequest { Version = draft.Version })).EnsureSuccessStatusCode();
+        for (var i = 0; i < 5 && await factory.ProcessKsefAsync() > 0; i++) { }
+        var invoice = (await client.GetFromJsonAsync<InvoiceDto>($"/api/invoices/{draft.Id}"))!;
+        if (invoice.Status != InvoiceStatus.Accepted) throw new InvalidOperationException($"Faktura nie została przyjęta: {invoice.Status}");
+        return invoice;
+    }
+
+    /// <summary>Zalogowany użytkownik z firmą i tokenem KSeF (atrapa).</summary>
+    public static async Task<HttpClient> CreateClientWithKsefAsync(this ApiFactory factory)
+    {
+        var client = await factory.CreateClientWithCompanyAsync();
+        (await client.PostAsync("/api/company/ksef/test-token", null)).EnsureSuccessStatusCode();
+        return client;
+    }
+
     /// <summary>Losowy, poprawny (z sumą kontrolną) NIP - do testów wymagających unikalnej firmy.</summary>
     public static string RandomNip()
     {

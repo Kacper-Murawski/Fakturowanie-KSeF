@@ -136,6 +136,11 @@ else
                       InfoChanged="info => invoice = invoice with { Payment = info }" />
     }
 
+    @if (invoice.Status == InvoiceStatus.Accepted)
+    {
+        <InvoiceEmailPanel InvoiceId="invoice.Id" CustomerId="invoice.CustomerId" />
+    }
+
     <div class="invoice-sheet card">
         <div class="card-body">
             <div class="row mb-4">

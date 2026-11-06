@@ -27,7 +27,9 @@ public sealed class E2EAppFactory : ApiFactory
     protected override IEnumerable<KeyValuePair<string, string?>> AdditionalSettings() =>
     [
         new("Ksef:Worker:Enabled", "true"),
-        new("Ksef:Worker:IntervalSeconds", "1")
+        new("Ksef:Worker:IntervalSeconds", "1"),
+        new("Email:Worker:Enabled", "true"),
+        new("Email:Worker:IntervalSeconds", "1")
     ];
 }
 

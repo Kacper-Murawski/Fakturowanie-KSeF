@@ -24,6 +24,15 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public FakeVatWhiteList VatWhiteList { get; } = new();
 
+    public FakeEmailSender Email { get; } = new();
+
+    /// <summary>Jeden przebieg kolejki e-mail (tak, jak zrobiłaby to usługa w tle).</summary>
+    public async Task<int> ProcessEmailsAsync()
+    {
+        using var scope = Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<FakturowanieKSeF.Api.Services.Email.EmailOutbox>().ProcessAsync();
+    }
+
     /// <summary>Dodatkowa konfiguracja w klasach pochodnych (np. testy E2E z włączoną usługą w tle).</summary>
     protected virtual IEnumerable<KeyValuePair<string, string?>> AdditionalSettings() => [];
 
@@ -54,7 +63,11 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             ["ConnectionStrings:DefaultConnection"] = _connectionString,
             // Usługa w tle wyłączona - testy wywołują procesor wysyłek jawnie, w kontrolowanych krokach
             ["Ksef:Worker:Enabled"] = "false",
-            ["Ksef:Receive:Enabled"] = "false"
+            ["Ksef:Receive:Enabled"] = "false",
+            // Poczta: atrapa zamiast serwera SMTP, kolejka przetwarzana jawnie w testach
+            ["Email:SmtpHost"] = "smtp.atrapa.invalid",
+            ["Email:From"] = "faktury@fakturowanie.test",
+            ["Email:Worker:Enabled"] = "false"
         };
         foreach (var (key, value) in AdditionalSettings()) settings[key] = value;
 
@@ -66,6 +79,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.AddSingleton<FakturowanieKSeF.Ksef.IKsefGateway>(Ksef);
             services.AddSingleton<FakturowanieKSeF.Api.Integrations.VatWhiteList.IVatWhiteListClient>(VatWhiteList);
+            services.AddSingleton<FakturowanieKSeF.Api.Services.Email.IEmailSender>(Email);
         });
     }
 

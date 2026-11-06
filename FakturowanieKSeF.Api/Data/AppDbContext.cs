@@ -18,6 +18,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<KsefSubmission> KsefSubmissions => Set<KsefSubmission>();
@@ -77,6 +78,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
                 .OnDelete(DeleteBehavior.Restrict);
 
             e.HasQueryFilter(p => !p.IsDeleted);
+        });
+
+        // ---------------- EmailMessage (kolejka wysyłki e-mail) ----------------
+        builder.Entity<EmailMessage>(e =>
+        {
+            e.Property(m => m.Kind).HasConversion<string>().HasMaxLength(30);
+            e.Property(m => m.Status).HasConversion<string>().HasMaxLength(20);
+            // Pobieranie kolejki przez usługę w tle i liczenie dziennego limitu firmy
+            e.HasIndex(m => new { m.Status, m.NextAttemptAt });
+            e.HasIndex(m => new { m.CompanyId, m.CreatedAt });
+
+            e.HasOne(m => m.Company).WithMany().HasForeignKey(m => m.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(m => m.Invoice).WithMany().HasForeignKey(m => m.InvoiceId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // ---------------- Invoice ----------------
