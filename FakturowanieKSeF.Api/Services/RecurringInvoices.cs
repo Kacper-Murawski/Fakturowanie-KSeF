@@ -17,6 +17,7 @@ namespace FakturowanieKSeF.Api.Services;
 public sealed class RecurringInvoices(
     AppDbContext db,
     InvoiceNumbering numbering,
+    FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup rates,
     EmailOutbox outbox,
     ReceivedInvoiceNotifier notifier,
     TimeProvider time,
@@ -99,7 +100,7 @@ public sealed class RecurringInvoices(
         for (var attempt = 1; ; attempt++)
         {
             var invoice = new Invoice { CompanyId = schedule.CompanyId };
-            if (await InvoiceEndpoints.ApplyAsync(invoice, request, schedule.Company, db, ct) is not null)
+            if (await InvoiceEndpoints.ApplyAsync(invoice, request, schedule.Company, db, rates, ct) is not null)
                 return (null, "Nie udało się utworzyć faktury na podstawie wzoru - sprawdź fakturę-wzór.");
             invoice.Number = await numbering.NextAsync(schedule.CompanyId, today, InvoiceKind.Vat, ct);
             db.Invoices.Add(invoice);

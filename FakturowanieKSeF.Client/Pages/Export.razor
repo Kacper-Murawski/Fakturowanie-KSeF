@@ -38,6 +38,10 @@
                     <h2 class="h6 text-muted">Sprzedaż (faktury przyjęte w KSeF, według daty wystawienia)</h2>
                     <div class="fs-4 fw-semibold" data-testid="sales-count">@s.SalesCount @Faktur(s.SalesCount)</div>
                     <div class="small">netto @Format.Money(s.SalesNet), VAT @Format.Money(s.SalesVat), brutto @Format.Money(s.SalesGross)</div>
+                    @if (s.SalesForeignCurrency > 0)
+                    {
+                        <div class="small text-muted">Kwoty bez @s.SalesForeignCurrency @Faktur(s.SalesForeignCurrency) w walutach obcych (są w zestawieniu z kursem i VAT w PLN).</div>
+                    }
                     <a class="btn btn-sm btn-outline-secondary mt-2" href="@Url("sales.csv")" download>Zestawienie sprzedaży (CSV)</a>
                 </div>
             </div>

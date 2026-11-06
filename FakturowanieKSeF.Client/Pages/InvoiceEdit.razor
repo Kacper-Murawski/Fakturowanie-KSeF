@@ -61,11 +61,11 @@ else
                 </div>
                 <div class="col-md-2">
                     <label class="form-label" for="issue">Data wystawienia</label>
-                    <InputDate id="issue" class="form-control" @bind-Value="model.IssueDate" @bind-Value:after="SuggestNumberAsync" />
+                    <InputDate id="issue" class="form-control" @bind-Value="model.IssueDate" @bind-Value:after="OnDatesChangedAsync" />
                 </div>
                 <div class="col-md-2">
                     <label class="form-label" for="sale">Data sprzedaży</label>
-                    <InputDate id="sale" class="form-control" @bind-Value="model.SaleDate" />
+                    <InputDate id="sale" class="form-control" @bind-Value="model.SaleDate" @bind-Value:after="LoadRateAsync" />
                     <div class="form-text">Jeśli inna niż wystawienia.</div>
                 </div>
                 <div class="col-md-2">
@@ -74,7 +74,13 @@ else
                 </div>
                 <div class="col-md-2">
                     <label class="form-label" for="currency">Waluta</label>
-                    <input id="currency" class="form-control" value="PLN" readonly title="W obecnej wersji obsługiwane są wyłącznie faktury w PLN" />
+                    <InputSelect id="currency" class="form-select" @bind-Value="model.Currency" @bind-Value:after="LoadRateAsync" disabled="@IsCorrection">
+                        @foreach (var c in Currencies.Supported)
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => model.Currency" />
                 </div>
             </div>
         </section>
@@ -277,6 +283,25 @@ else
                                 }
                             </tbody>
                         </table>
+                        @if (Currencies.IsForeign(model.Currency))
+                        {
+                            <div class="small text-end mt-2" data-testid="exchange-rate">
+                                @if (rate is { } r)
+                                {
+                                    <div>Kurs średni NBP z @Format.Date(r.EffectiveDate) (tabela @r.TableNo): <strong>@r.Rate.ToString("0.0000##", Format.Pl) PLN</strong></div>
+                                    <div>Podatek VAT w PLN: <strong>@Format.Money(InvoiceCalculator.VatInPln(totals.ByVatRate, r.Rate).Sum(s => s.Vat))</strong></div>
+                                    <div class="text-muted">Kurs z ostatniego dnia roboczego przed dniem sprzedaży; ustalany ponownie przy zapisie.</div>
+                                }
+                                else if (rateError is not null)
+                                {
+                                    <div class="text-danger">@rateError</div>
+                                }
+                                else
+                                {
+                                    <div class="text-muted">Pobieranie kursu NBP…</div>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -458,6 +483,7 @@ else
         }
 
         Recalculate();
+        await LoadRateAsync();
     }
 
     private static SaveInvoiceBuyerRequest NewBuyer() => new();
@@ -490,6 +516,7 @@ else
         model.Buyer = null;
         model.CustomerId = null;
         model.PaymentMethod = original.PaymentMethod;
+        model.Currency = original.Currency;
         model.BankAccountNumber = original.BankAccountNumber;
         model.ExemptionBasis = original.ExemptionBasis;
         model.DueDate = null;
@@ -516,6 +543,7 @@ else
         templateNumber = t.Number;
         model!.IssuePlace = t.IssuePlace;
         model.PaymentMethod = t.PaymentMethod;
+        model.Currency = t.Currency;
         model.DueDate = t.DueDate is { } due ? today.AddDays(due.DayNumber - t.IssueDate.DayNumber) : null;
         model.BankAccountNumber = t.BankAccountNumber;
         model.ExemptionBasis = t.ExemptionBasis;
@@ -571,6 +599,27 @@ else
     {
         model!.Items.RemoveAt(index);
         Recalculate();
+    }
+
+    private ExchangeRateDto? rate;
+    private string? rateError;
+
+    private async Task OnDatesChangedAsync()
+    {
+        await SuggestNumberAsync();
+        await LoadRateAsync();
+    }
+
+    /// <summary>Podgląd kursu NBP dla waluty obcej (D43) - dzień sprzedaży albo wystawienia.</summary>
+    private async Task LoadRateAsync()
+    {
+        rate = null;
+        rateError = null;
+        if (model is null || !Currencies.IsForeign(model.Currency)) return;
+        var taxPoint = model.SaleDate ?? model.IssueDate;
+        var result = await Api.GetAsync<ExchangeRateDto>($"api/exchange-rates/{model.Currency}?date={taxPoint:yyyy-MM-dd}");
+        rate = result.Value;
+        rateError = result.Problem?.Title;
     }
 
     private void Recalculate()

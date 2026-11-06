@@ -93,6 +93,14 @@ builder.Services.AddHttpClient<IVatWhiteListClient, VatWhiteListClient>(http =>
     http.Timeout = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddSingleton<VatRegistryLimiter>();
+
+// Kursy średnie walut NBP (tabela A) - faktury w walutach obcych (D43)
+builder.Services.AddHttpClient<FakturowanieKSeF.Api.Integrations.Nbp.INbpClient, FakturowanieKSeF.Api.Integrations.Nbp.NbpClient>(http =>
+{
+    http.BaseAddress = new Uri(FakturowanieKSeF.Api.Integrations.Nbp.NbpClient.BaseAddress);
+    http.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddSingleton<FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup>();
 builder.Services.AddScoped<VatRegistryLookup>();
 
 // Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji
@@ -167,6 +175,7 @@ api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
 api.MapDashboardEndpoints();
 api.MapAccountEndpoints();
+api.MapExchangeRateEndpoints();
 api.MapExportEndpoints();
 api.MapEmailEndpoints();
 api.MapNotificationEndpoints();

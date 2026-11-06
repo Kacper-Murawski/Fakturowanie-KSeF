@@ -311,7 +311,7 @@ są zaplanowane w etapie 10.
 
 ---
 
-## D21. Generowanie XML FA(3): własny generator na `XmlWriter` + walidacja XSD przed każdym wydaniem
+## D21. Generowanie XML FA(3): własny generator na `XmlWriter` + walidacja XSD przed każdym wydaniem (waluty obce - D43)
 
 **Decyzja:** XML faktury tworzy `Fa3XmlGenerator` strumieniowo przez `XmlWriter`, w kolejności elementów
 zgodnej z sekwencjami schematu. Każdy wynik jest sprawdzany przez `Fa3SchemaValidator` względem oficjalnego
@@ -889,4 +889,44 @@ Małe firmy wystawiają ją przed realizacją zamówienia, a po zapłacie - fakt
 **Uzasadnienie:** proforma korzysta z całego mechanizmu dokumentów (pozycje, PDF, e-mail), a reguły po stronie
 serwera gwarantują, że nigdy nie trafi do KSeF ani do rozliczeń VAT. Zamiana na fakturę jednym przyciskiem eliminuje
 przepisywanie danych.
+
+---
+
+## D43. Faktury w walutach obcych z kursem średnim NBP pobieranym przy zapisie
+
+**Kontekst:** w MVP obsługiwane były tylko faktury w PLN (D21). Firmy sprzedające za granicę wystawiają faktury
+w EUR, USD itd. Ustawa o VAT wymaga wtedy kwot podatku w złotych (art. 106e ust. 11), przeliczonych kursem średnim
+NBP z ostatniego dnia roboczego poprzedzającego dzień powstania obowiązku podatkowego (art. 31a). FA(3) ma na to
+pola `P_14_xW` (podatek w PLN dla stawek 23/22, 8/7, 5%) i `KursWaluty` w wierszach faktury.
+
+**Decyzja:**
+- waluty: PLN oraz EUR, USD, GBP, CHF, CZK, SEK, NOK, DKK, JPY, CAD (tabela A kursów średnich NBP),
+- kurs ustala **serwer przy zapisie faktury**: kurs średni NBP z ostatniego dnia notowań przed dniem sprzedaży
+  (w aplikacji dzień sprzedaży, a gdy nie podano - dzień wystawienia); zapis w fakturze: kurs, data i numer tabeli NBP;
+  zmiana daty przy edycji szkicu pobiera kurs ponownie; formularz pokazuje podgląd kursu i podatku w PLN,
+- klient API NBP (`api.nbp.pl`, publiczne, bez klucza) z zapytaniem o przedział 14 dni - wybór ostatniego notowania
+  omija weekendy i święta bez kalendarza świąt w aplikacji; wyniki w pamięci podręcznej; niedostępność NBP blokuje
+  zapis faktury walutowej czytelnym komunikatem (bez zgadywania kursu),
+- XML: kwoty w walucie faktury, `P_14_xW` = podatek × kurs zaokrąglony do grosza (osobno dla każdej stawki),
+  `KursWaluty` w każdym wierszu; PDF i podgląd pokazują podatek w PLN i kurs; faktura korygująca przyjmuje kurs
+  faktury korygowanej (uproszczenie - korekty z innym kursem poza zakresem),
+- kwoty w różnych walutach nie są sumowane: należności na pulpicie i w podsumowaniu rozliczeń obejmują PLN,
+  eksport liczy faktury walutowe osobno (w zestawieniu z kursem i VAT w PLN), a wykres sprzedaży przelicza je kursem
+  z faktury; płatności rejestruje się w walucie faktury,
+- przy okazji: klient Białej listy rozpoznaje stronę zabezpieczenia przed botami (HTML zamiast JSON) - patrz niżej.
+
+**Alternatywy:**
+- kurs wpisywany ręcznie przez użytkownika: elastyczne (np. kurs z innej daty), ale podatne na pomyłki; możliwe
+  rozszerzenie jako nadpisanie kursu z NBP,
+- kurs pobierany przy wysyłce do KSeF zamiast przy zapisie: użytkownik nie widziałby podatku w PLN przed wysyłką,
+- kalendarz dni roboczych w aplikacji: zbędny - API NBP zwraca notowania tylko z dni, w których tabela była publikowana,
+- przeliczanie należności na PLN bieżącym kursem: wymaga kursów dziennych i różnic kursowych - zadanie księgowości.
+
+**Uzasadnienie:** zgodność z art. 31a i 106e ust. 11 ustawy o VAT oraz strukturą FA(3) bez ręcznego przepisywania
+kursów. Faktura w EUR z kursem pobranym na żywo z API NBP została przyjęta przez testowy KSeF.
+
+**Obserwacja (ważna przy wdrożeniu):** zapytania do wykazu podatników VAT (`wl-api.mf.gov.pl`) wysłane z adresu IP
+centrum danych w chmurze zostały zablokowane przez zabezpieczenie MF przed automatycznymi zapytaniami (strona HTML
+zamiast danych). API NBP działało z tego samego adresu. Na serwerze produkcyjnym trzeba to sprawdzić; aplikacja
+pokazuje wtedy czytelny komunikat, a dane kontrahenta można wpisać ręcznie (D28).
 

@@ -22,14 +22,15 @@ public static class DashboardEndpoints
                 var today = PolishDate.Today(time);
                 var from = new DateOnly(today.Year, today.Month, 1).AddMonths(-(Months - 1));
 
-                // Sprzedaż: faktury przekazane do KSeF; korekty wliczane różnicą w miesiącu ich wystawienia
+                // Sprzedaż: faktury przekazane do KSeF; korekty wliczane różnicą w miesiącu ich wystawienia;
+                // faktury w walutach obcych przeliczone kursem NBP z faktury (D43)
                 var issued = db.Invoices.AsNoTracking()
-                    .Where(i => i.CompanyId == company.Id && i.Currency == "PLN" && i.IssueDate >= from
+                    .Where(i => i.CompanyId == company.Id && i.IssueDate >= from
                                 && (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Accepted));
 
                 var sales = await issued
                     .GroupBy(i => new { i.IssueDate.Year, i.IssueDate.Month })
-                    .Select(g => new { g.Key.Year, g.Key.Month, Net = g.Sum(i => i.TotalNet) })
+                    .Select(g => new { g.Key.Year, g.Key.Month, Net = g.Sum(i => i.Currency == "PLN" ? i.TotalNet : i.TotalNet * (i.ExchangeRate ?? 0)) })
                     .ToListAsync(ct);
 
                 var costs = await db.ReceivedInvoices.AsNoTracking()
@@ -40,7 +41,7 @@ public static class DashboardEndpoints
 
                 var months = Enumerable.Range(0, Months).Select(n => from.AddMonths(n)).Select(m => new MonthlyTotalsDto(
                     m.Year, m.Month,
-                    sales.Where(s => s.Year == m.Year && s.Month == m.Month).Sum(s => s.Net),
+                    Math.Round(sales.Where(s => s.Year == m.Year && s.Month == m.Month).Sum(s => s.Net), 2),
                     costs.Where(c => c.Year == m.Year && c.Month == m.Month).Sum(c => c.Net))).ToList();
 
                 // Należności jak w podsumowaniu rozliczeń (D30): brutto + korekty - wpłaty
@@ -73,13 +74,18 @@ public static class DashboardEndpoints
 
                 var top = await issued
                     .GroupBy(i => new { i.Buyer.Nip, i.Buyer.Name })
-                    .Select(g => new { g.Key.Name, g.Key.Nip, Net = g.Sum(i => i.TotalNet), Count = g.Count(i => i.Kind == InvoiceKind.Vat) })
+                    .Select(g => new
+                    {
+                        g.Key.Name, g.Key.Nip,
+                        Net = g.Sum(i => i.Currency == "PLN" ? i.TotalNet : i.TotalNet * (i.ExchangeRate ?? 0)),
+                        Count = g.Count(i => i.Kind == InvoiceKind.Vat)
+                    })
                     .OrderByDescending(x => x.Net)
                     .Take(5)
                     .ToListAsync(ct);
 
                 return Results.Ok(new DashboardDto(months, aging,
-                    top.Where(t => t.Net > 0).Select(t => new TopCustomerDto(t.Name, t.Nip, t.Net, t.Count)).ToList()));
+                    top.Where(t => t.Net > 0).Select(t => new TopCustomerDto(t.Name, t.Nip, Math.Round(t.Net, 2), t.Count)).ToList()));
             })
             .WithTags("Pulpit").RequireAuthorization()
             .WithSummary("Dane wykresów pulpitu: sprzedaż i koszty (12 miesięcy), wiekowanie należności, najwięksi kontrahenci");

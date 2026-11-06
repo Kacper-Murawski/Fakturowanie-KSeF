@@ -34,7 +34,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 9 | Powiadomienie o nowej fakturze kosztowej (D38) | średni | ✅ |
 | 10 | Pulpit z wykresami (D40) | średni | ✅ |
 | 11 | Katalog produktów i usług (D35) | niski | ✅ |
-| 12 | Waluty obce z kursem NBP | niski | do decyzji |
+| 12 | Waluty obce z kursem NBP (D43) | niski | ✅ |
 | 13 | Eksport dla księgowej (CSV, paczka XML + UPO) (D34) | niski | ✅ |
 | 14 | Aplikacja mobilna (PWA) | niski | do decyzji |
 | 15 | Logowanie dwuskładnikowe (D41) | niski | ✅ |
@@ -144,6 +144,12 @@ W menu **Katalog** użytkownik zapisuje towary i usługi (nazwa, jednostka, cena
 nazwy pozycji podpowiada nazwy z katalogu, a wybranie jednej z nich uzupełnia jednostkę, cenę i stawkę. Pozycję
 spoza katalogu można do niego dodać przyciskiem „zapisz w katalogu”. Dane są kopiowane do faktury, więc zmiana
 katalogu nie zmienia wystawionych faktur. Szczegóły: D35.
+
+## 12. Waluty obce z kursem NBP
+
+Fakturę można wystawić w EUR, USD, GBP, CHF i innych walutach z tabeli A NBP. Aplikacja sama pobiera kurs średni
+NBP z ostatniego dnia roboczego przed dniem sprzedaży, pokazuje podatek w PLN już w formularzu i zapisuje go w XML
+(`P_14_xW`, `KursWaluty`). Faktura w EUR została przyjęta przez testowy KSeF. Szczegóły: D43.
 
 ## 13. Eksport dla księgowej
 

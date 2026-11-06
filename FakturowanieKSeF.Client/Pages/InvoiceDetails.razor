@@ -239,6 +239,14 @@ else
                     {
                         <p class="fs-5 text-end">Do zapłaty: <strong>@Format.Money(invoice.TotalGross, invoice.Currency)</strong></p>
                     }
+                    @if (invoice.ExchangeRate is { } rate)
+                    {
+                        <div class="small text-end" data-testid="exchange-rate">
+                            Podatek VAT w PLN: <strong>@Format.Money(invoice.VatSummaryPln?.Sum(s => s.Vat) ?? 0)</strong><br />
+                            Kurs średni NBP @rate.Currency z @Format.Date(rate.EffectiveDate) (tabela @rate.TableNo):
+                            @rate.Rate.ToString("0.0000##", Format.Pl) PLN
+                        </div>
+                    }
                 </div>
             </div>
 

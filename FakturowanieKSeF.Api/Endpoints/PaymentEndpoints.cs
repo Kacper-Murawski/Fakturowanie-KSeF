@@ -106,9 +106,10 @@ public static class PaymentEndpoints
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
                 var today = PolishDate.Today(time);
 
-                // Należność = brutto faktury VAT powiększone o korekty przekazane do KSeF
+                // Należność = brutto faktury VAT powiększone o korekty przekazane do KSeF; sumy w PLN - faktury
+                // w walutach obcych nie są dodawane do kwot złotowych (D43)
                 var receivables = await db.Invoices.AsNoTracking()
-                    .Where(i => i.CompanyId == company.Id && i.Kind == InvoiceKind.Vat
+                    .Where(i => i.CompanyId == company.Id && i.Kind == InvoiceKind.Vat && i.Currency == "PLN"
                                 && (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Accepted))
                     .Select(i => new
                     {

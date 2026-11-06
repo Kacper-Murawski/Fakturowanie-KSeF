@@ -36,7 +36,7 @@ public class ProformaTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var send = await client.PostAsJsonAsync($"/api/invoices/{proforma.Id}/send", new SendInvoiceRequest { Version = proforma.Version });
         Assert.Equal(HttpStatusCode.Conflict, send.StatusCode);
         Assert.Contains("nie jest wysyłana do KSeF", await send.Content.ReadAsStringAsync());
-        Assert.Empty(factory.Ksef.SentInvoices.Where(x => System.Text.Encoding.UTF8.GetString(x.Xml).Contains(proforma.Number)));
+        Assert.DoesNotContain(factory.Ksef.SentInvoices, x => System.Text.Encoding.UTF8.GetString(x.Xml).Contains(proforma.Number));
         Assert.Equal(HttpStatusCode.Conflict, (await client.GetAsync($"/api/invoices/{proforma.Id}/xml")).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync($"/api/invoices/{proforma.Id}/payments",
             new AddPaymentRequest { PaidOn = new DateOnly(2026, 11, 1), Amount = 10m })).StatusCode);

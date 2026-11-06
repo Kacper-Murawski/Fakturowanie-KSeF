@@ -223,10 +223,10 @@ public class Fa3XmlGeneratorTests
     }
 
     [Fact]
-    public void WalutaObca_IZwolnienieBezPodstawy_SaOdrzucane()
+    public void WalutaObcaBezKursu_IZwolnienieBezPodstawy_SaOdrzucane()
     {
         var eur = Faktura(Pozycja(1, "Usługa", 1, 100m, VatRate.Rate23));
-        eur.Currency = "EUR";
+        eur.Currency = "EUR"; // bez kursu NBP (D43)
         Assert.Throws<Fa3GenerationException>(() => _generator.GenerateBytes(eur));
 
         var zw = Faktura(Pozycja(1, "Usługa medyczna", 1, 100m, VatRate.Exempt));
@@ -309,7 +309,7 @@ public class InvoiceXmlApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task FakturaZwolnionaBezPodstawy_IWalutaObca_SaOdrzucanePrzyZapisie()
+    public async Task FakturaZwolnionaBezPodstawy_INieobslugiwanaWaluta_SaOdrzucanePrzyZapisie()
     {
         var client = await factory.CreateClientWithCompanyAsync();
 
@@ -322,9 +322,10 @@ public class InvoiceXmlApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         zw.ExemptionBasis = "art. 113 ust. 1 ustawy o VAT";
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/invoices", zw)).StatusCode);
 
-        var eur = TestUsers.SampleInvoice();
-        eur.Currency = "EUR";
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/invoices", eur)).StatusCode);
+        // Waluty obce są obsługiwane od D43 (kurs NBP); spoza listy - odrzucane
+        var other = TestUsers.SampleInvoice();
+        other.Currency = "RUB";
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/invoices", other)).StatusCode);
 
         var taxi = TestUsers.SampleInvoice();
         taxi.Items[0].VatRate = VatRate.Rate4;

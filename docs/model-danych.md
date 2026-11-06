@@ -88,6 +88,9 @@ erDiagram
         string IssuePlace "P_1M"
         date SaleDate "P_6"
         string Currency "ISO 4217"
+        numeric ExchangeRate "kurs NBP - waluta obca (D43)"
+        date ExchangeRateDate
+        string ExchangeRateTable "np. 216/A/NBP/2026"
         string PaymentMethod "FormaPlatnosci"
         date DueDate
         date PaidOn "Zaplacono/DataZaplaty - zapłacona przy wystawieniu"

@@ -46,7 +46,8 @@ public static class Fa3InvoiceReader
         foreach (var (suffix, label, hasVat) in VatGroups)
         {
             if (Dec(fa, $"P_13_{suffix}") is { } net)
-                vat.Add(new DocumentVatSummaryDto(label, net, hasVat ? Dec(fa, $"P_14_{suffix}") ?? 0 : null));
+                vat.Add(new DocumentVatSummaryDto(label, net, hasVat ? Dec(fa, $"P_14_{suffix}") ?? 0 : null,
+                    hasVat ? Dec(fa, $"P_14_{suffix}W") : null));
         }
 
         var payment = One(fa, "Platnosc");
@@ -67,7 +68,8 @@ public static class Fa3InvoiceReader
             Text(fa, "PrzyczynaKorekty"),
             Many(fa, "DaneFaKorygowanej").Select(d => new DocumentCorrectedInvoiceDto(
                 Text(d, "NrFaKorygowanej") ?? "", Date(d, "DataWystFaKorygowanej"), Text(d, "NrKSeFFaKorygowanej"))).ToList(),
-            payment is not null && Text(payment, "Zaplacono") == "1" ? Date(payment, "DataZaplaty") : null);
+            payment is not null && Text(payment, "Zaplacono") == "1" ? Date(payment, "DataZaplaty") : null,
+            Many(fa, "FaWiersz").Select(w => Dec(w, "KursWaluty")).FirstOrDefault(r => r is not null));
     }
 
     private static DocumentPartyDto Party(XElement? podmiot)

@@ -13,7 +13,7 @@ public sealed class Fa3GenerationException(string message) : Exception(message);
 /// <summary>
 /// Generuje XML faktury w strukturze logicznej FA(3) (schemat_FA(3)_v1-0E.xsd) - postaci, w jakiej faktura
 /// jest przesyłana do KSeF. Kolejność elementów odpowiada dokładnie sekwencjom ze schematu XSD.
-/// <para>Zakres: faktura VAT podstawowa (RodzajFaktury = VAT) i faktura korygująca (KOR) w PLN. Wymagania techniczne KSeF:
+/// <para>Zakres: faktura VAT podstawowa (RodzajFaktury = VAT) i faktura korygująca (KOR), w PLN lub w walucie obcej z kursem NBP. Wymagania techniczne KSeF:
 /// kodowanie UTF-8 bez znacznika BOM, brak instrukcji przetwarzania poza deklaracją XML.</para>
 /// </summary>
 public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
@@ -59,8 +59,8 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
     /// <summary>Sprawdza, czy fakturę da się przedstawić w FA(3) w zakresie obsługiwanym przez aplikację.</summary>
     public static void EnsureSupported(Invoice invoice)
     {
-        if (invoice.Currency != "PLN")
-            throw new Fa3GenerationException("Obsługiwane są wyłącznie faktury w PLN (waluta obca wymaga kwot podatku w PLN i kursu waluty).");
+        if (invoice.Currency != "PLN" && invoice.ExchangeRate is not > 0)
+            throw new Fa3GenerationException("Faktura w walucie obcej wymaga kursu waluty (kwoty podatku w PLN).");
 
         if (invoice.Items.Count == 0)
             throw new Fa3GenerationException("Faktura nie ma pozycji.");
@@ -178,7 +178,9 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
         Element(w, "P_2", invoice.Number);
         if (invoice.SaleDate is { } saleDate && saleDate != invoice.IssueDate) Element(w, "P_6", Date(saleDate));
 
-        WriteVatSummary(w, summary);
+        // Waluta obca: kwoty w walucie faktury, a podatek dodatkowo w PLN (P_14_xW) i kurs w wierszach (D43)
+        var rate = invoice.Currency == "PLN" ? (decimal?)null : invoice.ExchangeRate;
+        WriteVatSummary(w, summary, rate);
         Element(w, "P_15", Money(totalGross));
 
         WriteAnnotations(w, invoice, items);
@@ -186,7 +188,7 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
         if (correction) WriteCorrectedInvoice(w, invoice);
 
         for (var n = 0; n < items.Count; n++)
-            WriteLine(w, n + 1, items[n], InvoiceCalculator.CalculateLine(Input(items[n])));
+            WriteLine(w, n + 1, items[n], InvoiceCalculator.CalculateLine(Input(items[n])), rate);
 
         // Płatność na korekcie tylko przy dopłacie; zwrot nadpłaty nie ma terminu płatności dla nabywcy
         if (!correction || totalGross > 0) WritePayment(w, invoice);
@@ -212,8 +214,9 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
     /// Podsumowanie per stawka (P_13_x - netto, P_14_x - podatek). Pary pól występują wyłącznie dla stawek
     /// użytych na fakturze, w kolejności wymaganej przez schemat.
     /// </summary>
-    private static void WriteVatSummary(XmlWriter w, IReadOnlyList<VatRateSummary> byVatRate)
+    private static void WriteVatSummary(XmlWriter w, IReadOnlyList<VatRateSummary> byVatRate, decimal? exchangeRate)
     {
+        var pln = exchangeRate is { } er ? InvoiceCalculator.VatInPln(byVatRate, er) : [];
         decimal Net(params VatRate[] rates) => byVatRate.Where(s => rates.Contains(s.VatRate)).Sum(s => s.Net);
         decimal Vat(params VatRate[] rates) => byVatRate.Where(s => rates.Contains(s.VatRate)).Sum(s => s.Vat);
         bool Used(params VatRate[] rates) => byVatRate.Any(s => rates.Contains(s.VatRate));
@@ -223,6 +226,8 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
             if (!Used(rates)) return;
             Element(w, $"P_13_{suffix}", Money(Net(rates)));
             Element(w, $"P_14_{suffix}", Money(Vat(rates)));
+            if (exchangeRate is not null)
+                Element(w, $"P_14_{suffix}W", Money(pln.Where(s => rates.Contains(s.VatRate)).Sum(s => s.Vat)));
         }
 
         void NetOnly(string field, VatRate rate)
@@ -277,7 +282,7 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
         w.WriteEndElement();
     }
 
-    private static void WriteLine(XmlWriter w, int number, InvoiceItem item, LineResult line)
+    private static void WriteLine(XmlWriter w, int number, InvoiceItem item, LineResult line, decimal? exchangeRate)
     {
         w.WriteStartElement("FaWiersz", Namespace);
 
@@ -288,6 +293,7 @@ public sealed class Fa3XmlGenerator(TimeProvider timeProvider)
         Element(w, "P_9A", Decimal(item.UnitNetPrice, 8));
         Element(w, "P_11", Money(line.NetAmount));
         Element(w, "P_12", item.VatRate.ToFaCode());
+        if (exchangeRate is { } er) Element(w, "KursWaluty", Decimal(er, 6)); // kurs użyty do przeliczenia podatku
         if (item.BeforeCorrection) Element(w, "StanPrzed", "1"); // wiersz stanu przed korektą
 
         w.WriteEndElement();

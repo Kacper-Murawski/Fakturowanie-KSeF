@@ -339,6 +339,16 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
 
+                    b.Property<decimal?>("ExchangeRate")
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateOnly?>("ExchangeRateDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExchangeRateTable")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<string>("ExemptionBasis")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");

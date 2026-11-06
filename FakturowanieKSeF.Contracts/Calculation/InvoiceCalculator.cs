@@ -44,6 +44,15 @@ public static class InvoiceCalculator
 {
     public static decimal RoundMoney(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
+    /// <summary>
+    /// Kwoty podatku w PLN dla faktury w walucie obcej (art. 106e ust. 11 ustawy o VAT, pola P_14_xW): podatek w walucie
+    /// przeliczony kursem i zaokrąglony do grosza, osobno dla każdej stawki z podatkiem (D43).
+    /// </summary>
+    public static IReadOnlyList<VatRateSummary> VatInPln(IEnumerable<VatRateSummary> byVatRate, decimal exchangeRate) =>
+        byVatRate.Where(s => s.VatRate.HasVatAmount())
+            .Select(s => s with { Vat = RoundMoney(s.Vat * exchangeRate), Net = RoundMoney(s.Net * exchangeRate), Gross = RoundMoney(s.Gross * exchangeRate) })
+            .ToList();
+
     public static LineResult CalculateLine(LineInput line)
     {
         var net = RoundMoney(line.Quantity * line.UnitNetPrice);

@@ -26,6 +26,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public FakeEmailSender Email { get; } = new();
 
+    public FakeNbpClient Nbp { get; } = new();
+
     /// <summary>Jeden przebieg kolejki e-mail (tak, jak zrobiłaby to usługa w tle).</summary>
     public async Task<int> ProcessEmailsAsync()
     {
@@ -82,6 +84,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddSingleton<FakturowanieKSeF.Ksef.IKsefGateway>(Ksef);
             services.AddSingleton<FakturowanieKSeF.Api.Integrations.VatWhiteList.IVatWhiteListClient>(VatWhiteList);
             services.AddSingleton<FakturowanieKSeF.Api.Services.Email.IEmailSender>(Email);
+            services.AddSingleton<FakturowanieKSeF.Api.Integrations.Nbp.INbpClient>(Nbp);
         });
     }
 

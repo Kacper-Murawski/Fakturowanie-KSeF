@@ -15,4 +15,6 @@ public sealed record ExportSummaryDto(
     int PurchasesForeignCurrency,
     decimal PurchasesNet,
     decimal PurchasesVat,
-    decimal PurchasesGross);
+    decimal PurchasesGross,
+    /// <summary>Faktury sprzedaży w walutach obcych - w zestawieniu, ale poza sumami w PLN (D43).</summary>
+    int SalesForeignCurrency = 0);

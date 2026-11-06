@@ -798,5 +798,39 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.ClickAsync("nav >> text=Faktury");
         await Expect(page.Locator("tbody .badge[title^='Faktura proforma']")).ToHaveCountAsync(1);
     }
+
+    [E2EFact]
+    public async Task FakturaWEuro_KursNbp_VatWPln_IWysylkaDoKsef()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Foreign Client GmbH", "1234563218");
+        await FillItemAsync(page, 0, "Consulting", "10", "100");
+        await page.FillAsync("#issue", "2026-11-06");
+        await page.FillAsync("#due", "2026-11-20");
+        await page.SelectOptionAsync("#currency", "EUR");
+
+        // Kurs z dnia roboczego przed dniem sprzedaży (atrapa NBP) i podatek w PLN liczony na żywo
+        var rate = page.Locator("[data-testid=exchange-rate]");
+        await Expect(rate).ToContainTextAsync("Kurs średni NBP z 05.11.2026");
+        await Expect(rate).ToContainTextAsync("4,3916 PLN");
+        await Expect(rate).ToContainTextAsync("1\u00a0010,07 PLN"); // 230,00 EUR × 4,3916
+        await Expect(page.Locator("[data-testid=total-gross]")).ToContainTextAsync("1\u00a0230,00 EUR");
+        await page.EvaluateAsync("document.querySelector('[data-testid=exchange-rate]').scrollIntoView({block: 'center'})");
+        await page.WaitForTimeoutAsync(300);
+        await E2EFixture.ScreenshotAsync(page, "33-faktura-w-walucie");
+
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await Expect(page.Locator("[data-testid=exchange-rate]")).ToContainTextAsync("Podatek VAT w PLN: 1\u00a0010,07 PLN");
+        await Expect(page.Locator("[data-testid=exchange-rate]")).ToContainTextAsync("tabela");
+
+        await page.ClickAsync("text=Wyślij do KSeF");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+    }
 }
 

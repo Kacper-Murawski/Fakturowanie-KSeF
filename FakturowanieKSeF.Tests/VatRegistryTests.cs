@@ -40,21 +40,31 @@ public class WhiteListAddressTests
 /// <summary>Klient HTTP API wykazu - odczyt odpowiedzi w formacie MF (bez połączenia z siecią).</summary>
 public class VatWhiteListClientTests
 {
-    private sealed class StubHandler(HttpStatusCode status, string json) : HttpMessageHandler
+    private sealed class StubHandler(HttpStatusCode status, string json, string mediaType = "application/json") : HttpMessageHandler
     {
         public Uri? RequestUri { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             RequestUri = request.RequestUri;
-            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") });
+            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(json, Encoding.UTF8, mediaType) });
         }
     }
 
-    private static (VatWhiteListClient Client, StubHandler Handler) Create(HttpStatusCode status, string json)
+    private static (VatWhiteListClient Client, StubHandler Handler) Create(HttpStatusCode status, string json, string mediaType = "application/json")
     {
-        var handler = new StubHandler(status, json);
+        var handler = new StubHandler(status, json, mediaType);
         return (new VatWhiteListClient(new HttpClient(handler) { BaseAddress = new Uri(VatWhiteListClient.BaseAddress) }), handler);
+    }
+
+    [Fact]
+    public async Task StronaZabezpieczeniaZamiastJson_CzytelnyKomunikat()
+    {
+        // Zaobserwowane przy zapytaniu z adresu w chmurze: HTML ochrony przed botami (Incapsula) z kodem 200
+        var (client, _) = Create(HttpStatusCode.OK, "<html><body>Request unsuccessful. Incapsula incident ID</body></html>", "text/html");
+
+        var ex = await Assert.ThrowsAsync<VatWhiteListException>(() => client.FindByNipAsync("5260250274", new DateOnly(2026, 11, 6)));
+        Assert.Contains("zabezpieczenie przed automatycznymi zapytaniami", ex.Message);
     }
 
     [Fact]

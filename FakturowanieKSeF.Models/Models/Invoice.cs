@@ -28,6 +28,19 @@ public class Invoice : BaseEntity
     [Required, MaxLength(3)]
     public string Currency { get; set; } = "PLN";
 
+    // --- Waluta obca (D43): kurs średni NBP z ostatniego dnia roboczego przed dniem sprzedaży ---
+
+    /// <summary>Kurs waluty (PLN za 1 jednostkę; FA(3): KursWaluty) - tylko dla faktur w walucie obcej.</summary>
+    [Column(TypeName = "numeric(18,6)")]
+    public decimal? ExchangeRate { get; set; }
+
+    /// <summary>Data notowania kursu (tabela A NBP).</summary>
+    public DateOnly? ExchangeRateDate { get; set; }
+
+    /// <summary>Numer tabeli NBP, np. „216/A/NBP/2026”.</summary>
+    [MaxLength(30)]
+    public string? ExchangeRateTable { get; set; }
+
     // --- Płatność ---
 
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Transfer;
