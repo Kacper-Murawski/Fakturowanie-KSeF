@@ -26,3 +26,16 @@ public sealed class SendInvoiceEmailRequest
     [MaxLength(2000)]
     public string? Message { get; set; }
 }
+
+/// <summary>Ustawienia powiadomień e-mail firmy (D37).</summary>
+public sealed record NotificationSettingsDto(bool AutoReminders, int ReminderDaysAfterDue, bool EmailConfigured);
+
+/// <summary>Zmiana ustawień powiadomień.</summary>
+public sealed class SaveNotificationSettingsRequest
+{
+    /// <summary>Automatyczne przypomnienia o płatności po terminie.</summary>
+    public bool AutoReminders { get; set; }
+
+    [Range(0, 60, ErrorMessage = "Podaj liczbę dni od 0 do 60.")]
+    public int ReminderDaysAfterDue { get; set; } = 3;
+}

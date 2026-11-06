@@ -67,7 +67,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             // Poczta: atrapa zamiast serwera SMTP, kolejka przetwarzana jawnie w testach
             ["Email:SmtpHost"] = "smtp.atrapa.invalid",
             ["Email:From"] = "faktury@fakturowanie.test",
-            ["Email:Worker:Enabled"] = "false"
+            ["Email:Worker:Enabled"] = "false",
+            ["Reminders:Worker:Enabled"] = "false"
         };
         foreach (var (key, value) in AdditionalSettings()) settings[key] = value;
 

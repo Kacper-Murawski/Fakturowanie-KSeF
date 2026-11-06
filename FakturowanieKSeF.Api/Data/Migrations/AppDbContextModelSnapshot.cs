@@ -105,6 +105,9 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AutoRemindersEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("BankAccountNumber")
                         .HasMaxLength(34)
                         .HasColumnType("character varying(34)");
@@ -152,6 +155,9 @@ namespace FakturowanieKSeF.Api.Data.Migrations
 
                     b.Property<DateTime?>("ReceivedInvoicesSyncedUntil")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ReminderDaysAfterDue")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

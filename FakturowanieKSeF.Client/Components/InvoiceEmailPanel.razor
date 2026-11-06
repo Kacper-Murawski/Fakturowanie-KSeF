@@ -8,13 +8,20 @@
             <h2 class="h5 mb-0">E-mail</h2>
             @if (!formOpen)
             {
-                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenForm">Wyślij e-mailem</button>
+                <div class="d-flex gap-2">
+                    @if (Remaining > 0)
+                    {
+                        <button type="button" class="btn btn-outline-warning btn-sm" @onclick="() => OpenForm(true)">Przypomnij o płatności</button>
+                    }
+                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => OpenForm(false)">Wyślij e-mailem</button>
+                </div>
             }
         </div>
 
         @if (formOpen)
         {
             <EditForm Model="model" OnValidSubmit="SendAsync" FormName="invoice-email" class="mt-3">
+                <h3 class="h6">@(reminder ? $"Przypomnienie o płatności - pozostało {Format.Money(Remaining ?? 0)}" : "Wysyłka faktury")</h3>
                 <DeepValidator @ref="validator" />
                 <div class="row g-2">
                     <div class="col-md-6">
@@ -27,7 +34,10 @@
                         <InputTextArea id="email-message" class="form-control" rows="3" @bind-Value="model.Message" />
                     </div>
                 </div>
-                <div class="form-text">W załączniku: PDF z kodem QR i XML faktury w postaci z KSeF. Odpowiedzi trafią na adres e-mail Twojej firmy.</div>
+                <div class="form-text">
+                    @(reminder ? "Wiadomość z kwotą pozostałą do zapłaty, terminem i numerem rachunku. " : "")W załączniku: PDF z kodem QR i XML faktury
+                    w postaci z KSeF. Odpowiedzi trafią na adres e-mail Twojej firmy.
+                </div>
                 <div class="d-flex gap-2 mt-2">
                     <button type="submit" class="btn btn-primary btn-sm" disabled="@busy">@(busy ? "Wysyłanie…" : "Wyślij")</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => formOpen = false">Anuluj</button>
@@ -72,14 +82,15 @@
 
 @code {
     [Parameter, EditorRequired] public int InvoiceId { get; set; }
-    /// <summary>Kontrahent faktury - jego adres e-mail jest podpowiadany jako odbiorca.</summary>
-    [Parameter] public int? CustomerId { get; set; }
+    /// <summary>Pozostało do zapłaty - gdy większe od zera, dostępne jest przypomnienie o płatności.</summary>
+    [Parameter] public decimal? Remaining { get; set; }
 
     private List<EmailMessageDto> messages = [];
     private SendInvoiceEmailRequest model = new();
     private DeepValidator? validator;
     private ApiProblem? problem;
     private bool formOpen;
+    private bool reminder;
     private bool busy;
     private Timer? refresh;
 
@@ -95,19 +106,22 @@
             : null;
     }
 
-    private async Task OpenForm()
+    private sealed record Recipient(string? Email);
+
+    private async Task OpenForm(bool asReminder)
     {
         problem = null;
+        reminder = asReminder;
         model = new SendInvoiceEmailRequest { To = messages.FirstOrDefault()?.To ?? "" };
-        if (model.To.Length == 0 && CustomerId is { } id)
-            model.To = (await Api.GetAsync<CustomerDto>($"api/customers/{id}")).Value?.Email ?? "";
+        if (model.To.Length == 0)
+            model.To = (await Api.GetAsync<Recipient>($"api/invoices/{InvoiceId}/email-recipient")).Value?.Email ?? "";
         formOpen = true;
     }
 
     private async Task SendAsync()
     {
         busy = true;
-        var result = await Api.PostAsync<EmailMessageDto>($"api/invoices/{InvoiceId}/email", model);
+        var result = await Api.PostAsync<EmailMessageDto>($"api/invoices/{InvoiceId}/{(reminder ? "reminder" : "email")}", model);
         busy = false;
         problem = result.Problem;
         if (result.Value is not null)

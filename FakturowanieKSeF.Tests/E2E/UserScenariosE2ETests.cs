@@ -563,5 +563,55 @@ public class UserScenariosE2ETests(E2EFixture fx)
         Assert.Contains("Dziękujemy za zamówienie.", mail.Body);
         Assert.Equal(2, mail.Attachments!.Count);
     }
+
+    [E2EFact]
+    public async Task PrzypomnienieOPlatnosci_IUstawieniaAutomatycznychPrzypomnien()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        // Ustawienia na stronie „Moja firma”
+        var settings = page.Locator("[data-testid=notification-settings]");
+        await settings.Locator("#auto-reminders").CheckAsync();
+        await page.FillAsync("#reminder-days", "5");
+        await settings.Locator("button:has-text('Zapisz ustawienia')").ClickAsync();
+        await Expect(settings.GetByText("Zapisano.")).ToBeVisibleAsync();
+        await E2EFixture.ScreenshotAsync(page, "26-ustawienia-powiadomien");
+
+        // Faktura po terminie, wysłana wcześniej e-mailem
+        var buyerEmail = $"dluznik_{Guid.NewGuid():N}@kontrahent.example";
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Dłużnik sp. z o.o.", "1234563218");
+        await FillItemAsync(page, 0, "Usługa", "1", "500");
+        await page.FillAsync("#issue", "2026-09-01");
+        await page.FillAsync("#due", "2026-09-15");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await page.ClickAsync("text=Wyślij do KSeF");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+
+        var panel = page.Locator("[data-testid=email-panel]");
+        await panel.Locator("button:has-text('Wyślij e-mailem')").ClickAsync();
+        await page.FillAsync("#email-to", buyerEmail);
+        await panel.Locator("button[type=submit]").ClickAsync();
+        await Expect(panel.Locator("[data-testid=email-history]")).ToContainTextAsync("wysłano", new() { Timeout = 30_000 });
+
+        // Przypomnienie: adres podpowiedziany z poprzedniej wysyłki, kwota pozostała w nagłówku
+        await panel.Locator("button:has-text('Przypomnij o płatności')").ClickAsync();
+        await Expect(panel).ToContainTextAsync("pozostało 615,00 PLN");
+        await Expect(page.Locator("#email-to")).ToHaveValueAsync(buyerEmail);
+        await panel.Locator("button[type=submit]").ClickAsync();
+        await Expect(panel.Locator("[data-testid=email-history] tbody tr")).ToHaveCountAsync(2);
+        await Expect(panel.Locator("[data-testid=email-history] tbody tr").First).ToContainTextAsync("przypomnienie o płatności");
+        await Expect(panel.Locator("[data-testid=email-history] tbody tr").First).ToContainTextAsync("wysłano", new() { Timeout = 30_000 });
+        // Regresja: znacznik stanu musi mieć tło (klasy Bootstrapa 5.2 nie działają w 5.1 - biały tekst na białym)
+        await Expect(panel.Locator("[data-testid=email-history] .badge").First).ToHaveCSSAsync("background-color", "rgb(25, 135, 84)");
+        await E2EFixture.ScreenshotAsync(page, "27-przypomnienie-o-platnosci");
+
+        var mails = fx.App.Email.To(buyerEmail);
+        Assert.Contains(mails, m => m.Subject.StartsWith("Przypomnienie o płatności") && m.Body.Contains("615,00 PLN"));
+    }
 }
 

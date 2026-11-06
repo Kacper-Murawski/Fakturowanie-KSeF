@@ -30,7 +30,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 5a | Oznaczenie „Zapłacono” przy wystawianiu (D33) | wysoki | ✅ |
 | 6 | Wysyłka faktury e-mailem (D36) | średni | ✅ |
 | 7 | Faktury cykliczne | średni | do decyzji |
-| 8 | Przypomnienia o płatności | średni | do decyzji |
+| 8 | Przypomnienia o płatności (D37) | średni | ✅ |
 | 9 | Powiadomienie o nowej fakturze kosztowej | średni | do decyzji |
 | 10 | Pulpit z wykresami | średni | do decyzji |
 | 11 | Katalog produktów i usług (D35) | niski | ✅ |
@@ -112,6 +112,12 @@ Przy fakturze przyjętej w KSeF przycisk **Wyślij e-mailem** wysyła ją do nab
 z KSeF w załączniku, z opcjonalną wiadomością. Adres podpowiada się z danych kontrahenta. Wiadomość trafia do kolejki
 w bazie i wysyła ją usługa w tle (z ponawianiem po błędzie), a przy fakturze widać historię wysyłek. Lokalnie
 wszystkie wiadomości przechwytuje Mailpit. Szczegóły: D36.
+
+## 8. Przypomnienia o płatności
+
+Przy fakturze z kwotą pozostałą do zapłaty przycisk **Przypomnij o płatności** wysyła nabywcy wiadomość z pozostałą
+kwotą, terminem, numerem rachunku i fakturą w załączniku. W ustawieniach firmy można włączyć przypomnienia
+automatyczne: pierwsze N dni po terminie, kolejne co 7 dni, najwyżej 3 do faktury. Szczegóły: D37.
 
 ## 11. Katalog produktów i usług
 

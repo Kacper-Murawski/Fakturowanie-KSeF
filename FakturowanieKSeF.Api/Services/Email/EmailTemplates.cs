@@ -49,6 +49,32 @@ public static class EmailTemplates
         return (subject, b.ToString());
     }
 
+    public static (string Subject, string Body) PaymentReminder(Invoice invoice, Company company, decimal remaining, DateOnly today, string? message)
+    {
+        var overdueDays = invoice.DueDate is { } d ? today.DayNumber - d.DayNumber : 0;
+        var subject = $"Przypomnienie o płatności - faktura {invoice.Number} - {company.Name}";
+
+        var b = new StringBuilder();
+        b.AppendLine("Dzień dobry,").AppendLine();
+        b.AppendLine($"uprzejmie przypominamy o płatności za fakturę {invoice.Number} z dnia {Date(invoice.IssueDate)}.");
+        if (invoice.DueDate is { } due)
+            b.AppendLine(overdueDays > 0
+                ? $"Termin płatności minął {Date(due)} ({overdueDays} {(overdueDays == 1 ? "dzień" : "dni")} temu)."
+                : $"Termin płatności: {Date(due)}.");
+        if (!string.IsNullOrWhiteSpace(message))
+            b.AppendLine().AppendLine(message.Trim());
+        b.AppendLine();
+        b.AppendLine($"Pozostało do zapłaty: {Money(remaining, invoice.Currency)}");
+        if (invoice.BankAccountNumber is not null) b.AppendLine($"Numer rachunku: {Account(invoice.BankAccountNumber)}");
+        b.AppendLine($"Tytuł przelewu: {invoice.Number}");
+        b.AppendLine($"Numer KSeF: {invoice.KsefNumber}");
+        b.AppendLine();
+        b.AppendLine("Jeśli płatność została już zrealizowana, prosimy potraktować tę wiadomość jako nieaktualną.");
+        b.AppendLine("Faktura w załączniku.");
+        AppendSignature(b, company);
+        return (subject, b.ToString());
+    }
+
     internal static void AppendSignature(StringBuilder b, Company company)
     {
         b.AppendLine().AppendLine("Pozdrawiamy").AppendLine(company.Name);
