@@ -14,7 +14,8 @@ public static class CustomerEndpoints
 {
     public static void MapCustomerEndpoints(this RouteGroupBuilder api)
     {
-        var group = api.MapGroup("/customers").WithTags("Kontrahenci").RequireAuthorization();
+        var group = api.MapGroup("/customers").WithTags("Kontrahenci").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRoles.Issuers); // księgowa - tylko odczyt (D46)
 
         group.MapGet("/", async (string? q, CurrentCompany current, AppDbContext db, CancellationToken ct) =>
             {

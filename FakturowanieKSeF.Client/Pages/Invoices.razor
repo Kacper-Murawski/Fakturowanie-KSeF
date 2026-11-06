@@ -1,11 +1,14 @@
 @page "/faktury"
 @inject ApiClient Api
 @inject NavigationManager Navigation
+@inject CompanyContext Ctx
 
 <PageTitle>Faktury - Fakturowanie KSeF</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="mb-0">Faktury</h1>
+    @if (Ctx.CanIssue)
+    {
     <div class="d-flex gap-2">
         <button class="btn btn-outline-secondary" disabled="@importing" @onclick="ImportAsync"
                 title="Faktury sprzedażowe wystawione w innym programie lub aplikacji MF, przesłane do KSeF">
@@ -13,6 +16,7 @@
         </button>
         <a class="btn btn-primary" href="faktury/nowa">Nowa faktura</a>
     </div>
+    }
 </div>
 
 @if (importResult is { } ir)
@@ -134,6 +138,8 @@ else
 }
 
 @code {
+    protected override async Task OnInitializedAsync() => await Ctx.EnsureLoadedAsync();
+
     // Filtry w adresie strony - można je zapisać w zakładkach i wracać przyciskiem „wstecz”
     [SupplyParameterFromQuery(Name = "status")] public string? Status { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }

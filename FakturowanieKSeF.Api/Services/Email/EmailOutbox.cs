@@ -54,10 +54,11 @@ public sealed class EmailOutbox(
         int? invoiceId = null, CancellationToken ct = default)
     {
         var now = time.GetUtcNow().UtcDateTime;
-        if (kind is EmailKind.Invoice or EmailKind.PaymentReminder)
+        if (kind is EmailKind.Invoice or EmailKind.PaymentReminder or EmailKind.Invitation)
         {
             var sentToday = await db.EmailMessages.CountAsync(m => m.CompanyId == companyId
-                && (m.Kind == EmailKind.Invoice || m.Kind == EmailKind.PaymentReminder) && m.CreatedAt > now.AddDays(-1), ct);
+                && (m.Kind == EmailKind.Invoice || m.Kind == EmailKind.PaymentReminder || m.Kind == EmailKind.Invitation)
+                && m.CreatedAt > now.AddDays(-1), ct);
             if (sentToday >= options.Value.DailyLimitPerCompany)
                 throw new EmailLimitException($"Osiągnięto limit {options.Value.DailyLimitPerCompany} wiadomości na dobę. Spróbuj później.");
         }

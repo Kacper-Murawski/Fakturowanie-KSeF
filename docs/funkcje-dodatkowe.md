@@ -39,8 +39,8 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 14 | Aplikacja mobilna (PWA) (D45) | niski | ✅ |
 | 15 | Logowanie dwuskładnikowe (D41) | niski | ✅ |
 | 16 | Faktura proforma (D42) | niski | ✅ |
-| 17 | Tryb offline KSeF (kod QR II) | badawczy | do decyzji |
-| 18 | Dostęp księgowej do firmy (role) | badawczy | do decyzji |
+| 17 | Tryb offline KSeF (kod QR II) | badawczy | pominięty - kierunek rozwoju |
+| 18 | Dostęp księgowej do firmy (role) (D46) | badawczy | ✅ |
 | 19 | Import faktur sprzedażowych wystawionych poza aplikacją (D44) | badawczy | ✅ |
 
 ## 1. Dane kontrahenta z wykazu podatników VAT
@@ -174,6 +174,13 @@ odzyskiwania. Od tej pory logowanie wymaga hasła i kodu z telefonu. Wyłączeni
 W formularzu nowej faktury przełącznik **Faktura proforma** tworzy dokument z serii `PRO/n/MM/RRRR`. Proforma nie trafia
 do KSeF ani do rozliczeń, a jej PDF jest wyraźnie oznaczony jako niebędący fakturą VAT. Można ją wysłać e-mailem,
 a po zapłacie przycisk **Wystaw fakturę VAT** tworzy szkic faktury z tymi samymi danymi. Szczegóły: D42.
+
+## 18. Dostęp księgowej i pracowników (role)
+
+Właściciel zaprasza na stronie „Moja firma” księgową (odczyt, eksport, płatności) lub pracownika (wystawianie i wysyłka
+faktur). Zaproszona osoba dostaje e-mail z jednorazowym linkiem i przyjmuje zaproszenie po zalogowaniu na konto z tym
+adresem. Użytkownik z dostępem do kilku firm (np. biuro rachunkowe) przełącza je w górnym pasku. Uprawnienia sprawdza
+serwer. Szczegóły: D46.
 
 ## 19. Import faktur sprzedażowych wystawionych poza aplikacją
 

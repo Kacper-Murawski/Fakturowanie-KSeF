@@ -176,6 +176,7 @@ api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
 api.MapDashboardEndpoints();
 api.MapAccountEndpoints();
+api.MapMemberEndpoints();
 api.MapExchangeRateEndpoints();
 api.MapExportEndpoints();
 api.MapEmailEndpoints();

@@ -16,6 +16,7 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("pl-PL");
 // API jest pod tym samym adresem co aplikacja - ciasteczko sesji dołączane automatycznie
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<ApiClient>();
+builder.Services.AddScoped<CompanyContext>();
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();

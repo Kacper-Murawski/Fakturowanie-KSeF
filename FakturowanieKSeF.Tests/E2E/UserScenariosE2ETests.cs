@@ -892,5 +892,52 @@ public class UserScenariosE2ETests(E2EFixture fx)
         // Brak poziomego przewijania całej strony (tabela pozycji przewija się we własnym kontenerze)
         Assert.True(await page.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= window.innerWidth + 1"));
     }
+
+    [E2EFact]
+    public async Task DostepKsiegowej_ZaproszenieIPrzyjecie_TrybTylkoDoOdczytu()
+    {
+        // Właściciel zaprasza księgową
+        var owner = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(owner);
+        var members = owner.Locator("[data-testid=company-members]");
+        var accountantEmail = $"ksiegowa_{Guid.NewGuid():N}@biuro.example";
+        await owner.FillAsync("#invite-email", accountantEmail);
+        await owner.SelectOptionAsync("#invite-role", "Accountant");
+        await members.Locator("button:has-text('Zaproś')").ClickAsync();
+        var link = await members.Locator("[data-testid=invitation-link] code").InnerTextAsync();
+        await Expect(members.Locator("[data-testid=members]")).ToContainTextAsync(accountantEmail);
+        await E2EFixture.ScreenshotAsync(owner, "37-uzytkownicy-firmy");
+        var mail = Assert.Single(await WaitForMailAsync(accountantEmail)); // e-mail z tym samym linkiem
+        Assert.Contains(new Uri(link).Query, mail.Body);
+
+        // Księgowa zakłada konto na zapraszany adres i otwiera link
+        var accountant = await fx.NewPageAsync();
+        await accountant.GotoAsync("/register");
+        await accountant.FillAsync("#email", accountantEmail);
+        await accountant.FillAsync("#password", "Haslo123!");
+        await accountant.FillAsync("#password2", "Haslo123!");
+        await accountant.ClickAsync("button[type=submit]");
+        await accountant.WaitForURLAsync(new Regex("/firma$"));
+        await accountant.GotoAsync(new Uri(link).PathAndQuery);
+        await Expect(accountant.Locator("[data-testid=invitation]")).ToContainTextAsync("Pracownia Testowa E2E");
+        await accountant.ClickAsync("button:has-text('Przyjmij zaproszenie')");
+        await Expect(accountant.Locator("h1")).ToHaveTextAsync("Pulpit");
+
+        // Tryb księgowej: brak wystawiania, dane firmy tylko do podglądu
+        await Expect(accountant.Locator("[data-testid=company-role]")).ToContainTextAsync("księgowa");
+        await Expect(accountant.Locator("nav >> text=Nowa faktura")).ToHaveCountAsync(0);
+        await accountant.ClickAsync("nav >> text=Faktury");
+        await Expect(accountant.Locator("a:has-text('Nowa faktura')")).ToHaveCountAsync(0);
+        await accountant.ClickAsync("nav >> text=Moja firma");
+        await Expect(accountant.Locator("[data-testid=company-readonly]")).ToContainTextAsync("księgowa");
+        await Expect(accountant.Locator("[data-testid=company-members]")).ToHaveCountAsync(0);
+    }
+
+    private async Task<List<FakturowanieKSeF.Api.Services.Email.OutgoingEmail>> WaitForMailAsync(string to)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (fx.App.Email.To(to).Count == 0 && DateTime.UtcNow < deadline) await Task.Delay(250);
+        return fx.App.Email.To(to);
+    }
 }
 

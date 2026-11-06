@@ -1,5 +1,6 @@
 @page "/firma"
 @inject ApiClient Api
+@inject CompanyContext Ctx
 
 <PageTitle>Moja firma - Fakturowanie KSeF</PageTitle>
 
@@ -9,6 +10,19 @@
 @if (model is null)
 {
     <p class="text-muted">Wczytywanie…</p>
+}
+else if (companyExists && !Ctx.IsOwner)
+{
+    <div class="card form-narrow" data-testid="company-readonly">
+        <div class="card-body">
+            <p class="mb-1"><strong>@model.Name</strong>, NIP @Format.Nip(model.Nip)</p>
+            <p class="mb-1">@model.Address.Street, @model.Address.PostalCode @model.Address.City</p>
+            <p class="small text-muted mb-0">
+                Masz dostęp do tej firmy z rolą <strong>@CompanyContext.RoleName(Ctx.Role)</strong>. Dane firmy, token KSeF, powiadomienia
+                i użytkowników zmienia właściciel.
+            </p>
+        </div>
+    </div>
 }
 else
 {
@@ -63,6 +77,7 @@ else
     {
         <KsefSettings />
         <NotificationSettings />
+        <CompanyMembers />
     }
 }
 
@@ -74,6 +89,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await Ctx.EnsureLoadedAsync();
         var result = await Api.GetAsync<CompanyDto>("api/company");
         companyExists = result.Value is not null;
         model = result.Value is { } c
@@ -104,7 +120,12 @@ else
         else
         {
             saved = true;
-            companyExists = true;
+            if (!companyExists)
+            {
+                companyExists = true;
+                Ctx.Reset(); // nowa firma - odświeżenie listy firm i roli
+                await Ctx.EnsureLoadedAsync();
+            }
         }
         busy = false;
     }

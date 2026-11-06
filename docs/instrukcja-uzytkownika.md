@@ -271,6 +271,19 @@ Aplikację możesz zainstalować na telefonie: otwórz ją w przeglądarce i wyb
 
 ![Menu na telefonie](zrzuty/36-telefon-menu.png)
 
+## 12. Księgowa i pracownicy
+
+Na stronie **Moja firma** w sekcji **Użytkownicy firmy** właściciel zaprasza osobę z rolą:
+- **księgowa** - widzi faktury i dane firmy, pobiera eksporty, PDF i XML, rejestruje płatności; nie wystawia faktur,
+- **pracownik** - wystawia i wysyła faktury do KSeF, prowadzi kontrahentów i katalog; nie zmienia ustawień firmy.
+
+Zaproszona osoba dostaje e-mail z linkiem ważnym 7 dni. Po otwarciu linku zakłada konto (lub loguje się) **na ten sam
+adres e-mail** i wybiera **Przyjmij zaproszenie**. Jeśli poczta nie jest skonfigurowana, właściciel widzi link
+i może go przekazać sam. Właściciel może zmienić rolę lub odebrać dostęp. Osoba z dostępem do kilku firm (np. biuro
+rachunkowe) przełącza je listą w górnym pasku.
+
+![Użytkownicy firmy](zrzuty/37-uzytkownicy-firmy.png)
+
 ## Najczęstsze komunikaty
 
 | Komunikat | Znaczenie i rozwiązanie |

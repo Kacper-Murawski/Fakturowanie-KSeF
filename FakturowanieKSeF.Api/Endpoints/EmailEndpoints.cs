@@ -11,7 +11,8 @@ public static class EmailEndpoints
 {
     public static void MapEmailEndpoints(this RouteGroupBuilder api)
     {
-        var group = api.MapGroup("/invoices/{id:int}").WithTags("E-mail").RequireAuthorization();
+        var group = api.MapGroup("/invoices/{id:int}").WithTags("E-mail").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRoles.Issuers); // księgowa - tylko odczyt (D46)
 
         group.MapPost("/email", async (int id, SendInvoiceEmailRequest request, CurrentCompany current, AppDbContext db,
                 EmailOutbox outbox, EmailWorkSignal signal, CancellationToken ct) =>

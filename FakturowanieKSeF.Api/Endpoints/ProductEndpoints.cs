@@ -14,7 +14,8 @@ public static class ProductEndpoints
 {
     public static void MapProductEndpoints(this RouteGroupBuilder api)
     {
-        var group = api.MapGroup("/products").WithTags("Katalog").RequireAuthorization();
+        var group = api.MapGroup("/products").WithTags("Katalog").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRoles.Issuers); // księgowa - tylko odczyt (D46)
 
         group.MapGet("/", async (string? q, CurrentCompany current, AppDbContext db, CancellationToken ct) =>
             {

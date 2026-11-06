@@ -14,7 +14,8 @@ public static class KsefSettingsEndpoints
 {
     public static void MapKsefSettingsEndpoints(this RouteGroupBuilder api)
     {
-        var group = api.MapGroup("/company/ksef").WithTags("KSeF").RequireAuthorization();
+        var group = api.MapGroup("/company/ksef").WithTags("KSeF").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRole.Owner); // token KSeF - tylko właściciel (D46)
 
         group.MapGet("/", async (CurrentCompany current, CancellationToken ct) =>
                 await current.FindAsync(ct) is { } company

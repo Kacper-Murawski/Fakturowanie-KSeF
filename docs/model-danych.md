@@ -12,6 +12,9 @@ Kolumny typów własnych (adres, strony faktury) są w tabeli właściciela z pr
 erDiagram
     AspNetUsers ||--o| Companies : "posiada (1 konto = 1 firma)"
     Companies ||--o{ Customers : "książka adresowa"
+    Companies ||--o{ CompanyMembers : "użytkownicy z rolą (D46)"
+    AspNetUsers ||--o{ CompanyMembers : "dostęp do firm"
+    Companies ||--o{ CompanyInvitations : "zaproszenia"
     Companies ||--o{ Products : "katalog towarów i usług"
     Companies ||--o{ Invoices : "wystawia"
     Companies ||--o{ ReceivedInvoices : "otrzymuje z KSeF"
@@ -224,6 +227,25 @@ erDiagram
         bool IsDeleted
     }
 
+    CompanyMembers {
+        int Id PK
+        int CompanyId FK
+        string UserId FK
+        string Role "Employee, Accountant (właściciel: Companies.OwnerId)"
+        timestamptz CreatedAt
+    }
+
+    CompanyInvitations {
+        int Id PK
+        int CompanyId FK
+        string Email
+        string Role
+        string TokenHash "SHA-256 tokenu z linku"
+        timestamptz ExpiresAt "7 dni"
+        timestamptz AcceptedAt
+        timestamptz RevokedAt
+    }
+
     Payments {
         int Id PK
         int CompanyId FK
@@ -247,6 +269,8 @@ erDiagram
 | `Products` | Katalog towarów i usług firmy - podpowiedzi nazwy, ceny i stawki na fakturze (D35). Faktura nie odwołuje się do katalogu; dane są kopiowane do `InvoiceItems`. |
 | `EmailMessages` | Kolejka i historia wiadomości e-mail (outbox, D36): wysyła je usługa w tle z ponawianiem; załączniki powstają przy wysyłce z faktury `InvoiceId`. |
 | `RecurringInvoices` | Harmonogramy faktur cyklicznych (D39): usługa w tle tworzy w terminie szkic na wzór faktury `TemplateInvoiceId`. |
+| `CompanyMembers` | Dostęp pracowników i księgowych do firmy z rolą (D46); właściciel - `Companies.OwnerId`. |
+| `CompanyInvitations` | Zaproszenia do firmy: adres, rola, skrót tokenu z linku, ważność, przyjęcie lub odwołanie. |
 | `Invoices` | Faktury sprzedażowe: nagłówek, kopie danych stron, sumy, status i numer KSeF. |
 | `InvoiceItems` | Pozycje faktury (FaWiersz). |
 | `KsefSubmissions` | Historia prób wysyłki faktury do KSeF: wysłany XML, skrót, numery referencyjne, status, numer KSeF, UPO. |

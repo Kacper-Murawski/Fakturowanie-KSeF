@@ -24,7 +24,8 @@ public static class InvoiceEndpoints
 
     public static void MapInvoiceEndpoints(this RouteGroupBuilder api)
     {
-        var group = api.MapGroup("/invoices").WithTags("Faktury").RequireAuthorization();
+        var group = api.MapGroup("/invoices").WithTags("Faktury").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRoles.Issuers); // księgowa - tylko odczyt (D46)
 
         group.MapGet("/", async (
                 InvoiceStatus? status, PaymentFilter? payment, DateOnly? from, DateOnly? to, string? q, int? page, int? pageSize,

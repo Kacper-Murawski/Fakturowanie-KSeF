@@ -53,7 +53,7 @@ są opcjonalne i uzupełniane w profilu.
 
 ---
 
-## D4. Jedno konto użytkownika = jedna firma (w MVP)
+## D4. Jedno konto użytkownika = jedna firma (w MVP; rozszerzone w D46 - dostęp do wielu firm z rolami)
 
 **Kontekst:** użytkownik może w przyszłości prowadzić kilka działalności lub obsługiwać kilka firm (np. biuro rachunkowe).
 
@@ -238,7 +238,7 @@ w standardowym walidatorze formularzy Blazor.
 **Uzasadnienie:** jedno źródło reguł dla API i formularzy, brak zewnętrznych bibliotek, standardowy format
 błędów (ValidationProblemDetails).
 
-## D15. Izolacja danych przez firmę ustalaną z tożsamości użytkownika
+## D15. Izolacja danych przez firmę ustalaną z tożsamości użytkownika (z rolami - D46)
 
 **Decyzja:** usługa `CurrentCompany` ustala firmę na podstawie zalogowanego użytkownika; każde zapytanie
 zawiera warunek `CompanyId == firma użytkownika`. Cudze rekordy są traktowane jak nieistniejące (404).
@@ -990,4 +990,48 @@ albo wystawić fakturę z telefonu. Osobna aplikacja natywna oznaczałaby drugi 
 **Uzasadnienie:** aplikacja „na telefon” bez drugiego kodu i bez sklepów, z bezpiecznym zachowaniem pamięci
 podręcznej (tylko pliki aplikacji). Działanie produkcyjnego service workera sprawdzono w przeglądarce: 70 plików
 aplikacji w pamięci podręcznej, żadnej odpowiedzi API, strona ładuje się po przeładowaniu z pamięci.
+
+---
+
+## D46. Dostęp pracowników i księgowej do firmy - role i zaproszenia
+
+**Kontekst:** w MVP konto i firma były w relacji 1:1 (D4). W praktyce z danymi firmy pracuje też księgowa (biuro
+rachunkowe obsługuje wiele firm) i pracownicy wystawiający faktury. Udostępnianie hasła właściciela byłoby niebezpieczne
+i uniemożliwiałoby rozróżnienie uprawnień. Zmiana dotyka podstaw bezpieczeństwa - izolacji danych (D15).
+
+**Decyzja:**
+- właściciel firmy pozostaje w `Company.OwnerId`; dostęp innych osób to wpisy `CompanyMembers` (firma, użytkownik, rola);
+  jedno konto może należeć do wielu firm i mieć własną,
+- trzy role: **właściciel** (wszystko), **pracownik** (wystawianie i wysyłka faktur, kontrahenci, katalog, faktury
+  cykliczne, e-maile, płatności; bez danych firmy, tokenu KSeF, powiadomień i użytkowników), **księgowa** (odczyt
+  wszystkich danych, eksport, PDF/XML, rejestrowanie płatności; bez wystawiania i zmian),
+- uprawnienia sprawdza **serwer** filtrem endpointów (`RequireRoleForChanges`, `RequireRole`) na grupach API - operacje
+  zmieniające dane bez uprawnień zwracają 403 z nazwą roli; interfejs tylko ukrywa niedostępne przyciski,
+- **bieżąca firma**: `CurrentCompany` ustala firmę z wyboru użytkownika (ciasteczko HttpOnly `ksef.company` albo nagłówek
+  `X-Company-Id` dla innych klientów API), ale **wyłącznie spośród firm, do których użytkownik ma dostęp** (własnej lub
+  z członkostwa) - wskazanie cudzej firmy jest ignorowane; bez wyboru - firma własna, a gdy jej nie ma, pierwsza
+  z członkostwa. Zasada z D15 pozostaje: identyfikator firmy w zapytaniach pochodzi z `CurrentCompany`, a żądanie może
+  tylko wybrać jedną z firm uprawnionych dla tożsamości,
+- **zaproszenia**: właściciel zaprasza na adres e-mail z rolą; wiadomość zawiera jednorazowy link z losowym tokenem
+  (256 bitów) ważnym 7 dni; w bazie jest tylko skrót SHA-256 tokenu; przyjęcie wymaga linku **i** zalogowania na konto
+  z zapraszanym adresem - aplikacja nie potwierdza adresów e-mail przy rejestracji, więc sam adres konta nie wystarcza
+  (ktoś mógłby założyć konto na cudzy adres), a link dowodzi dostępu do skrzynki; nowe zaproszenie unieważnia poprzednie,
+  zaproszenie można odwołać; wiadomości podlegają dziennemu limitowi firmy (D36),
+- właściciel zmienia role i odbiera dostęp - skutek od następnego żądania danej osoby,
+- przełącznik firm w górnym pasku (gdy użytkownik ma dostęp do więcej niż jednej) - po zmianie aplikacja przeładowuje
+  dane; usługi w tle działają na poziomie firmy i nie zależą od ról.
+
+**Alternatywy:**
+- role w ASP.NET Core Identity (`AspNetRoles`): role są globalne dla konta, a tu rola zależy od firmy (ta sama osoba
+  jest właścicielem swojej firmy i księgową u klienta),
+- identyfikator firmy w adresie URL (`/api/companies/{id}/invoices`): jawne, ale wymaga zmiany wszystkich endpointów
+  i adresów klienta; wybór w ciasteczku działa też dla linków do pobierania plików (PDF, ZIP), które nie wysyłają nagłówków,
+- przyjmowanie zaproszeń tylko po adresie konta (bez tokenu): prostsze, ale bez potwierdzania adresów e-mail
+  pozwalałoby przejąć zaproszenie zakładając konto na cudzy adres,
+- dostęp księgowej przez uprawnienia w KSeF (nadawane w KSeF przez właściciela): daje dostęp do faktur w KSeF,
+  ale nie do danych aplikacji (rozliczenia, eksport) - uzupełnia, a nie zastępuje role aplikacji.
+
+**Uzasadnienie:** współpraca z księgową i pracownikami bez dzielenia się hasłem, z najmniejszymi potrzebnymi
+uprawnieniami. Izolacja danych pozostaje scentralizowana w `CurrentCompany`, a testy sprawdzają, że wskazanie cudzej
+firmy (nagłówek, wybór) nie daje dostępu do jej danych i że odebranie dostępu działa natychmiast.
 

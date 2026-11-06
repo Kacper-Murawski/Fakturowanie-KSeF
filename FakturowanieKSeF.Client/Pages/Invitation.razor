@@ -1,0 +1,63 @@
+@page "/zaproszenie"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject CompanyContext Ctx
+
+<PageTitle>Zaproszenie - Fakturowanie KSeF</PageTitle>
+
+<h1>Zaproszenie do firmy</h1>
+
+<ProblemAlert Problem="problem" />
+
+@if (preview is { } p)
+{
+    <div class="card form-narrow" data-testid="invitation">
+        <div class="card-body">
+            <p><strong>@p.CompanyName</strong> (NIP @Format.Nip(p.CompanyNip)) zaprasza Cię z rolą <strong>@CompanyContext.RoleName(p.Role)</strong>.</p>
+            <p class="small text-muted">
+                @(p.Role == CompanyRole.Accountant
+                    ? "Księgowa widzi faktury i dane firmy, pobiera eksporty i rejestruje płatności - nie wystawia faktur."
+                    : "Pracownik wystawia i wysyła faktury do KSeF, prowadzi kontrahentów i katalog - nie zmienia ustawień firmy.")
+                Zaproszenie dla adresu @p.Email, ważne do @Format.Date(DateOnly.FromDateTime(p.ExpiresAt)).
+            </p>
+            <button class="btn btn-primary" disabled="@busy" @onclick="AcceptAsync">Przyjmij zaproszenie</button>
+        </div>
+    </div>
+}
+else if (problem is null)
+{
+    <p class="text-muted">Wczytywanie…</p>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "token")] public string? Token { get; set; }
+
+    private InvitationPreviewDto? preview;
+    private ApiProblem? problem;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            problem = new ApiProblem { Status = 404, Title = "Brak tokenu zaproszenia w adresie." };
+            return;
+        }
+        var result = await Api.GetAsync<InvitationPreviewDto>($"api/account/invitations/{Uri.EscapeDataString(Token)}");
+        preview = result.Value;
+        problem = result.Problem;
+    }
+
+    private async Task AcceptAsync()
+    {
+        busy = true;
+        var result = await Api.PostAsync<AccessibleCompanyDto>("api/account/invitations/accept", new AcceptInvitationRequest { Token = Token! });
+        busy = false;
+        problem = result.Problem;
+        if (result.Value is not null)
+        {
+            Ctx.Reset();
+            Navigation.NavigateTo("", forceLoad: true);
+        }
+    }
+}
