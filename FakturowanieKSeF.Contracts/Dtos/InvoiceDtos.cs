@@ -73,7 +73,13 @@ public sealed record InvoiceDto(
     /// <summary>Faktury korygujące wystawione do tej faktury.</summary>
     IReadOnlyList<CorrectionSummaryDto>? Corrections = null,
     /// <summary>Data zapłaty, gdy faktura jest oznaczona jako zapłacona w chwili wystawienia (Zaplacono w FA(3)).</summary>
-    DateOnly? PaidOn = null);
+    DateOnly? PaidOn = null,
+    /// <summary>Powiązanie proforma ↔ faktura VAT (D42): dla faktury VAT - proforma, z której powstała; dla proformy - wystawiona faktura.</summary>
+    LinkedDocumentDto? Proforma = null,
+    LinkedDocumentDto? IssuedFromProforma = null);
+
+/// <summary>Odwołanie do powiązanego dokumentu (numer i stan).</summary>
+public sealed record LinkedDocumentDto(int Id, string Number, InvoiceStatus Status);
 
 /// <summary>Faktura korygująca: dane faktury korygowanej, przyczyna, stan przed korektą i różnica per stawka.</summary>
 public sealed record CorrectionInfoDto(
@@ -187,6 +193,9 @@ public sealed class SaveInvoiceRequest : IValidatableObject
     [JsonIgnore]
     public bool IsCorrection => CorrectedInvoiceId is not null;
 
+    /// <summary>Faktura proforma (tylko przy tworzeniu; rodzaju dokumentu nie można zmienić) - D42.</summary>
+    public bool IsProforma { get; set; }
+
     /// <summary>Wersja rekordu z ostatniego odczytu (wymagana przy edycji).</summary>
     public uint? Version { get; set; }
 
@@ -209,9 +218,14 @@ public sealed class SaveInvoiceRequest : IValidatableObject
         if (DueDate is { } due && due < IssueDate)
             yield return new ValidationResult("Termin płatności nie może być wcześniejszy niż data wystawienia.", [nameof(DueDate)]);
 
+        if (IsProforma && IsCorrection)
+            yield return new ValidationResult("Faktura korygująca nie może być proformą.", [nameof(IsProforma)]);
+
         if (PaidOn is { } paidOn)
         {
-            if (IsCorrection)
+            if (IsProforma)
+                yield return new ValidationResult("Proforma nie jest fakturą - zapłatę oznacz na fakturze VAT wystawionej na jej podstawie.", [nameof(PaidOn)]);
+            else if (IsCorrection)
                 yield return new ValidationResult("Oznaczenie zapłaty dotyczy tylko faktur VAT, nie korekt.", [nameof(PaidOn)]);
             else if (paidOn > IssueDate)
                 yield return new ValidationResult("Data zapłaty nie może być późniejsza niż data wystawienia - późniejsze wpłaty rejestruj w rozliczeniu faktury.", [nameof(PaidOn)]);

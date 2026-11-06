@@ -73,12 +73,25 @@ else
                             {
                                 <span class="badge bg-warning text-dark ms-1" title="Faktura korygująca">KOR</span>
                             }
+                            @if (i.Kind == InvoiceKind.Proforma)
+                            {
+                                <span class="badge bg-info text-dark ms-1" title="Faktura proforma - nie trafia do KSeF">PRO</span>
+                            }
                         </td>
                         <td>@Format.Date(i.IssueDate)</td>
                         <td>@i.BuyerName<div class="small text-muted">@(i.BuyerNip is null ? "" : "NIP " + Format.Nip(i.BuyerNip))</div></td>
                         <td class="text-end text-nowrap">@Format.Money(i.TotalNet, i.Currency)</td>
                         <td class="text-end text-nowrap">@Format.Money(i.TotalGross, i.Currency)</td>
-                        <td><StatusBadge Status="i.Status" /></td>
+                        <td>
+                            @if (i.Kind == InvoiceKind.Proforma)
+                            {
+                                <span class="badge bg-light text-dark border">proforma</span>
+                            }
+                            else
+                            {
+                                <StatusBadge Status="i.Status" />
+                            }
+                        </td>
                         <td>
                             <PaymentBadge Status="i.PaymentStatus" IsOverdue="i.IsOverdue" />
                             @if (i.PaymentStatus is not null && i.DueDate is not null && i.PaymentStatus != PaymentStatus.Paid)

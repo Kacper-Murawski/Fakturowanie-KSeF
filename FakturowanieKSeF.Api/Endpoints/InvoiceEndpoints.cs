@@ -85,10 +85,21 @@ public static class InvoiceEndpoints
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
                 var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions)
-                    .Include(i => i.Payments).Include(i => i.Corrections)
+                    .Include(i => i.Payments).Include(i => i.Corrections).Include(i => i.Proforma)
                     .AsSplitQuery()
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
-                return invoice is null ? ApiErrors.NotFound("faktura") : Results.Ok(invoice.ToDto(PolishDate.Today(time)));
+                if (invoice is null) return ApiErrors.NotFound("faktura");
+
+                // Proforma: faktura VAT wystawiona na jej podstawie (D42)
+                var issued = invoice.Kind == InvoiceKind.Proforma
+                    ? await db.Invoices.AsNoTracking().Where(i => i.ProformaId == invoice.Id && i.CompanyId == company.Id)
+                        .Select(i => new LinkedDocumentDto(i.Id, i.Number, i.Status)).FirstOrDefaultAsync(ct)
+                    : null;
+                return Results.Ok(invoice.ToDto(PolishDate.Today(time)) with
+                {
+                    Proforma = invoice.Proforma is { } p ? new LinkedDocumentDto(p.Id, p.Number, p.Status) : null,
+                    IssuedFromProforma = issued
+                });
             })
             .WithSummary("Szczegóły faktury");
 
@@ -100,6 +111,8 @@ public static class InvoiceEndpoints
                 var invoice = await db.Invoices.AsNoTracking().Include(i => i.Items).Include(i => i.KsefSubmissions)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
+                if (invoice.Kind == InvoiceKind.Proforma)
+                    return ApiErrors.Conflict("Faktura proforma nie jest fakturą ustrukturyzowaną - nie ma postaci XML FA(3).");
 
                 var fileName = string.Concat(invoice.Number.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + ".xml";
 
@@ -138,6 +151,9 @@ public static class InvoiceEndpoints
                 var invoice = await db.Invoices.Include(i => i.Items).Include(i => i.KsefSubmissions).Include(i => i.Payments)
                     .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
                 if (invoice is null) return ApiErrors.NotFound("faktura");
+
+                if (invoice.Kind == InvoiceKind.Proforma)
+                    return ApiErrors.Conflict("Faktura proforma nie jest wysyłana do KSeF - wystaw na jej podstawie fakturę VAT.");
 
                 if (invoice.Status is not (InvoiceStatus.Draft or InvoiceStatus.Rejected))
                     return ApiErrors.Conflict("Faktura została już wysłana do KSeF.");
@@ -224,6 +240,44 @@ public static class InvoiceEndpoints
                 return Results.File(pdf, "application/pdf", InvoiceFiles.FileName(invoice.Number, "pdf"));
             })
             .WithSummary("Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych)");
+
+        group.MapPost("/{id:int}/convert", async (int id, CurrentCompany current, AppDbContext db, InvoiceNumbering numbering,
+                TimeProvider time, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+
+                var proforma = await db.Invoices.AsNoTracking().Include(i => i.Items)
+                    .SingleOrDefaultAsync(i => i.Id == id && i.CompanyId == company.Id, ct);
+                if (proforma is null) return ApiErrors.NotFound("faktura proforma");
+                if (proforma.Kind != InvoiceKind.Proforma)
+                    return ApiErrors.Conflict("Na fakturę VAT można zamienić tylko fakturę proformę.");
+                if (await db.Invoices.Where(i => i.ProformaId == id && i.CompanyId == company.Id).Select(i => i.Number).FirstOrDefaultAsync(ct) is { } existing)
+                    return ApiErrors.Conflict($"Na podstawie tej proformy wystawiono już fakturę {existing}.");
+
+                var today = PolishDate.Today(time);
+                var customerExists = proforma.CustomerId is { } cid && await db.Customers.AnyAsync(c => c.Id == cid && c.CompanyId == company.Id, ct);
+                // Termin z proformy, jeśli jeszcze nie minął; inaczej ten sam odstęp od dzisiejszej daty
+                var due = proforma.DueDate is { } d && d >= today ? d : (DateOnly?)null;
+                var request = InvoiceTemplates.RequestFrom(proforma, customerExists, today, due);
+
+                for (var attempt = 1; ; attempt++)
+                {
+                    var invoice = new Invoice { CompanyId = company.Id, ProformaId = proforma.Id };
+                    if (await ApplyAsync(invoice, request, company, db, ct) is { } error) return error;
+                    invoice.Number = await numbering.NextAsync(company.Id, today, InvoiceKind.Vat, ct);
+                    db.Invoices.Add(invoice);
+                    try
+                    {
+                        await db.SaveChangesAsync(ct);
+                        return Results.Created($"/api/invoices/{invoice.Id}", invoice.ToDto());
+                    }
+                    catch (DbUpdateException ex) when (attempt < 3 && IsDuplicateNumber(ex))
+                    {
+                        db.ChangeTracker.Clear();
+                    }
+                }
+            })
+            .WithSummary("Faktura VAT (szkic) na podstawie faktury proformy - D42");
 
         group.MapGet("/next-number", async (DateOnly? issueDate, InvoiceKind? kind, CurrentCompany current, InvoiceNumbering numbering, CancellationToken ct) =>
             {
@@ -343,7 +397,7 @@ public static class InvoiceEndpoints
     internal static async Task<IResult?> ApplyAsync(Invoice invoice, SaveInvoiceRequest request, Company company,
         AppDbContext db, CancellationToken ct)
     {
-        var kind = request.IsCorrection ? InvoiceKind.Correction : InvoiceKind.Vat;
+        var kind = request.IsCorrection ? InvoiceKind.Correction : request.IsProforma ? InvoiceKind.Proforma : InvoiceKind.Vat;
         if (invoice.Id != 0 && (invoice.Kind != kind || invoice.CorrectedInvoiceId != request.CorrectedInvoiceId))
             return ApiErrors.Validation(nameof(request.CorrectedInvoiceId), "Nie można zmienić rodzaju faktury ani faktury korygowanej.");
 
@@ -411,7 +465,7 @@ public static class InvoiceEndpoints
         invoice.SaleDate = request.SaleDate;
         invoice.PaymentMethod = request.PaymentMethod;
         invoice.DueDate = request.DueDate;
-        invoice.PaidOn = request.IsCorrection ? null : request.PaidOn;
+        invoice.PaidOn = kind == InvoiceKind.Vat ? request.PaidOn : null;
         var anyExempt = request.Items.Any(i => i.VatRate == VatRate.Exempt) || before?.Any(i => i.VatRate == VatRate.Exempt) == true;
         invoice.ExemptionBasis = anyExempt ? Mapping.EmptyToNull(request.ExemptionBasis) ?? originalExemptionBasis : null;
         invoice.BankAccountNumber = Mapping.NormalizeBankAccount(request.BankAccountNumber)

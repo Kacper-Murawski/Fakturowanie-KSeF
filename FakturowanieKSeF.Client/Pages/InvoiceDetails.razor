@@ -19,15 +19,31 @@ else
 {
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
         <div>
-            <h1 class="mb-1">@(invoice.Kind == InvoiceKind.Correction ? "Faktura korygująca" : "Faktura VAT") @invoice.Number</h1>
-            <StatusBadge Status="invoice.Status" />
+            <h1 class="mb-1">@(invoice.Kind switch { InvoiceKind.Correction => "Faktura korygująca", InvoiceKind.Proforma => "Faktura proforma", _ => "Faktura VAT" }) @invoice.Number</h1>
+            @if (invoice.Kind == InvoiceKind.Proforma)
+            {
+                <span class="badge bg-info text-dark" data-testid="status-badge">Proforma - nie trafia do KSeF</span>
+            }
+            else
+            {
+                <StatusBadge Status="invoice.Status" />
+            }
             @if (invoice.KsefNumber is not null)
             {
                 <span class="ms-2 small">Numer KSeF: <strong>@invoice.KsefNumber</strong> (@Format.DateTime(invoice.KsefAcceptedAt))</span>
             }
         </div>
         <div class="d-flex flex-wrap gap-2">
-            @if (invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected)
+            @if (invoice.Kind == InvoiceKind.Proforma)
+            {
+                @if (invoice.IssuedFromProforma is null)
+                {
+                    <button class="btn btn-success" @onclick="ConvertAsync" disabled="@busy" title="Szkic faktury VAT z nabywcą i pozycjami proformy">Wystaw fakturę VAT</button>
+                }
+                <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
+                <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+            }
+            else if (invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected)
             {
                 <button class="btn btn-success" @onclick="SendAsync" disabled="@busy">@(busy ? "Wysyłanie…" : "Wyślij do KSeF")</button>
                 <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
@@ -47,12 +63,34 @@ else
                 <a class="btn btn-outline-primary" href="cykliczne/nowa?wzor=@invoice.Id" title="Szkice tej faktury co miesiąc, kwartał lub rok">Ustaw jako cykliczną</a>
             }
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/pdf" download>Pobierz PDF</a>
-            <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>
+            @if (invoice.Kind != InvoiceKind.Proforma)
+            {
+                <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>
+            }
             <a class="btn btn-outline-secondary" href="faktury">Wróć do listy</a>
         </div>
     </div>
 
-    @switch (invoice.Status)
+    @if (invoice.Kind == InvoiceKind.Proforma)
+    {
+        <div class="alert alert-secondary small" data-testid="proforma-links">
+            Faktura proforma nie jest fakturą VAT - nie jest wysyłana do KSeF i nie podlega rozliczeniu.
+            @if (invoice.IssuedFromProforma is { } vat)
+            {
+                <span>Na jej podstawie wystawiono fakturę <a href="faktury/@vat.Id">@vat.Number</a>.</span>
+            }
+            else
+            {
+                <span>Po zapłacie lub realizacji zamówienia wybierz <strong>Wystaw fakturę VAT</strong>.</span>
+            }
+        </div>
+    }
+    else if (invoice.Proforma is { } source)
+    {
+        <div class="alert alert-light border small" data-testid="proforma-source">Wystawiona na podstawie proformy <a href="faktury/@source.Id">@source.Number</a>.</div>
+    }
+
+    @switch (invoice.Kind == InvoiceKind.Proforma ? (InvoiceStatus?)null : invoice.Status)
     {
         case InvoiceStatus.Draft:
             <div class="alert alert-info small">
@@ -137,7 +175,7 @@ else
                       InfoChanged="info => invoice = invoice with { Payment = info }" />
     }
 
-    @if (invoice.Status == InvoiceStatus.Accepted)
+    @if (invoice.Status == InvoiceStatus.Accepted || invoice.Kind == InvoiceKind.Proforma)
     {
         <InvoiceEmailPanel InvoiceId="invoice.Id" Remaining="invoice.Payment?.Remaining" />
     }
@@ -283,5 +321,15 @@ else
         busy = false;
         problem = result.Problem;
         if (problem is null) Navigation.NavigateTo("faktury");
+    }
+
+    /// <summary>Szkic faktury VAT na podstawie proformy (D42) - przejście do jego edycji.</summary>
+    private async Task ConvertAsync()
+    {
+        busy = true;
+        var result = await Api.PostAsync<InvoiceDto>($"api/invoices/{invoice!.Id}/convert", new { });
+        busy = false;
+        problem = result.Problem;
+        if (result.Value is { } vat) Navigation.NavigateTo($"faktury/{vat.Id}/edycja");
     }
 }

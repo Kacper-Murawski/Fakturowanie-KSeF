@@ -34,6 +34,13 @@ public static class InvoiceFiles
         }
 
         InvoiceDocumentDto document = Fa3InvoiceReader.Read(generator.Generate(invoice));
+
+        // Proforma: ten sam układ co faktura (dane z generatora), ale wyraźnie oznaczona jako niebędąca fakturą VAT (D42)
+        if (invoice.Kind == InvoiceKind.Proforma)
+            return renderer.Render(document, null,
+                "FAKTURA PROFORMA - nie jest fakturą VAT i nie stanowi podstawy do odliczenia podatku. Nie jest przesyłana do KSeF.",
+                "Faktura proforma");
+
         var notice = invoice.Status == InvoiceStatus.Rejected
             ? "FAKTURA ODRZUCONA PRZEZ KSeF - dokument nie ma mocy prawnej faktury."
             : "SZKIC - dokument nie został wysłany do KSeF i nie jest fakturą.";

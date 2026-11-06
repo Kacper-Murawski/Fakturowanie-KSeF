@@ -378,6 +378,9 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<int?>("ProformaId")
+                        .HasColumnType("integer");
+
                     b.Property<DateOnly?>("SaleDate")
                         .HasColumnType("date");
 
@@ -413,6 +416,8 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.HasIndex("KsefNumber")
                         .IsUnique()
                         .HasFilter("\"KsefNumber\" IS NOT NULL");
+
+                    b.HasIndex("ProformaId");
 
                     b.HasIndex("CompanyId", "IssueDate");
 
@@ -1077,6 +1082,11 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("FakturowanieKSeF.Models.Invoice", "Proforma")
+                        .WithMany()
+                        .HasForeignKey("ProformaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsOne("FakturowanieKSeF.Models.InvoiceParty", "Buyer", b1 =>
                         {
                             b1.Property<int>("InvoiceId")
@@ -1201,6 +1211,8 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.Navigation("CorrectedInvoice");
 
                     b.Navigation("Customer");
+
+                    b.Navigation("Proforma");
 
                     b.Navigation("Seller")
                         .IsRequired();

@@ -142,6 +142,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
                 .HasForeignKey(i => i.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            e.HasOne(i => i.Proforma).WithMany().HasForeignKey(i => i.ProformaId).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(i => !i.IsDeleted);
         });
 

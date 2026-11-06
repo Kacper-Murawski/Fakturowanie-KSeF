@@ -18,6 +18,8 @@ public static class EmailTemplates
 
     public static (string Subject, string Body) Invoice(Invoice invoice, Company company, string? message)
     {
+        if (invoice.Kind == InvoiceKind.Proforma) return Proforma(invoice, company, message);
+
         var correction = invoice.Kind == InvoiceKind.Correction;
         var subject = $"{(correction ? "Faktura korygująca" : "Faktura")} {invoice.Number} - {company.Name}";
 
@@ -47,6 +49,25 @@ public static class EmailTemplates
         b.AppendLine("a plik PDF jest wizualizacją z kodem QR do weryfikacji faktury w KSeF.");
         AppendSignature(b, company);
         return (subject, b.ToString());
+    }
+
+    /// <summary>Proforma: dokument do zapłaty/akceptacji - wyraźnie nie jest fakturą VAT (D42).</summary>
+    private static (string Subject, string Body) Proforma(Invoice invoice, Company company, string? message)
+    {
+        var b = new StringBuilder();
+        b.AppendLine("Dzień dobry,").AppendLine();
+        b.AppendLine($"w załączniku przesyłamy fakturę proformę {invoice.Number} z dnia {Date(invoice.IssueDate)}.");
+        if (!string.IsNullOrWhiteSpace(message)) b.AppendLine().AppendLine(message.Trim());
+        b.AppendLine();
+        b.AppendLine($"Kwota: {Money(invoice.TotalGross, invoice.Currency)}");
+        if (invoice.DueDate is { } due) b.AppendLine($"Termin płatności: {Date(due)}");
+        if (invoice.BankAccountNumber is not null) b.AppendLine($"Numer rachunku: {Account(invoice.BankAccountNumber)}");
+        b.AppendLine($"Tytuł przelewu: {invoice.Number}");
+        b.AppendLine();
+        b.AppendLine("Faktura proforma nie jest fakturą VAT. Fakturę VAT wystawimy w Krajowym Systemie e-Faktur (KSeF)");
+        b.AppendLine("po zapłacie lub realizacji zamówienia.");
+        AppendSignature(b, company);
+        return ($"Faktura proforma {invoice.Number} - {company.Name}", b.ToString());
     }
 
     public static (string Subject, string Body) PaymentReminder(Invoice invoice, Company company, decimal remaining, DateOnly today, string? message)

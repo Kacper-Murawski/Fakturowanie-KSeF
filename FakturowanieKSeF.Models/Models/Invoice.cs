@@ -102,6 +102,10 @@ public class Invoice : BaseEntity
     /// <summary>Typ skutku korekty w ewidencji VAT (TypKorekty).</summary>
     public CorrectionType? CorrectionType { get; set; }
 
+    /// <summary>Faktura proforma, na podstawie której wystawiono tę fakturę VAT (D42).</summary>
+    public int? ProformaId { get; set; }
+    public Invoice? Proforma { get; set; }
+
     /// <summary>Numer KSeF nadany po przyjęciu faktury (kopia z udanej wysyłki, dla szybkiego wyszukiwania).</summary>
     [MaxLength(40)]
     public string? KsefNumber { get; set; }

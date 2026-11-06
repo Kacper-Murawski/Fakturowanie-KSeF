@@ -34,10 +34,11 @@ po polsku.
 | DELETE | `/api/customers/{id}` | Usunięcie kontrahenta (miękkie) |
 | GET | `/api/invoices?status=&payment=&from=&to=&q=&page=&pageSize=` | Lista faktur z filtrami i stronicowaniem; `payment`: `Unpaid`, `Paid`, `Overdue` (D30) |
 | GET | `/api/invoices/{id}` | Szczegóły faktury z pozycjami i podsumowaniem VAT |
-| GET | `/api/invoices/next-number?issueDate=&kind=` | Propozycja kolejnego numeru (`kind=Correction` - seria `KOR/n/MM/RRRR`) |
+| GET | `/api/invoices/next-number?issueDate=&kind=` | Propozycja kolejnego numeru (`kind=Correction` - seria `KOR/n/MM/RRRR`, `kind=Proforma` - `PRO/n/MM/RRRR`) |
+| POST | `/api/invoices/{id}/convert` | Szkic faktury VAT na podstawie proformy (nabywca, pozycje, warunki); 409 - dokument nie jest proformą albo już wystawiono z niej fakturę (D42) |
 | GET | `/api/invoices/{id}/pdf` | Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych) |
 | GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |
-| POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32). Opcjonalne `paidOn` - faktura zapłacona przy wystawieniu (`Zaplacono` w FA(3); nie później niż data wystawienia), przy wysyłce rejestrowana jako płatność (D33) |
+| POST | `/api/invoices` | Utworzenie faktury (szkicu). Z `correctedInvoiceId`, `correctionReason`, `correctionType` - faktura korygująca (KOR) do faktury przyjętej w KSeF; `items` to stan po korekcie (pusta lista - korekta do zera) (D32). Pole `isProforma: true` - faktura proforma (nie trafia do KSeF, D42). Opcjonalne `paidOn` - faktura zapłacona przy wystawieniu (`Zaplacono` w FA(3); nie później niż data wystawienia), przy wysyłce rejestrowana jako płatność (D33) |
 | PUT | `/api/invoices/{id}` | Edycja faktury (tylko szkic lub faktura odrzucona) |
 | DELETE | `/api/invoices/{id}` | Usunięcie faktury (tylko szkic lub faktura odrzucona); 409 - faktura jest wzorem faktury cyklicznej (D39) |
 | POST | `/api/invoices/{id}/send` | Wysłanie faktury do KSeF (body: `version`); 202 i status `Pending`, dalej asynchronicznie - zob. `docs/integracja-ksef.md` |

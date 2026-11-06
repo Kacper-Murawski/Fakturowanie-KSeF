@@ -84,6 +84,15 @@ fakturach powtarzalnych, np. comiesięcznym abonamencie. Nic nie jest zapisywane
 
 ![Wystaw podobną](zrzuty/18-wystaw-podobna.png)
 
+### Faktura proforma
+
+Jeśli chcesz najpierw wysłać klientowi dokument do zapłaty (np. przedpłata), w formularzu nowej faktury wybierz
+**Faktura proforma**. Proforma dostaje numer z serii `PRO/…`, nie jest wysyłana do KSeF i nie jest fakturą VAT
+(tak oznaczony jest też PDF). Możesz ją wysłać e-mailem. Po zapłacie otwórz proformę i wybierz **Wystaw fakturę VAT** -
+powstanie szkic faktury z tymi samymi danymi, który sprawdzasz i wysyłasz do KSeF.
+
+![Faktura proforma](zrzuty/32-faktura-proforma.png)
+
 ### Faktury cykliczne
 
 Jeśli co miesiąc (kwartał, rok) wystawiasz tę samą fakturę, otwórz ją i wybierz **Ustaw jako cykliczną**. Podaj okres,

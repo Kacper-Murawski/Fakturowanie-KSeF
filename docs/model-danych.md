@@ -19,6 +19,7 @@ erDiagram
     Invoices ||--|{ InvoiceItems : "pozycje"
     Invoices ||--o{ KsefSubmissions : "próby wysyłki"
     Invoices |o--o{ Invoices : "korekty (CorrectedInvoiceId)"
+    Invoices |o--o| Invoices : "faktura VAT z proformy (ProformaId)"
     Invoices |o--o{ Payments : "wpłaty nabywcy"
     ReceivedInvoices |o--o{ Payments : "zapłaty sprzedawcy"
     Companies ||--o{ Payments : "rozliczenia"
@@ -115,6 +116,7 @@ erDiagram
         timestamptz CreatedAt
         timestamptz UpdatedAt
         bool IsDeleted
+        int ProformaId FK "proforma, z której wystawiono fakturę VAT (D42)"
     }
 
     InvoiceItems {

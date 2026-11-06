@@ -859,3 +859,34 @@ bezpieczeństwa).
 **Uzasadnienie:** standard obsługiwany przez wszystkie popularne aplikacje, bez kosztów i zewnętrznych usług;
 mechanizmy kryptograficzne z Identity, a własny kod dotyczy tylko przepływu i interfejsu.
 
+---
+
+## D42. Faktura proforma jako rodzaj dokumentu poza KSeF, zamieniany na fakturę VAT
+
+**Kontekst:** proforma to dokument handlowy (oferta, wezwanie do przedpłaty) - nie jest fakturą w rozumieniu ustawy
+o VAT, nie podlega przesłaniu do KSeF (struktura FA(3) nie ma takiego rodzaju) i nie daje prawa do odliczenia podatku.
+Małe firmy wystawiają ją przed realizacją zamówienia, a po zapłacie - fakturę VAT.
+
+**Decyzja:**
+- proforma jest rodzajem dokumentu w tej samej tabeli co faktury (`Kind = Proforma`), z własną serią numerów
+  `PRO/n/MM/RRRR`; formularz i pozycje są te same co faktury (przełącznik „Faktura VAT / Faktura proforma”),
+- nie jest wysyłana do KSeF (409 także przy wywołaniu API), nie ma postaci XML FA(3), nie podlega rozliczeniom,
+  przypomnieniom, eksportowi, wykresom sprzedaży ani nie może być wzorem korekty czy faktury cyklicznej; nie można
+  oznaczyć jej jako zapłaconej,
+- PDF ma tytuł „Faktura proforma” i wyraźne oznaczenie, że nie jest fakturą VAT; proformę można wysłać e-mailem
+  (tylko PDF, w treści informacja, że faktura VAT zostanie wystawiona w KSeF),
+- **Wystaw fakturę VAT** tworzy szkic faktury VAT z nabywcą (aktualne dane z książki adresowej), pozycjami i warunkami
+  proformy - tą samą ścieżką co formularz (wspólny kod z fakturami cyklicznymi, D39); termin płatności z proformy,
+  jeśli nie minął; faktura VAT zapamiętuje proformę (`ProformaId`), a proformę można zamienić tylko raz.
+
+**Alternatywy:**
+- osobna tabela proform: pełne rozdzielenie od faktur, ale duplikacja pozycji, obliczeń, PDF i formularza,
+- proforma jako status szkicu faktury: prostsze, ale szkic dostaje numer z serii FV - luka w numeracji faktur,
+  gdy klient nie zapłaci,
+- automatyczne wystawienie faktury VAT po zarejestrowaniu wpłaty do proformy: wygodne, ale faktura w KSeF jest
+  ostateczna - użytkownik powinien sprawdzić szkic (np. datę sprzedaży).
+
+**Uzasadnienie:** proforma korzysta z całego mechanizmu dokumentów (pozycje, PDF, e-mail), a reguły po stronie
+serwera gwarantują, że nigdy nie trafi do KSeF ani do rozliczeń VAT. Zamiana na fakturę jednym przyciskiem eliminuje
+przepisywanie danych.
+

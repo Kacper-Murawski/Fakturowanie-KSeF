@@ -10,7 +10,13 @@ public enum InvoiceKind
     Vat,
 
     /// <summary>Faktura korygująca (KOR) - zmienia kwoty lub pozycje faktury przyjętej w KSeF.</summary>
-    Correction
+    Correction,
+
+    /// <summary>
+    /// Faktura proforma - dokument handlowy (oferta, wezwanie do przedpłaty), NIE faktura VAT: nie jest wysyłana do KSeF,
+    /// nie podlega rozliczeniom; na jej podstawie wystawia się fakturę VAT (D42).
+    /// </summary>
+    Proforma
 }
 
 /// <summary>Typ skutku korekty w ewidencji VAT (pole TypKorekty, TTypKorekty w FA(3)).</summary>

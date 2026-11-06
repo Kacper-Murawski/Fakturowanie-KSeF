@@ -38,7 +38,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 13 | Eksport dla księgowej (CSV, paczka XML + UPO) (D34) | niski | ✅ |
 | 14 | Aplikacja mobilna (PWA) | niski | do decyzji |
 | 15 | Logowanie dwuskładnikowe (D41) | niski | ✅ |
-| 16 | Faktura proforma | niski | do decyzji |
+| 16 | Faktura proforma (D42) | niski | ✅ |
 | 17 | Tryb offline KSeF (kod QR II) | badawczy | do decyzji |
 | 18 | Dostęp księgowej do firmy (role) | badawczy | do decyzji |
 | 19 | Import faktur sprzedażowych wystawionych poza aplikacją | badawczy | do decyzji |
@@ -156,6 +156,12 @@ z zestawieniami, plikami XML faktur w postaci z KSeF i UPO. Szczegóły: D34.
 Na stronie **Bezpieczeństwo konta** (kliknięcie adresu e-mail w górnym pasku) użytkownik włącza logowanie
 dwuskładnikowe: skanuje kod QR w aplikacji uwierzytelniającej i potwierdza kodem. Dostaje 10 jednorazowych kodów
 odzyskiwania. Od tej pory logowanie wymaga hasła i kodu z telefonu. Wyłączenie 2FA wymaga kodu. Szczegóły: D41.
+
+## 16. Faktura proforma
+
+W formularzu nowej faktury przełącznik **Faktura proforma** tworzy dokument z serii `PRO/n/MM/RRRR`. Proforma nie trafia
+do KSeF ani do rozliczeń, a jej PDF jest wyraźnie oznaczony jako niebędący fakturą VAT. Można ją wysłać e-mailem,
+a po zapłacie przycisk **Wystaw fakturę VAT** tworzy szkic faktury z tymi samymi danymi. Szczegóły: D42.
 
 Źródła analizy: strony producentów i porównania z 2026 r. (iFirma - przegląd programów do obsługi KSeF,
 Bezprawnik - ranking programów do faktur z KSeF, strony funkcji Fakturowni, inFaktu i wFirmy).
