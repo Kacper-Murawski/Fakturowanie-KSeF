@@ -826,3 +826,36 @@ ani struktury zaległości, które konkurencyjne programy prezentują na wykresa
 po stronie przeglądarki z danych jednego zapytania. Proporcje pasków sprawdzono na zrzucie ekranu (pierwsza wersja
 skracała paski o szerokość etykiety kwoty - poprawione).
 
+---
+
+## D41. Logowanie dwuskładnikowe (TOTP) z ochroną przed wyłączeniem przez przejętą sesję
+
+**Kontekst:** konto daje dostęp do faktur, danych kontrahentów i tokenu KSeF (wystawianie faktur w imieniu firmy).
+Samo hasło chroni słabo (wycieki, powtarzane hasła). W MVP 2FA było odłożone (rozdział „Ograniczenia” w opisie
+bezpieczeństwa).
+
+**Decyzja:**
+- drugi składnik: kod TOTP (RFC 6238, 6 cyfr co 30 s) z dowolnej aplikacji uwierzytelniającej; klucz i weryfikacja -
+  ASP.NET Core Identity (`AuthenticatorTokenProvider`), kod QR z URI `otpauth://` generowany na serwerze (QRCoder,
+  już używany do kodów KSeF) i przesyłany jako obraz PNG,
+- włączenie wymaga potwierdzenia kodem z aplikacji (sprawdza, że telefon jest poprawnie skonfigurowany); po włączeniu
+  10 jednorazowych kodów odzyskiwania pokazywanych tylko raz,
+- logowanie dwuetapowe w interfejsie: po haśle (odpowiedź `RequiresTwoFactor`) pole na kod albo kod odzyskiwania;
+  wbudowany endpoint `/api/auth/login` przyjmuje oba; blokada konta po 5 nieudanych próbach działa także dla kodów,
+- **wyłączenie 2FA i nowe kody odzyskiwania wymagają aktualnego kodu** - własne endpointy `/api/account/2fa`;
+  wbudowany endpoint Identity `/api/auth/manage/2fa` (pozwala wyłączyć 2FA samą sesją) jest zablokowany (404);
+  po wyłączeniu klucz jest resetowany, więc stary wpis w telefonie przestaje działać,
+- w testach kody liczy niezależna implementacja TOTP (HMAC-SHA1) - potwierdza zgodność ze standardem, a nie tylko
+  z biblioteką.
+
+**Alternatywy:**
+- kody SMS: wymagają bramki SMS (koszt) i są podatne na przejęcie numeru (SIM swap),
+- kody e-mail: prostsze dla użytkownika, ale skrzynka pocztowa często jest chroniona tym samym hasłem,
+- klucze sprzętowe / passkeys (WebAuthn): najbezpieczniejsze, ale wymagają osobnej biblioteki i obsługi w przeglądarce -
+  kierunek rozwoju,
+- wbudowany endpoint `manage/2fa` bez zmian: mniej kodu, ale przejęta sesja (np. niezablokowany komputer) wystarcza
+  do zdjęcia zabezpieczenia.
+
+**Uzasadnienie:** standard obsługiwany przez wszystkie popularne aplikacje, bez kosztów i zewnętrznych usług;
+mechanizmy kryptograficzne z Identity, a własny kod dotyczy tylko przepływu i interfejsu.
+

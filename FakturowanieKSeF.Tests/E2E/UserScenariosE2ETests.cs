@@ -721,5 +721,41 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await chart.Locator("summary").ClickAsync();
         await Expect(chart.Locator("table")).ToContainTextAsync("6\u00a0000,00");
     }
+
+    [E2EFact]
+    public async Task LogowanieDwuskladnikowe_WlaczenieKodemZAplikacji_ILogowanieZKodem()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        var email = await page.Locator(".top-row a[href='konto']").InnerTextAsync();
+
+        await page.ClickAsync(".top-row a[href='konto']");
+        var section = page.Locator("[data-testid=two-factor]");
+        await section.Locator("button:has-text('Włącz logowanie dwuskładnikowe')").ClickAsync();
+        var key = await section.Locator("[data-testid=shared-key]").InnerTextAsync();
+        await Expect(section.Locator("img[alt^='Kod QR']")).ToBeVisibleAsync();
+        await E2EFixture.ScreenshotAsync(page, "31-logowanie-dwuskladnikowe");
+
+        await page.FillAsync("#setup-code", Totp.Code(key));
+        await section.Locator("button:has-text('Potwierdź i włącz')").ClickAsync();
+        await Expect(section.Locator("[data-testid=recovery-codes] code")).ToHaveCountAsync(10);
+        await section.Locator("button:has-text('Zapisałem kody')").ClickAsync();
+        await Expect(section).ToContainTextAsync("włączone");
+
+        // Ponowne logowanie: hasło, potem kod z aplikacji
+        await page.ClickAsync("text=Wyloguj");
+        await page.WaitForURLAsync(new Regex("/login"));
+        await page.FillAsync("#email", email);
+        await page.FillAsync("#password", "Haslo123!");
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator("#two-factor-code")).ToBeVisibleAsync();
+        await page.FillAsync("#two-factor-code", "000000");
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator(".alert-danger")).ToContainTextAsync("Nieprawidłowy kod");
+
+        await page.FillAsync("#two-factor-code", Totp.Code(key, DateTimeOffset.UtcNow.AddSeconds(30)));
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
+    }
 }
 

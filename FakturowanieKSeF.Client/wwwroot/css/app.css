@@ -165,3 +165,6 @@ tr[role="button"] {
 .viz-barlist-area { min-width: 0; }
 .viz-barlist-bar { height: 12px; background: #2a78d6; border-radius: 0 4px 4px 0; min-width: 2px; }
 .viz-barlist-value { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; color: #52514e; }
+
+/* Kody odzyskiwania 2FA (D41) */
+.recovery-codes { display: grid; grid-template-columns: repeat(2, max-content); gap: .25rem 1.5rem; font-size: 1rem; }

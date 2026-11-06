@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **253 przypadki testowe**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **258 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -44,6 +44,7 @@ jednostkowe, integracyjne i E2E.
 | Powiadomienia o fakturach kosztowych | `ReceivedNotificationTemplateTests`, `ReceivedNotificationTests` | treść (kolejność po terminie, ostrzeżenie o białej liście tylko dla PLN > 15 000 zł, link, skracanie listy); jedna wiadomość na synchronizację; brak przy synchronizacji bez nowych faktur; domyślnie wyłączone; adres konta; walidacja adresu |
 | Faktury cykliczne | `RecurringScheduleTests`, `RecurringInvoiceApiTests` | kolejne daty (koniec miesiąca, rok przestępny); szkic na wzór z aktualnymi danymi kontrahenta i terminem; brak duplikatu tego samego dnia; jeden szkic po przestoju; data końcowa; wstrzymanie; walidacja; blokada usunięcia wzoru; powiadomienie; izolacja |
 | Pulpit z wykresami | `DashboardTests` | sprzedaż i koszty w miesiącach (szkice pominięte), wiekowanie należności po wpłatach, najwięksi nabywcy, izolacja; E2E: kolumny, tabela danych, ranking |
+| Logowanie dwuskładnikowe | `TwoFactorTests` | URI `otpauth://` i kod QR; zły kod nie włącza; logowanie wymaga kodu (`RequiresTwoFactor`), zły kod odrzucony; kod odzyskiwania jednorazowy; wyłączenie i nowe kody tylko z kodem; wbudowany `manage/2fa` zablokowany; kody liczone niezależną implementacją TOTP (RFC 6238); E2E: włączenie i logowanie z kodem |
 | Eksport dla księgowej | `CsvFormatTests`, `ExportApiTests` | format CSV (BOM, separator, ochrona przed formułami, kwoty ujemne); okres; tylko faktury przyjęte w KSeF i otrzymane w okresie; kwoty per stawka z XML; zawartość paczki ZIP (XML zgodny z wysłanym, UPO); izolacja |
 | Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests`, testy rachunku w `ReceivedInvoicesTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF (wyszukiwanie, sprawdzenie rachunku); pamięć podręczna; limity dzienne; awaria MF; zapis wyniku sprawdzenia, rachunki zagraniczne, izolacja |
 | Interfejs (E2E) | `UserScenariosE2ETests` | główne scenariusze użytkownika i regresje błędów interfejsu |

@@ -16,6 +16,8 @@
             <div class="alert alert-danger" role="alert">@error</div>
         }
 
+        @if (!twoFactor)
+        {
         <div class="mb-3">
             <label class="form-label" for="email">E-mail</label>
             <InputText id="email" type="email" class="form-control" @bind-Value="model.Email" autocomplete="username" />
@@ -26,6 +28,30 @@
             <InputText id="password" type="password" class="form-control" @bind-Value="model.Password" autocomplete="current-password" />
             <ValidationMessage For="() => model.Password" />
         </div>
+        }
+        else
+        {
+            <p class="small">Logowanie dwuskładnikowe jest włączone dla tego konta.</p>
+            @if (!useRecovery)
+            {
+                <div class="mb-3">
+                    <label class="form-label" for="two-factor-code">Kod z aplikacji uwierzytelniającej</label>
+                    <input id="two-factor-code" class="form-control" inputmode="numeric" autocomplete="one-time-code" maxlength="7"
+                           @bind="code" @bind:event="oninput" />
+                </div>
+                <button type="button" class="btn btn-link btn-sm p-0 mb-3" @onclick="() => { useRecovery = true; code = null; }">
+                    Nie mam dostępu do telefonu - użyj kodu odzyskiwania
+                </button>
+            }
+            else
+            {
+                <div class="mb-3">
+                    <label class="form-label" for="recovery-code">Kod odzyskiwania</label>
+                    <input id="recovery-code" class="form-control" autocomplete="off" maxlength="20" @bind="code" @bind:event="oninput" />
+                    <div class="form-text">Każdy kod odzyskiwania działa tylko raz.</div>
+                </div>
+            }
+        }
 
         <button type="submit" class="btn btn-primary w-100" disabled="@busy">
             @(busy ? "Logowanie…" : "Zaloguj się")
@@ -41,14 +67,26 @@
     private readonly LoginModel model = new();
     private string? error;
     private bool busy;
+    private bool twoFactor;
+    private bool useRecovery;
+    private string? code;
 
     private async Task LoginAsync()
     {
-        busy = true;
-        error = await Auth.LoginAsync(model.Email, model.Password);
-        busy = false;
+        if (twoFactor && string.IsNullOrWhiteSpace(code))
+        {
+            error = "Podaj kod.";
+            return;
+        }
 
-        if (error is null)
+        busy = true;
+        var result = await Auth.LoginAsync(model.Email, model.Password,
+            twoFactor && !useRecovery ? code : null, twoFactor && useRecovery ? code : null);
+        busy = false;
+        error = result.Error;
+        twoFactor = result.RequiresTwoFactor;
+
+        if (result.Succeeded)
         {
             // Tylko adresy względne - ochrona przed przekierowaniem na obcą stronę (open redirect)
             var target = string.IsNullOrEmpty(ReturnUrl) || ReturnUrl.Contains("://") || ReturnUrl.StartsWith("//") ? "" : ReturnUrl;

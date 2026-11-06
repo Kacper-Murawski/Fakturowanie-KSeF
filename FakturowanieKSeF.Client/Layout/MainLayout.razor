@@ -15,7 +15,7 @@
         <AuthorizeView>
             <Authorized>
                 <div class="top-row px-4 justify-content-end gap-3">
-                    <span class="text-muted small">@context.User.Identity?.Name</span>
+                    <a class="text-muted small text-decoration-none" href="konto" title="Bezpieczeństwo konta">@context.User.Identity?.Name</a>
                     <button class="btn btn-sm btn-outline-secondary" @onclick="LogoutAsync">Wyloguj</button>
                 </div>
             </Authorized>
