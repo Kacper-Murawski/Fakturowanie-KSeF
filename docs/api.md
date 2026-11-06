@@ -54,6 +54,10 @@ po polsku.
 | POST | `/api/received-invoices/{id}/payments` | Rejestracja zapłaty za fakturę otrzymaną (jak wyżej) |
 | DELETE | `/api/received-invoices/{id}/payments/{paymentId}` | Usunięcie błędnej zapłaty |
 | GET | `/api/payments/summary` | Należności i zobowiązania: pozostało do zapłaty, w tym po terminie (kwoty w PLN) |
+| GET | `/api/exports/summary?from=&to=` | Podsumowanie okresu dla księgowej: liczba i kwoty faktur sprzedaży (przyjętych w KSeF, wg daty wystawienia) i zakupu (wg daty otrzymania w KSeF). 400 - brak okresu, koniec przed początkiem, okres dłuższy niż 366 dni (D34) |
+| GET | `/api/exports/sales.csv?from=&to=` | Zestawienie sprzedaży (CSV: średnik, przecinek dziesiętny, UTF-8 z BOM; kwoty per stawka) |
+| GET | `/api/exports/purchases.csv?from=&to=` | Zestawienie zakupów (CSV, jak wyżej; z wynikiem sprawdzenia rachunku na białej liście) |
+| GET | `/api/exports/package.zip?from=&to=` | Paczka ZIP: oba zestawienia, `README.txt`, `sprzedaz/` - XML wysłany do KSeF i `*_UPO.xml`, `zakupy/` - XML pobrany z KSeF |
 | GET | `/api/health` | Stan aplikacji i bazy danych (bez uwierzytelniania) |
 
 ## Kody odpowiedzi

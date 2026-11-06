@@ -447,5 +447,36 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(panel.Locator("button[title='Usuń płatność']")).ToHaveCountAsync(0);
         await Expect(panel.Locator("text=Zarejestruj")).ToHaveCountAsync(0);
     }
+
+    [E2EFact]
+    public async Task EksportDlaKsiegowej_PodsumowanieMiesiaca_IPobraniePaczki()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Klient Miesięczny", "1234563218");
+        await FillItemAsync(page, 0, "Abonament", "1", "1000");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await page.ClickAsync("text=Wyślij do KSeF");
+        await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
+        var issue = DateTime.Today;
+
+        await page.ClickAsync("nav >> text=Eksport dla księgowej");
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Eksport dla księgowej");
+        await page.FillAsync("#month", issue.ToString("yyyy-MM"));
+        await page.Locator("#month").DispatchEventAsync("change");
+        await Expect(page.Locator("[data-testid=sales-count]")).ToHaveTextAsync("1 faktura");
+        await Expect(page.Locator("[data-testid=export-summary]")).ToContainTextAsync("1 230,00");
+        await E2EFixture.ScreenshotAsync(page, "22-eksport-dla-ksiegowej");
+
+        var download = await page.RunAndWaitForDownloadAsync(() => page.ClickAsync("[data-testid=download-package]"));
+        Assert.Equal($"ksiegowosc_{issue:yyyy-MM}.zip", download.SuggestedFilename);
+        using var zip = new System.IO.Compression.ZipArchive(File.OpenRead(await download.PathAsync()));
+        Assert.Contains(zip.Entries, e => e.FullName.StartsWith("sprzedaz/FV_1_") && e.FullName.EndsWith("_UPO.xml"));
+    }
 }
 
