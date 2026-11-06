@@ -52,13 +52,13 @@
                                 @switch (m.Status)
                                 {
                                     case EmailStatus.Sent:
-                                        <span class="badge text-bg-success">wysłano</span>
+                                        <span class="badge bg-success">wysłano</span>
                                         break;
                                     case EmailStatus.Failed:
-                                        <span class="badge text-bg-danger" title="@m.LastError">błąd wysyłki</span>
+                                        <span class="badge bg-danger" title="@m.LastError">błąd wysyłki</span>
                                         break;
                                     default:
-                                        <span class="badge text-bg-secondary" title="@m.LastError">@(m.Attempts > 0 ? "ponowna próba wkrótce" : "w kolejce")</span>
+                                        <span class="badge bg-secondary" title="@m.LastError">@(m.Attempts > 0 ? "ponowna próba wkrótce" : "w kolejce")</span>
                                         break;
                                 }
                             </td>

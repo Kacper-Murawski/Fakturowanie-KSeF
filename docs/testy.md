@@ -69,6 +69,7 @@ w trakcie scenariuszy (bez tej zmiennej testy nie robią zrzutów).
 | „Nieklikalny” przycisk Zapisz (D22) | test E2E w przeglądarce (etap 5) | komunikat błędu znikał w chwili kliknięcia i przesuwał przycisk | walidacja podczas pisania (`InputTextLive`) |
 | Numer KSeF atrapy niezgodny z formatem KSeF | walidacja XSD korekty (funkcja „Faktury korygujące”) | atrapa nadawała numery `…-FAKTURA-1-00`, a XML korekty zawiera numer faktury korygowanej (typ `TNumerKSeF`) | atrapa nadaje numery w formacie prawdziwego KSeF |
 | Przycisk „Pobierz z wykazu VAT” nad górnym paskiem | zrzut ekranu z testu E2E (funkcja „Katalog produktów”) | przy przewijaniu przycisk grupy pól (z-index Bootstrapa) nachodził na przyklejony pasek z adresem e-mail | wyższy `z-index` paska |
+| Niewidoczne znaczniki stanu („wysłano”, „w fakturze”) | zrzut ekranu z testu E2E (funkcja „Przypomnienia o płatności”) | klasy `text-bg-*` pochodzą z Bootstrapa 5.2, a projekt używa 5.1 - biały tekst bez tła; test sprawdzał tylko treść, nie wygląd | klasy `bg-*` zgodne z 5.1 |
 | Zawijanie numeru KSeF pod kodem QR | test treści PDF (etap 8) | numer KSeF dzielony na dwie linie | szersza kolumna oznaczenia |
 
 Wniosek: testy API nie wystarczają. Dwa z błędów (D20, D22) były widoczne wyłącznie w prawdziwej przeglądarce,
