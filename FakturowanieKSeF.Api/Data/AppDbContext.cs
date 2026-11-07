@@ -108,10 +108,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
         // ---------------- Invoice ----------------
         builder.Entity<Invoice>(e =>
         {
-            // Numer faktury unikalny w ramach firmy
+            // Numer faktury unikalny w ramach firmy - wśród faktur wystawionych w aplikacji; faktury pobrane z KSeF
+            // (wystawione innym programem) mają numerację tamtego programu (D44)
             e.HasIndex(i => new { i.CompanyId, i.Number })
                 .IsUnique()
-                .HasFilter("\"IsDeleted\" = false");
+                .HasFilter("\"IsDeleted\" = false AND \"Origin\" = 'App'");
+            e.Property(i => i.Origin).HasConversion<string>().HasMaxLength(20).HasDefaultValue(InvoiceOrigin.App);
+            e.HasIndex(i => new { i.CompanyId, i.KsefNumber });
 
             e.HasIndex(i => i.KsefNumber).IsUnique().HasFilter("\"KsefNumber\" IS NOT NULL");
             e.HasIndex(i => new { i.CompanyId, i.IssueDate });

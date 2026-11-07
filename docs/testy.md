@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **282 przypadki testowe**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **287 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -47,6 +47,7 @@ jednostkowe, integracyjne i E2E.
 | Logowanie dwuskładnikowe | `TwoFactorTests` | URI `otpauth://` i kod QR; zły kod nie włącza; logowanie wymaga kodu (`RequiresTwoFactor`), zły kod odrzucony; kod odzyskiwania jednorazowy; wyłączenie i nowe kody tylko z kodem; wbudowany `manage/2fa` zablokowany; kody liczone niezależną implementacją TOTP (RFC 6238); E2E: włączenie i logowanie z kodem |
 | Faktura proforma | `ProformaTests` | seria PRO niezależna od FV; blokada KSeF, XML i płatności; PDF oznaczony jako proforma; e-mail tylko z PDF; zamiana na fakturę VAT (dane, termin, powiązania, jednokrotność, wysyłka faktury do KSeF); walidacja; izolacja; E2E |
 | Waluty obce | `ExchangeRateLookupTests`, `CurrencyXmlTests`, `CurrencyApiTests`, `ExternalApiLiveTests` | dzień kursu (weekend, 11 listopada, święta); pamięć podręczna; odczyt odpowiedzi API NBP i 404; XML w EUR zgodny z XSD (`P_14_xW`, `KursWaluty`), odczyt; kurs przy zapisie i po zmianie daty; awaria NBP; korekta z kursem faktury korygowanej; należności i eksport bez sumowania walut; E2E |
+| Import sprzedaży z KSeF | `IssuedImportTests` | dane z XML (nabywca, adres, termin, pozycje, kwoty); tylko do odczytu, rozliczenia; brak duplikatów (ponowny import, faktura wysłana z aplikacji rozpoznana po skrócie); ten sam numer z innego programu; korekta łączona z fakturą; pomijanie nieobsługiwanych rodzajów; limit czasu, izolacja; brak odpytywania o UPO; E2E |
 | Eksport dla księgowej | `CsvFormatTests`, `ExportApiTests` | format CSV (BOM, separator, ochrona przed formułami, kwoty ujemne); okres; tylko faktury przyjęte w KSeF i otrzymane w okresie; kwoty per stawka z XML; zawartość paczki ZIP (XML zgodny z wysłanym, UPO); izolacja |
 | Wykaz podatników VAT (uzupełnienie) | `VatWhiteListClientTests` | strona zabezpieczenia przed botami (HTML) - czytelny komunikat |
 | Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests`, testy rachunku w `ReceivedInvoicesTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF (wyszukiwanie, sprawdzenie rachunku); pamięć podręczna; limity dzienne; awaria MF; zapis wyniku sprawdzenia, rachunki zagraniczne, izolacja |

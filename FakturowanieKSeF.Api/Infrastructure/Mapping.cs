@@ -57,7 +57,7 @@ public static class Mapping
             i.KsefNumber, i.DueDate,
             settles ? PaymentRules.Status(due, paid) : null, paid,
             settles && PaymentRules.IsOverdue(i.DueDate, due, paid, today!.Value),
-            i.Kind);
+            i.Kind, i.Origin);
     }
 
     /// <summary>Rozliczenie faktury na podstawie zarejestrowanych płatności.</summary>
@@ -115,7 +115,8 @@ public static class Mapping
             ExchangeRate: i.ExchangeRate is { } rate && Currencies.IsForeign(i.Currency)
                 ? new ExchangeRateDto(i.Currency, rate, i.ExchangeRateDate ?? default, i.ExchangeRateTable ?? "")
                 : null,
-            VatSummaryPln: i.ExchangeRate is { } r && Currencies.IsForeign(i.Currency) ? InvoiceCalculator.VatInPln(vatSummary, r) : null);
+            VatSummaryPln: i.ExchangeRate is { } r && Currencies.IsForeign(i.Currency) ? InvoiceCalculator.VatInPln(vatSummary, r) : null,
+            Origin: i.Origin);
     }
 
     public static KsefSubmissionDto ToDto(this KsefSubmission s) => new(

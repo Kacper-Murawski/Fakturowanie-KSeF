@@ -39,7 +39,9 @@ public sealed class KsefSubmissionProcessor(
 
         var open = await db.KsefSubmissions
             .Include(s => s.Invoice).ThenInclude(i => i.Company)
-            .Where(s => s.CompletedAt == null || (s.KsefNumber != null && s.UpoXml == null && s.SentAt > upoSince))
+            // Faktury pobrane z KSeF (wystawione poza aplikacją, D44) nie mają sesji aplikacji - UPO jest u wystawcy
+            .Where(s => s.CompletedAt == null
+                        || (s.KsefNumber != null && s.UpoXml == null && s.SessionReferenceNumber != null && s.SentAt > upoSince))
             .OrderBy(s => s.Id)
             .Take(50)
             .ToListAsync(ct);

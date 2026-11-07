@@ -71,6 +71,14 @@ else
         </div>
     </div>
 
+    @if (invoice.Origin == InvoiceOrigin.KsefImport)
+    {
+        <div class="alert alert-light border small" data-testid="imported-info">
+            Faktura wystawiona poza aplikacją (np. w innym programie) i pobrana z KSeF - tylko do odczytu. Możesz rejestrować
+            wpłaty, wysłać ją e-mailem i wystawić do niej korektę.
+        </div>
+    }
+
     @if (invoice.Kind == InvoiceKind.Proforma)
     {
         <div class="alert alert-secondary small" data-testid="proforma-links">

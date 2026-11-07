@@ -35,6 +35,7 @@ po polsku.
 | GET | `/api/invoices?status=&payment=&from=&to=&q=&page=&pageSize=` | Lista faktur z filtrami i stronicowaniem; `payment`: `Unpaid`, `Paid`, `Overdue` (D30) |
 | GET | `/api/invoices/{id}` | Szczegóły faktury z pozycjami i podsumowaniem VAT |
 | GET | `/api/invoices/next-number?issueDate=&kind=` | Propozycja kolejnego numeru (`kind=Correction` - seria `KOR/n/MM/RRRR`, `kind=Proforma` - `PRO/n/MM/RRRR`) |
+| POST | `/api/invoices/import-from-ksef` | Pobranie z KSeF faktur sprzedażowych wystawionych poza aplikacją (firma jako sprzedawca); zwraca `downloaded`, `skipped`, `complete`. 409 - brak tokenu, 429 - częściej niż raz na minutę, 502 - błąd KSeF (D44) |
 | POST | `/api/invoices/{id}/convert` | Szkic faktury VAT na podstawie proformy (nabywca, pozycje, warunki); 409 - dokument nie jest proformą albo już wystawiono z niej fakturę (D42) |
 | GET | `/api/invoices/{id}/pdf` | Wizualizacja faktury w PDF (z kodem QR weryfikacji KSeF dla faktur wysłanych) |
 | GET | `/api/invoices/{id}/xml` | XML faktury w strukturze FA(3), zweryfikowany względem schematu XSD (422, gdy faktury nie da się przedstawić w FA(3)) - zob. `docs/fa3-xml.md` |

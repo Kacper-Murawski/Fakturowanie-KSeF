@@ -281,6 +281,22 @@ public static class InvoiceEndpoints
             })
             .WithSummary("Faktura VAT (szkic) na podstawie faktury proformy - D42");
 
+        group.MapPost("/import-from-ksef", async (CurrentCompany current, IssuedInvoiceImport import, TimeProvider time, CancellationToken ct) =>
+            {
+                if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+                if (company.KsefTokenEncrypted is null)
+                    return ApiErrors.Conflict("Najpierw skonfiguruj token KSeF w ustawieniach firmy.");
+                if (company.IssuedInvoicesLastSyncAt is { } last && time.GetUtcNow().UtcDateTime - last < TimeSpan.FromMinutes(1))
+                    return Results.Problem(title: "Pobieranie było uruchomione przed chwilą. Spróbuj ponownie za minutę.",
+                        statusCode: StatusCodes.Status429TooManyRequests);
+
+                var result = await import.SyncAsync(company, ct);
+                return company.IssuedInvoicesLastSyncError is { } error
+                    ? Results.Problem(title: "Pobieranie faktur z KSeF nie powiodło się.", detail: error, statusCode: StatusCodes.Status502BadGateway)
+                    : Results.Ok(result);
+            })
+            .WithSummary("Pobranie z KSeF faktur sprzedażowych wystawionych poza aplikacją (nie częściej niż raz na minutę) - D44");
+
         group.MapGet("/next-number", async (DateOnly? issueDate, InvoiceKind? kind, CurrentCompany current, InvoiceNumbering numbering, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();

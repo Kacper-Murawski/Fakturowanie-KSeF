@@ -89,6 +89,9 @@ public class Invoice : BaseEntity
     /// <summary>Rodzaj faktury: VAT albo korygująca (KOR).</summary>
     public InvoiceKind Kind { get; set; } = InvoiceKind.Vat;
 
+    /// <summary>Wystawiona w aplikacji albo pobrana z KSeF (wystawiona poza aplikacją, tylko do odczytu) - D44.</summary>
+    public InvoiceOrigin Origin { get; set; } = InvoiceOrigin.App;
+
     // ---------------- faktura korygująca ----------------
     // Dane faktury korygowanej kopiowane są przy zapisie korekty (jak dane stron) - korekta jest kompletnym
     // dokumentem; odwołanie CorrectedInvoiceId służy nawigacji i rozliczeniom.

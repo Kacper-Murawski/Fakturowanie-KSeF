@@ -182,8 +182,14 @@ public sealed class ReceivedInvoicesWorker(IServiceScopeFactory scopes, IConfigu
                     .Where(c => c.KsefTokenEncrypted != null && (c.ReceivedInvoicesLastSyncAt == null || c.ReceivedInvoicesLastSyncAt < due))
                     .ToListAsync(stoppingToken);
 
+                var import = scope.ServiceProvider.GetRequiredService<IssuedInvoiceImport>();
                 foreach (var company in companies)
+                {
                     await sync.SyncAsync(company, stoppingToken);
+                    // Faktury sprzedażowe wystawione poza aplikacją (D44) - w tym samym cyklu, osobny punkt kontrolny
+                    if (configuration.GetValue("Ksef:ImportIssued:Enabled", true))
+                        await import.SyncAsync(company, stoppingToken);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

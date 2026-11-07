@@ -69,6 +69,7 @@ builder.Services.AddSingleton<KsefWorkSignal>();
 builder.Services.AddHostedService<KsefSubmissionWorker>();
 builder.Services.AddSingleton<KsefTokenProtector>();
 builder.Services.AddScoped<ReceivedInvoiceSync>();
+builder.Services.AddScoped<IssuedInvoiceImport>();
 builder.Services.AddSingleton<InvoicePdfRenderer>();
 builder.Services.AddScoped<AccountingExport>();
 

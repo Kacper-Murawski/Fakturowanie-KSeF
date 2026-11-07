@@ -32,3 +32,14 @@ public enum CorrectionType
     /// <summary>Korekta skutkująca w innej dacie.</summary>
     OtherDate = 3
 }
+
+/// <summary>Pochodzenie faktury wystawionej (D44).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<InvoiceOrigin>))]
+public enum InvoiceOrigin
+{
+    /// <summary>Wystawiona w aplikacji.</summary>
+    App,
+
+    /// <summary>Wystawiona poza aplikacją (inny program, aplikacja MF) i pobrana z KSeF - tylko do odczytu.</summary>
+    KsefImport
+}

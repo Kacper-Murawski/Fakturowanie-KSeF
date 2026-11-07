@@ -49,6 +49,16 @@ public class Company : BaseEntity
     [MaxLength(1000)]
     public string? ReceivedInvoicesLastSyncError { get; set; }
 
+    // ---------------- import faktur sprzedażowych wystawionych poza aplikacją (D44) ----------------
+
+    /// <summary>Punkt kontrolny importu (HWM) faktur, w których firma jest sprzedawcą.</summary>
+    public DateTime? IssuedInvoicesSyncedUntil { get; set; }
+
+    public DateTime? IssuedInvoicesLastSyncAt { get; set; }
+
+    [MaxLength(1000)]
+    public string? IssuedInvoicesLastSyncError { get; set; }
+
     // ---------------- powiadomienia e-mail (D37) ----------------
 
     /// <summary>Automatyczne przypomnienia o płatności dla nabywców faktur nieopłaconych po terminie.</summary>

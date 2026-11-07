@@ -57,6 +57,7 @@ erDiagram
         timestamptz CreatedAt
         timestamptz UpdatedAt
         bool IsDeleted
+        timestamptz IssuedInvoicesSyncedUntil "HWM importu sprzedaży (D44)"
         bool AutoRemindersEnabled "automatyczne przypomnienia (D37)"
         int ReminderDaysAfterDue "dni po terminie"
         bool NotifyReceivedInvoices "powiadomienia o fakturach kosztowych (D38)"
@@ -120,6 +121,7 @@ erDiagram
         timestamptz UpdatedAt
         bool IsDeleted
         int ProformaId FK "proforma, z której wystawiono fakturę VAT (D42)"
+        string Origin "App, KsefImport - pobrana z KSeF (D44)"
     }
 
     InvoiceItems {

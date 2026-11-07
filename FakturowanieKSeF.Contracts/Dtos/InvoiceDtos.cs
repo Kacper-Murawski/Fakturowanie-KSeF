@@ -36,7 +36,8 @@ public sealed record InvoiceListItemDto(
     PaymentStatus? PaymentStatus = null,
     decimal PaidAmount = 0,
     bool IsOverdue = false,
-    InvoiceKind Kind = InvoiceKind.Vat);
+    InvoiceKind Kind = InvoiceKind.Vat,
+    InvoiceOrigin Origin = InvoiceOrigin.App);
 
 /// <summary>Pełne dane faktury.</summary>
 public sealed record InvoiceDto(
@@ -79,7 +80,8 @@ public sealed record InvoiceDto(
     LinkedDocumentDto? IssuedFromProforma = null,
     /// <summary>Faktura w walucie obcej: kurs NBP i kwoty podatku w PLN per stawka (D43).</summary>
     ExchangeRateDto? ExchangeRate = null,
-    IReadOnlyList<VatRateSummary>? VatSummaryPln = null);
+    IReadOnlyList<VatRateSummary>? VatSummaryPln = null,
+    InvoiceOrigin Origin = InvoiceOrigin.App);
 
 /// <summary>Odwołanie do powiązanego dokumentu (numer i stan).</summary>
 public sealed record LinkedDocumentDto(int Id, string Number, InvoiceStatus Status);

@@ -832,5 +832,34 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.ClickAsync("text=Wyślij do KSeF");
         await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
     }
+
+    [E2EFact]
+    public async Task ImportFakturSprzedazySpozaAplikacji_ZKsef()
+    {
+        var page = await fx.NewPageAsync();
+        var nip = await NewUserWithCompanyAsync(page);
+        await page.ClickAsync("text=Wygeneruj token testowy");
+        await Expect(page.GetByText("Wygenerowano token w testowym KSeF.")).ToBeVisibleAsync();
+
+        // Faktura wystawiona przez firmę w innym programie (atrapa KSeF: firma jest sprzedawcą)
+        var xml = ReceivedInvoicesTests.ForeignInvoiceXml(nip, "1234563218", "STARY-PROGRAM/7/2026", 4);
+        var stored = DateTimeOffset.UtcNow.AddMinutes(-10);
+        var meta = new KsefInvoiceMetadata($"{nip}-20261030-0000000E2E01-00", "STARY-PROGRAM/7/2026", new DateOnly(2026, 10, 30),
+            stored, stored, nip, "Pracownia Testowa E2E", 140m, 25m, 165m, "PLN", "hash-e2e-" + nip);
+        lock (fx.App.Ksef.Received) fx.App.Ksef.Issued[nip] = [(meta, xml)];
+        fx.App.Ksef.Hwm = DateTimeOffset.UtcNow;
+
+        await page.ClickAsync("nav >> text=Faktury");
+        await page.ClickAsync("button:has-text('Pobierz z KSeF wystawione poza aplikacją')");
+        await Expect(page.Locator("[data-testid=import-result]")).ToContainTextAsync("Pobrano faktury wystawione poza aplikacją: 1");
+        await Expect(page.Locator("tbody")).ToContainTextAsync("STARY-PROGRAM/7/2026");
+        await Expect(page.Locator("tbody .badge:has-text('spoza aplikacji')")).ToHaveCountAsync(1);
+        await E2EFixture.ScreenshotAsync(page, "34-import-sprzedazy-z-ksef");
+
+        await page.ClickAsync("tbody a:has-text('STARY-PROGRAM/7/2026')");
+        await Expect(page.Locator("[data-testid=imported-info]")).ToBeVisibleAsync();
+        await Expect(page.Locator("[data-testid=payment-panel]")).ToBeVisibleAsync();
+        await Expect(page.Locator("text=Wyślij do KSeF")).ToHaveCountAsync(0);
+    }
 }
 
