@@ -69,7 +69,8 @@ public class HostingTests : IClassFixture<ApiFactory>
         (await _client.GetAsync("/service-worker.js")).EnsureSuccessStatusCode();
         var index = await _client.GetStringAsync("/");
         Assert.Contains("rel=\"manifest\"", index);
-        Assert.Contains("serviceWorker.register", index);
+        Assert.Contains("js/pwa.js", index);
+        Assert.Contains("serviceWorker.register", await _client.GetStringAsync("/js/pwa.js"));
     }
 
     /// <summary>Produkcyjny service worker nie może przechowywać odpowiedzi API (dane użytkownika) - D45.</summary>

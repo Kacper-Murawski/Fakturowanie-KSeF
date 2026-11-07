@@ -162,6 +162,7 @@ public static class MemberEndpoints
                     ? ApiErrors.NotFound("zaproszenie (wygasło, zostało odwołane lub już przyjęte)")
                     : Results.Ok(new InvitationPreviewDto(invitation.Company.Name, invitation.Company.Nip, invitation.Role, invitation.Email, invitation.ExpiresAt));
             })
+            .RequireRateLimiting(RateLimits.Auth)
             .WithSummary("Podgląd zaproszenia");
 
         account.MapPost("/invitations/accept", async (AcceptInvitationRequest request, CurrentCompany current, AppDbContext db,
@@ -189,6 +190,7 @@ public static class MemberEndpoints
                 });
                 return Results.Ok(new AccessibleCompanyDto(invitation.CompanyId, invitation.Company.Name, invitation.Company.Nip, invitation.Role, true));
             })
+            .RequireRateLimiting(RateLimits.Auth) // ochrona przed zgadywaniem tokenów
             .WithSummary("Przyjęcie zaproszenia (token z wiadomości + konto z zapraszanym adresem e-mail)");
     }
 

@@ -117,6 +117,9 @@ builder.Services.AddValidation();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiErrors.ExceptionHandler>();
 
+// Limity liczby żądań: logowanie/rejestracja na adres IP, całe API na użytkownika (D47)
+builder.Services.AddApiRateLimits();
+
 // 5. Kontrola stanu aplikacji (m.in. dostępność bazy danych) - używana przy wdrożeniu
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();
@@ -125,6 +128,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseSecurityHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -152,11 +156,12 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 // 7. Endpointy API - wszystkie pod prefiksem /api, żeby nie kolidowały z adresami stron klienta
 var api = app.MapGroup("/api");
-var auth = api.MapGroup("/auth").WithTags("Auth");
+var auth = api.MapGroup("/auth").WithTags("Auth").RequireRateLimiting(RateLimits.Auth);
 auth.MapIdentityApi<ApplicationUser>();
 auth.MapPost("/logout", async (SignInManager<ApplicationUser> signInManager) =>
     {
