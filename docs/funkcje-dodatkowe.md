@@ -39,7 +39,7 @@ przychodzą jako ustrukturyzowany XML, więc OCR traci znaczenie - aplikacja odc
 | 14 | Aplikacja mobilna (PWA) (D45) | niski | ✅ |
 | 15 | Logowanie dwuskładnikowe (D41) | niski | ✅ |
 | 16 | Faktura proforma (D42) | niski | ✅ |
-| 17 | Tryb offline KSeF (kod QR II) | badawczy | pominięty - kierunek rozwoju |
+| 17 | Tryb offline KSeF (kod QR II) | badawczy | pominięty - kierunek rozwoju (`podsumowanie.md`) |
 | 18 | Dostęp księgowej do firmy (role) (D46) | badawczy | ✅ |
 | 19 | Import faktur sprzedażowych wystawionych poza aplikacją (D44) | badawczy | ✅ |
 

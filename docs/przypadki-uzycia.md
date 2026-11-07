@@ -5,7 +5,7 @@
 | Aktor | Opis |
 |---|---|
 | **Gość** | Osoba niezalogowana; może się zarejestrować lub zalogować. |
-| **Użytkownik** | Zalogowany przedsiębiorca (właściciel firmy w aplikacji); 1 konto = 1 firma (D4). |
+| **Użytkownik** | Zalogowany przedsiębiorca (właściciel firmy w aplikacji). W MVP 1 konto = 1 firma (D4); po MVP role w firmie - zob. [przypadki funkcji dodatkowych](#przypadki-użycia-funkcji-dodatkowych-po-mvp) (D46). |
 | **KSeF** | Krajowy System e-Faktur (środowisko testowe) - system zewnętrzny: przyjmuje faktury, nadaje numery, wydaje UPO, udostępnia faktury otrzymane. |
 | **Zegar systemowy** | Wyzwala cykliczne operacje w tle (odpytywanie o statusy, pobieranie faktur otrzymanych). |
 
@@ -157,3 +157,129 @@ flowchart LR
 ### UC12 Przeglądanie faktur otrzymanych
 - **Scenariusz główny:** lista z wyszukiwaniem, podgląd treści odczytanej z XML (sprzedawca, pozycje,
   podsumowanie VAT, płatność), pobranie XML i PDF z kodem QR.
+
+## Przypadki użycia funkcji dodatkowych (po MVP)
+
+Po MVP model aktorów rozszerzono o role w firmie (D46). Przypadki UC1-UC12 wykonuje **właściciel**; pracownik i księgowa
+wykonują je w zakresie swojej roli (tabela uprawnień poniżej).
+
+| Aktor | Opis |
+|---|---|
+| **Właściciel** | Użytkownik, który utworzył firmę; pełne uprawnienia, zarządza członkami firmy. |
+| **Pracownik** | Członek firmy: wystawia i wysyła faktury, prowadzi kontrahentów i katalog; nie zmienia ustawień firmy. |
+| **Księgowa** | Członek firmy: odczyt faktur i danych, eksporty, rejestrowanie płatności; nie wystawia faktur. |
+| **Nabywca (odbiorca e-mail)** | Osoba spoza systemu, otrzymuje fakturę i przypomnienia e-mailem. |
+| **Wykaz VAT MF, NBP** | Systemy zewnętrzne: dane kontrahenta i rachunki (wykaz podatników VAT), kursy walut (NBP). |
+
+```mermaid
+flowchart LR
+    Wl(["👤 Właściciel"])
+    Pr(["👤 Pracownik"])
+    Ks(["👤 Księgowa"])
+    Nab(["✉ Nabywca"])
+    Zegar(["⏱ Zegar systemowy"])
+    EXT(["🏛 KSeF (TEST), wykaz VAT, NBP"])
+
+    subgraph System["Fakturowanie KSeF - funkcje dodatkowe"]
+        UC13["UC13 Dane kontrahenta z wykazu VAT"]
+        UC14["UC14 Rejestracja płatności"]
+        UC15["UC15 Faktura korygująca"]
+        UC16["UC16 Faktura w walucie obcej"]
+        UC17["UC17 Proforma i zamiana na fakturę"]
+        UC18["UC18 Faktury cykliczne"]
+        UC19["UC19 Wysyłka e-mail i przypomnienia"]
+        UC20["UC20 Eksport dla księgowej"]
+        UC21["UC21 Logowanie dwuskładnikowe"]
+        UC22["UC22 Zarządzanie członkami firmy"]
+        UC23["UC23 Import faktur wystawionych poza aplikacją"]
+        UC24["UC24 Pulpit z wykresami"]
+    end
+
+    Wl --- UC13 & UC15 & UC16 & UC17 & UC18 & UC19 & UC21 & UC22 & UC23
+    Pr --- UC13 & UC15 & UC16 & UC17 & UC19
+    Ks --- UC14 & UC20 & UC24
+    Wl --- UC14 & UC20 & UC24
+    UC19 --- Nab
+    UC13 --- EXT
+    UC16 --- EXT
+    UC23 --- EXT
+    Zegar --- UC18
+    Zegar --- UC19
+```
+
+### Uprawnienia ról
+
+| Działanie | Właściciel | Pracownik | Księgowa |
+|---|:-:|:-:|:-:|
+| Przeglądanie faktur, kontrahentów, faktur otrzymanych, pobieranie PDF/XML/UPO | ✅ | ✅ | ✅ |
+| Wystawianie, edycja, wysyłka do KSeF, korekty, kontrahenci, katalog | ✅ | ✅ | - |
+| Rejestrowanie płatności, eksport dla księgowej | ✅ | ✅ | ✅ |
+| Dane firmy, token KSeF, ustawienia e-mail i przypomnień, członkowie firmy | ✅ | - | - |
+
+Szczegółowe reguły: D46 i `api.md` (filtry ról na endpointach).
+
+### UC13 Dane kontrahenta z wykazu VAT
+- **Scenariusz główny:** użytkownik wpisuje NIP i wybiera „Pobierz z wykazu VAT”; system pobiera nazwę, adres
+  i rachunki z wykazu podatników VAT MF (z pamięci podręcznej, jeśli dane są świeże) i wypełnia formularz.
+- **Alternatywy:** NIP nieobecny w wykazie; przekroczony dzienny limit zapytań lub usługa niedostępna - komunikat,
+  dane wpisuje się ręcznie (D28). Dla faktury otrzymanej system sprawdza, czy rachunek sprzedawcy jest na białej liście (D29).
+
+### UC14 Rejestracja płatności
+- **Scenariusz główny:** użytkownik dodaje wpłatę (data, kwota) do faktury wystawionej lub otrzymanej; system wylicza
+  status: nieopłacona, częściowo opłacona, opłacona, po terminie (D30). Płatność można usunąć.
+- **Alternatywy:** kwota większa niż pozostała do zapłaty - komunikat; faktura opłacona przy wystawieniu („Zapłacono”, D33)
+  ma płatność od razu.
+
+### UC15 Faktura korygująca
+- **Warunek:** faktura przyjęta w KSeF.
+- **Scenariusz główny:** użytkownik wybiera „Wystaw korektę”, podaje przyczynę i zmienia pozycje (stan „przed i po”);
+  system liczy różnice i wystawia korektę FA(3) z numerem KSeF korygowanej faktury, wysyłaną jak UC8 (D32).
+
+### UC16 Faktura w walucie obcej
+- **Scenariusz główny:** użytkownik wybiera walutę; przy zapisie serwer pobiera kurs średni NBP z ostatniego dnia
+  roboczego przed dniem sprzedaży i przelicza VAT na złote (D43).
+- **Alternatywy:** NBP niedostępne - zapis faktury walutowej zablokowany czytelnym komunikatem (bez zgadywania kursu);
+  zmiana daty sprzedaży w szkicu pobiera kurs ponownie.
+
+### UC17 Proforma i zamiana na fakturę
+- **Scenariusz główny:** użytkownik wystawia proformę (dokument poza KSeF, numeracja `PRO/n/MM/RRRR`, PDF z oznaczeniem,
+  że nie jest fakturą VAT; można ją wysłać e-mailem); następnie wybiera „Wystaw fakturę VAT” - system tworzy szkic faktury
+  z aktualnymi danymi nabywcy i pozycjami proformy i łączy oba dokumenty (D42).
+- **Alternatywy:** proformę można zamienić tylko raz; nie można jej wysłać do KSeF ani oznaczyć jako zapłaconej.
+
+### UC18 Faktury cykliczne
+- **Scenariusz główny:** użytkownik tworzy harmonogram z faktury-wzoru (co 1, 3, 6 lub 12 miesięcy, data najbliższego
+  wystawienia, opcjonalnie data końcowa);
+  zegar systemowy tworzy w terminie szkic faktury i opcjonalnie powiadamia e-mailem; użytkownik sprawdza i wysyła szkic (D39).
+- **Alternatywy:** wstrzymanie i wznowienie harmonogramu; po przestoju aplikacji powstaje jeden szkic (bez zaległej lawiny).
+
+### UC19 Wysyłka e-mail i przypomnienia
+- **Scenariusz główny:** użytkownik wysyła fakturę e-mailem (PDF i XML w załącznikach); wiadomość trafia do kolejki
+  i jest wysyłana w tle (D36). Przypomnienie o płatności wysyła użytkownik albo zegar systemowy - pierwsze po ustawionej liczbie
+  dni po terminie, kolejne nie częściej niż co 7 dni, najwyżej 3 do faktury; po wpłacie przypomnienia ustają (D37).
+- **Alternatywy:** brak skonfigurowanej poczty - funkcja niedostępna; dzienny limit wiadomości firmy; błąd SMTP -
+  ponawianie z rosnącym odstępem.
+
+### UC20 Eksport dla księgowej
+- **Scenariusz główny:** użytkownik wybiera okres; system pokazuje podsumowanie i udostępnia zestawienia CSV faktur
+  sprzedaży i zakupu oraz paczkę ZIP z dokumentami XML i UPO (D34).
+- **Alternatywy:** okres dłuższy niż 366 dni - komunikat.
+
+### UC21 Logowanie dwuskładnikowe
+- **Scenariusz główny:** użytkownik włącza 2FA: skanuje kod QR aplikacją uwierzytelniającą, potwierdza kodem, zapisuje
+  kody odzyskiwania. Przy logowaniu po haśle podaje kod z aplikacji lub kod odzyskiwania (D41).
+- **Alternatywy:** błędny kod - komunikat, pozostaje krok kodu; wyłączenie 2FA wymaga podania aktualnego kodu.
+
+### UC22 Zarządzanie członkami firmy
+- **Scenariusz główny:** właściciel zaprasza osobę (e-mail, rola); system wysyła link ważny 7 dni. Zaproszony zakłada
+  konto lub loguje się na ten sam adres i przyjmuje zaproszenie. Właściciel zmienia rolę lub odbiera dostęp (D46).
+- **Alternatywy:** link wygasły lub wykorzystany; inny adres e-mail niż w zaproszeniu - odmowa; osoba z dostępem
+  do kilku firm przełącza firmę w górnym pasku.
+
+### UC23 Import faktur wystawionych poza aplikacją
+- **Scenariusz główny:** podczas synchronizacji (UC11) system pobiera z KSeF także faktury sprzedaży wystawione na NIP
+  firmy w innym programie i pokazuje je na liście jako zaimportowane (tylko do odczytu, z płatnościami i PDF) (D44).
+
+### UC24 Pulpit z wykresami
+- **Scenariusz główny:** użytkownik widzi sprzedaż i koszty netto w 12 ostatnich miesiącach, wiekowanie należności
+  i pięciu największych nabywców; wartości są też w tabeli pod wykresem (dostępność) (D40, waluty - D43).
