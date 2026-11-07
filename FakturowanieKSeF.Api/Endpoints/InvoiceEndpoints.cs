@@ -1,5 +1,4 @@
 using FakturowanieKSeF.Api.Integrations.Nbp;
-using FakturowanieKSeF.Contracts.Calculation;
 using FakturowanieKSeF.Api.Data;
 using FakturowanieKSeF.Api.Infrastructure;
 using FakturowanieKSeF.Api.Services;

@@ -46,7 +46,8 @@ i numer KSeF, a także widzi faktury, które inni wystawili na jego NIP. Aplikac
 
 ## Stan realizacji
 
-Etapy 0-8 i 10 zrealizowane. Etap 9 (wdrożenie) odłożony na prośbę autora - aplikacja testowana lokalnie.
+Etapy 0-8 i 10 zrealizowane. Etap 9 (wdrożenie): konfiguracja przygotowana i sprawdzona w kontenerach
+(`docs/wdrozenie.md`, D48); faktyczne wdrożenie na serwer odłożone na prośbę autora.
 Po MVP zrealizowano funkcje dodatkowe, w tym faktury korygujące: [`funkcje-dodatkowe.md`](funkcje-dodatkowe.md).
 Dokumentacja do pracy: [`docs/README.md`](README.md).
 

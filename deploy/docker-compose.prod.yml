@@ -1,0 +1,67 @@
+# Wdrożenie produkcyjne (D48): baza PostgreSQL, aplikacja i odwrotne proxy Caddy z automatycznym certyfikatem HTTPS.
+# Uruchomienie na serwerze (w katalogu deploy/, po skopiowaniu .env.example do .env i uzupełnieniu):
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+# KSeF: aplikacja łączy się WYŁĄCZNIE z testowym środowiskiem KSeF (D8) - niezależnie od tej konfiguracji.
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ksef
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Ustaw DB_PASSWORD w pliku .env}
+      POSTGRES_DB: ksef
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ksef -d ksef"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # brak „ports” - baza dostępna tylko w sieci kontenerów
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=ksef;Username=ksef;Password=${DB_PASSWORD};Gss Encryption Mode=Disable"
+      Database__MigrateOnStartup: "true"
+      ReverseProxy__Enabled: "true"
+      AllowedHosts: ${DOMAIN:?Ustaw DOMAIN w pliku .env}
+      App__PublicUrl: https://${DOMAIN}
+      Email__SmtpHost: ${SMTP_HOST:-}
+      Email__SmtpPort: ${SMTP_PORT:-587}
+      Email__SmtpUsername: ${SMTP_USERNAME:-}
+      Email__SmtpPassword: ${SMTP_PASSWORD:-}
+      Email__From: ${EMAIL_FROM:-}
+      DataProtection__CertificatePath: ${DP_CERT_PATH:-}
+      DataProtection__CertificatePassword: ${DP_CERT_PASSWORD:-}
+    volumes:
+      - ./secrets:/run/secrets/app:ro
+    # brak „ports” - aplikacja dostępna tylko przez proxy
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

@@ -49,3 +49,19 @@ jobs:
         env:
           E2E_TESTS: "1"
         run: dotnet test --no-build --configuration Release --logger "console;verbosity=normal"
+
+  # Obraz kontenera (D48): budowanie z Dockerfile i kontrola, że aplikacja nie startuje z deweloperskim hasłem do bazy
+  docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Budowanie obrazu (bez publikacji)
+        run: docker build -t fakturowanie-ksef:ci .
+
+      - name: Blokada startu z hasłem deweloperskim
+        run: |
+          docker run --rm -e ConnectionStrings__DefaultConnection="Host=x;Username=ksef_user;Password=ksef_password" fakturowanie-ksef:ci > start.log 2>&1 || true
+          grep -q "Produkcyjnie ustaw hasło" start.log

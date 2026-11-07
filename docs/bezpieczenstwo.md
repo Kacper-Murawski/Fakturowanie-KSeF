@@ -27,6 +27,7 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 | **Nadużycie uprawnień przez współpracowników** | Role w firmie (właściciel, pracownik, księgowa) sprawdzane przez serwer filtrem endpointów - najmniejsze potrzebne uprawnienia; 403 przy braku uprawnień (D46) | `CompanyRoleTests` |
 | **Wskazanie cudzej firmy (wybór firmy, nagłówek `X-Company-Id`)** | Wybór firmy uwzględniany tylko, gdy użytkownik ma do niej dostęp (własna lub członkostwo); inaczej ignorowany (D46) | `CompanyRoleTests` (nagłówek z cudzą firmą, wybór cudzej firmy) |
 | **Przejęcie zaproszenia** | Jednorazowy token 256-bitowy w linku wysłanym na zapraszany adres (w bazie tylko skrót SHA-256), ważny 7 dni, odwoływalny; dodatkowo konto musi mieć zapraszany adres (D46) | `CompanyRoleTests` (cudze konto, zgadywany, użyty, wygasły, odwołany token) |
+| **Ekspozycja usług na serwerze** | Do internetu wystawione tylko porty 80/443 proxy; aplikacja i baza wyłącznie w sieci kontenerów; aplikacja jako użytkownik bez uprawnień administratora; `AllowedHosts` ograniczone do domeny (D48) | Uruchomienie konfiguracji w kontenerach (`docs/wdrozenie.md`) |
 | **SQL injection** | Wyłącznie zapytania parametryzowane (EF Core / LINQ) | Brak SQL budowanego z tekstu |
 | **Wyścigi i podwójne operacje** | Optymistyczna kontrola współbieżności (`xmin`), unikalne indeksy (numer faktury, NIP, numer KSeF) (D17) | Testy konfliktu wersji i podwójnej wysyłki |
 | **Utrata lub duplikacja dokumentów podatkowych** | Miękkie usuwanie, `ON DELETE RESTRICT`, faktury wysłane nienaruszalne; brak oznaczania faktury jako odrzuconej po jej przyjęciu do przetwarzania przez KSeF (D12, D25) | Testy modelu danych i awarii wysyłki |
@@ -37,12 +38,12 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 
 ## Ograniczenia i kierunki rozwoju
 
-- **Klucze Data Protection są w tej samej bazie co zaszyfrowane tokeny.** Kopia bazy z kluczami pozwalałaby
-  odszyfrować tokeny. Na produkcji klucze należy chronić certyfikatem lub magazynem sekretów
-  (`ProtectKeysWith...`) (D23, etap 9).
-- **HTTPS** jest wymagany produkcyjnie: ciasteczko ma wtedy flagę `Secure`. Realizacja w ramach wdrożenia (etap 9).
-- **Sekrety** (hasło do bazy, hasło do serwera SMTP) są w repozytorium wyłącznie dla konfiguracji deweloperskiej. Produkcyjnie trafią
-  do zmiennych środowiskowych.
+- **Klucze Data Protection** są w bazie, ale produkcyjnie szyfrowane certyfikatem z pliku spoza bazy
+  (`DataProtection__CertificatePath`, D48) - kopia bazy bez certyfikatu nie pozwala odszyfrować tokenów KSeF.
+  Certyfikat trzeba chronić i przechowywać oddzielnie od kopii bazy.
+- **HTTPS**: proxy Caddy z automatycznym certyfikatem, przekierowanie HTTP → HTTPS, HSTS, ciasteczka `Secure` (D48).
+- **Sekrety** (hasło do bazy, SMTP, hasło certyfikatu) produkcyjnie wyłącznie w `.env` spoza repozytorium; aplikacja
+  odmawia startu z hasłem deweloperskim (D48). W repozytorium są tylko dane środowiska deweloperskiego.
 - Brak potwierdzania adresu e-mail przy rejestracji (Identity je obsługuje). Skutki ograniczono: zaproszenia wymagają
   tokenu z wiadomości (D46). Logowanie dwuskładnikowe jest dostępne (D41), ale opcjonalne - nie jest wymuszane.
 - Rejestracja ujawnia, że adres jest już zajęty (komunikat Identity) - typowe dla aplikacji z samodzielną rejestracją;

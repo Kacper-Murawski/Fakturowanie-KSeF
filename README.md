@@ -39,6 +39,11 @@ Wiadomości e-mail wysyłane przez aplikację (lokalnie nie trafiają do odbiorc
 Jeśli `dotnet ef database update` zgłasza `relation "..." already exists`, baza zawiera tabele ze starszej wersji
 projektu. Wyczyść ją (usuwa dane testowe): `docker compose down -v`, `docker compose up -d`, ponownie `dotnet ef database update`.
 
+## Wdrożenie
+
+Konfiguracja produkcyjna (Docker Compose: aplikacja, PostgreSQL, Caddy z automatycznym HTTPS) jest w katalogu `deploy/`,
+opis krok po kroku: [`docs/wdrozenie.md`](docs/wdrozenie.md).
+
 ## Testy
 
 ```bash

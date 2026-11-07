@@ -1,0 +1,17 @@
+# Kontekst budowania obrazu - bez wyników kompilacji, testów, dokumentacji i sekretów
+**/bin/
+**/obj/
+.git/
+.github/
+.vs/
+.vscode/
+**/*.user
+**/node_modules/
+docs/
+FakturowanieKSeF.Tests/
+tools/
+deploy/
+**/.env
+*.env
+Dockerfile
+docker-compose*.yml

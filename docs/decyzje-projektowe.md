@@ -1068,3 +1068,34 @@ z jednego adresu ani masowej rejestracji. Link zaproszenia (D46) zawiera token w
 **Uzasadnienie:** obrona wielowarstwowa - nawet jeśli błąd pozwoliłby wstrzyknąć treść do strony, przeglądarka nie wykona
 obcego skryptu; zgadywanie haseł i tokenów z jednego adresu jest spowolnione niezależnie od kont.
 
+---
+
+## D48. Wdrożenie w kontenerach: obraz aplikacji, PostgreSQL i Caddy z automatycznym HTTPS
+
+**Kontekst:** aplikacja ma działać w modelu SaaS na serwerze, z wymaganym HTTPS, bez sekretów w repozytorium.
+Faktyczne wdrożenie odłożono, ale konfiguracja ma być gotowa, powtarzalna i sprawdzona.
+
+**Decyzja:**
+- jeden obraz aplikacji (API serwuje też klienta Blazor WebAssembly - D6): budowanie w obrazie SDK, uruchamianie
+  w obrazie ASP.NET jako użytkownik bez uprawnień administratora; kontrola stanu `/api/health`,
+- `docker-compose.prod.yml`: PostgreSQL (wolumen, bez opublikowanego portu), aplikacja (bez opublikowanego portu),
+  **Caddy** jako odwrotne proxy z automatycznym certyfikatem Let's Encrypt i przekierowaniem HTTP → HTTPS,
+- konfiguracja i sekrety wyłącznie w zmiennych środowiskowych z pliku `.env` spoza repozytorium; aplikacja w trybie
+  produkcyjnym **odmawia startu z hasłem deweloperskim do bazy**,
+- za proxy: nagłówki `X-Forwarded-For/Proto` (adres klienta dla limitów żądań, schemat dla ciasteczek `Secure`),
+  `AllowedHosts` ograniczone do domeny, HSTS,
+- klucze Data Protection w bazie dodatkowo szyfrowane certyfikatem z pliku montowanego do kontenera (rozwiązuje
+  ograniczenie z D23: kopia bazy bez certyfikatu nie pozwala odszyfrować tokenów KSeF),
+- migracje przy starcie z ponawianiem; kopie zapasowe skryptem `pg_dump` z rotacją,
+- CI buduje obraz przy każdej zmianie i sprawdza blokadę hasła deweloperskiego.
+
+**Alternatywy:**
+- nginx + certbot: popularne, ale certyfikat i jego odnawianie konfiguruje się osobno; Caddy robi to automatycznie,
+- usługa PaaS (Azure App Service, Railway) i zarządzana baza: mniej administracji, ale koszt i uzależnienie od dostawcy;
+  kontenery można przenieść na dowolny serwer lub do takiej usługi,
+- Kubernetes: nadmiarowy dla jednej aplikacji i jednej bazy,
+- certyfikat TLS w samej aplikacji (Kestrel): wymaga obsługi odnawiania w aplikacji; proxy oddziela TLS od kodu.
+
+**Uzasadnienie:** cały serwer uruchamia się jednym poleceniem z jednego pliku konfiguracji, z HTTPS bez ręcznej obsługi
+certyfikatów i z sekretami poza repozytorium. Konfigurację uruchomiono w kontenerach i sprawdzono (docs/wdrozenie.md).
+
