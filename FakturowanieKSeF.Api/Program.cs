@@ -9,6 +9,8 @@ using FakturowanieKSeF.Api.Services.Email;
 using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Ksef.Fa3;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Security.Cryptography.X509Certificates;
 using FakturowanieKSeF.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -105,9 +107,27 @@ builder.Services.AddSingleton<FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRate
 builder.Services.AddScoped<VatRegistryLookup>();
 
 // Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji
-builder.Services.AddDataProtection()
+var dataProtection = builder.Services.AddDataProtection()
     .SetApplicationName("FakturowanieKSeF")
     .PersistKeysToDbContext<AppDbContext>();
+
+// Produkcyjnie klucze w bazie są dodatkowo szyfrowane certyfikatem spoza bazy - kopia bazy bez certyfikatu
+// nie pozwala odszyfrować tokenów KSeF (D23, D48)
+if (builder.Configuration["DataProtection:CertificatePath"] is { Length: > 0 } certificatePath)
+    dataProtection.ProtectKeysWithCertificate(
+        X509CertificateLoader.LoadPkcs12FromFile(certificatePath, builder.Configuration["DataProtection:CertificatePassword"]));
+
+// Za odwrotnym proxy (Caddy z HTTPS): adres klienta i schemat https z nagłówków X-Forwarded-* (D48).
+// Aplikacja nie jest wtedy dostępna bezpośrednio z internetu - tylko przez proxy w sieci kontenerów.
+var behindProxy = builder.Configuration.GetValue("ReverseProxy:Enabled", false);
+if (behindProxy)
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+        options.ForwardLimit = 1;
+    });
 
 // Walidacja żądań na podstawie atrybutów DataAnnotations i IValidatableObject w DTO (wbudowana w .NET 10);
 // błędy zwracane jako ValidationProblemDetails (400). Te same reguły działają w formularzach Blazor.
@@ -126,6 +146,33 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+// Produkcja: odmowa startu z deweloperskim hasłem do bazy z repozytorium (sekrety tylko w zmiennych środowiskowych)
+if (app.Environment.IsProduction()
+    && app.Configuration.GetConnectionString("DefaultConnection") is { } connection && connection.Contains("Password=ksef_password"))
+    throw new InvalidOperationException(
+        "Produkcyjnie ustaw hasło do bazy w zmiennej ConnectionStrings__DefaultConnection - nie używaj hasła deweloperskiego.");
+
+// Migracje przy starcie (wdrożenie w kontenerze): baza może startować chwilę dłużej niż aplikacja
+if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
+{
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+            break;
+        }
+        catch (Exception ex) when (attempt < 10 && ex is Npgsql.NpgsqlException or System.Net.Sockets.SocketException)
+        {
+            app.Logger.LogWarning("Baza danych niedostępna (próba {Attempt}) - ponowienie za 3 s", attempt);
+            await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+    }
+}
+
+if (behindProxy) app.UseForwardedHeaders();
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseSecurityHeaders();
@@ -138,7 +185,12 @@ if (app.Environment.IsDevelopment())
     app.UseWebAssemblyDebugging();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+    app.UseHsts(); // przeglądarka łączy się później wyłącznie przez HTTPS
+
+// Za proxy HTTPS i przekierowanie z HTTP obsługuje proxy
+if (!behindProxy)
+    app.UseHttpsRedirection();
 
 // 6. Serwowanie aplikacji klienckiej (Blazor WebAssembly) z tego samego serwera co API
 app.UseBlazorFrameworkFiles();

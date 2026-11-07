@@ -138,7 +138,7 @@ sequenceDiagram
 | Kursy walut | API NBP (tabela A), `IMemoryCache` | D43 |
 | Testy | xUnit, WebApplicationFactory, Playwright, PdfPig | D7, etap 10 |
 | CI | GitHub Actions (build, testy, E2E w Chromium) | D7 |
-| Środowisko uruchomieniowe | Docker (PostgreSQL), docelowo kontener aplikacji + reverse proxy z HTTPS | etap 9 |
+| Środowisko uruchomieniowe | Docker Compose: obraz aplikacji, PostgreSQL, Caddy (HTTPS Let's Encrypt) - `docs/wdrozenie.md` | D48 |
 
 ## Wybrane wzorce i zasady
 

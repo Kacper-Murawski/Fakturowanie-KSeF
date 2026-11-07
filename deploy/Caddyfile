@@ -1,0 +1,10 @@
+# Odwrotne proxy z automatycznym certyfikatem HTTPS (Let's Encrypt) dla domeny z DOMAIN (D48).
+# Caddy przekierowuje HTTP → HTTPS i przekazuje adres klienta w nagłówkach X-Forwarded-For / X-Forwarded-Proto.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080
+	log {
+		output stdout
+		format console
+	}
+}
