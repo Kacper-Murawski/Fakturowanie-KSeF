@@ -7,7 +7,10 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 | Zagrożenie | Zabezpieczenie | Weryfikacja |
 |---|---|---|
 | **Dostęp do danych innego użytkownika** (IDOR, multi-tenancy) | `CompanyId` wyłącznie z tożsamości zalogowanego użytkownika (`CurrentCompany`), warunek w każdym zapytaniu; cudzy rekord = 404, bez ujawnienia jego istnienia (D15) | `DataIsolationTests`, testy izolacji wysyłki, UPO, PDF, faktur otrzymanych, płatności, eksportu, katalogu i ról w firmie; test E2E dostępu po adresie strony |
-| **Kradzież sesji przez XSS** | Ciasteczko sesji `HttpOnly` (niedostępne dla skryptów); klient nie przechowuje tokenów (D18); Blazor domyślnie koduje dane w HTML | Test flag ciasteczka |
+| **Kradzież sesji przez XSS** | Ciasteczko sesji `HttpOnly` (niedostępne dla skryptów); klient nie przechowuje tokenów (D18); Blazor domyślnie koduje dane w HTML; **Content-Security-Policy** - przeglądarka wykonuje tylko skrypty i WebAssembly z serwera aplikacji (D47) | Test flag ciasteczka; `SecurityHeadersTests`; E2E bez naruszeń CSP |
+| **Osadzenie aplikacji w obcej stronie (clickjacking)** | `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'` (D47) | `SecurityHeadersTests` |
+| **Wyciek adresu z tokenem (zaproszenie) przez nagłówek Referer** | `Referrer-Policy: no-referrer` (D47) | `SecurityHeadersTests` |
+| **Masowe próby logowania na wiele kont, masowa rejestracja, zgadywanie tokenów** | Limity żądań: logowanie, rejestracja i zaproszenia - 10/min z adresu IP; całe API - 600/min na użytkownika; 429 z `Retry-After` (D47) | `RateLimitTests`, `ApiRateLimitTests` |
 | **CSRF** | `SameSite=Strict`; API przyjmuje JSON, a żądanie z obcej witryny wymagałoby zgody CORS, której API nie udziela; klient i API w jednej domenie (D6) | Konfiguracja, test flag ciasteczka |
 | **Zgadywanie haseł** | Polityka haseł (min. 8 znaków, różne klasy znaków); blokada konta na 15 minut po 5 nieudanych próbach; hasła haszowane (PBKDF2, Identity) | Test polskich komunikatów polityki haseł |
 | **Przejęcie hasła (wyciek, phishing)** | Opcjonalne logowanie dwuskładnikowe TOTP z jednorazowymi kodami odzyskiwania; wyłączenie 2FA i nowe kody tylko po podaniu kodu - przejęta sesja nie zdejmie zabezpieczenia (wbudowany endpoint Identity zablokowany) (D41) | `TwoFactorTests` (niezależny generator TOTP), test E2E |
@@ -40,5 +43,8 @@ w KSeF. Środki bezpieczeństwa zestawiono według zagrożeń. Numery w nawiasac
 - **HTTPS** jest wymagany produkcyjnie: ciasteczko ma wtedy flagę `Secure`. Realizacja w ramach wdrożenia (etap 9).
 - **Sekrety** (hasło do bazy, hasło do serwera SMTP) są w repozytorium wyłącznie dla konfiguracji deweloperskiej. Produkcyjnie trafią
   do zmiennych środowiskowych.
-- Brak potwierdzania adresu e-mail przy rejestracji (Identity je obsługuje). Logowanie dwuskładnikowe
-  jest dostępne (D41), ale opcjonalne - nie jest wymuszane.
+- Brak potwierdzania adresu e-mail przy rejestracji (Identity je obsługuje). Skutki ograniczono: zaproszenia wymagają
+  tokenu z wiadomości (D46). Logowanie dwuskładnikowe jest dostępne (D41), ale opcjonalne - nie jest wymuszane.
+- Rejestracja ujawnia, że adres jest już zajęty (komunikat Identity) - typowe dla aplikacji z samodzielną rejestracją;
+  limit żądań (D47) utrudnia masowe sprawdzanie adresów.
+- `style-src 'unsafe-inline'` w CSP - wymagane przez atrybuty `style` w komponentach (D47).

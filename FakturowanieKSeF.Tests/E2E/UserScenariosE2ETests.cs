@@ -939,5 +939,33 @@ public class UserScenariosE2ETests(E2EFixture fx)
         while (fx.App.Email.To(to).Count == 0 && DateTime.UtcNow < deadline) await Task.Delay(250);
         return fx.App.Email.To(to);
     }
+
+    [E2EFact]
+    public async Task PolitykaCsp_BezNaruszenNaGlownychStronach()
+    {
+        var page = await fx.NewPageAsync();
+        var violations = new List<string>();
+        page.Console += (_, msg) =>
+        {
+            if (msg.Text.Contains("Content Security Policy", StringComparison.OrdinalIgnoreCase)) violations.Add(msg.Text);
+        };
+        await page.AddInitScriptAsync("document.addEventListener('securitypolicyviolation', e => console.error('Content Security Policy: ' + e.violatedDirective + ' ' + e.blockedURI));");
+
+        await NewUserWithCompanyAsync(page);
+        foreach (var url in new[] { "/", "/faktury", "/faktury/nowa", "/faktury-otrzymane", "/kontrahenci", "/katalog", "/eksport", "/cykliczne", "/firma" })
+        {
+            await page.GotoAsync(url);
+            await Expect(page.Locator("h1")).ToBeVisibleAsync();
+        }
+        // Kod QR 2FA (obraz data:) i wykresy SVG z atrybutami style
+        await page.GotoAsync("/konto");
+        await page.ClickAsync("button:has-text('Włącz logowanie dwuskładnikowe')");
+        await Expect(page.Locator("img[alt^='Kod QR']")).ToBeVisibleAsync();
+        Assert.True(await page.Locator("img[alt^='Kod QR']").EvaluateAsync<bool>("img => img.complete && img.naturalWidth > 0"));
+
+        var csp = await page.EvaluateAsync<string?>("async () => (await fetch('/')).headers.get('content-security-policy')");
+        Assert.NotNull(csp);
+        Assert.Empty(violations);
+    }
 }
 

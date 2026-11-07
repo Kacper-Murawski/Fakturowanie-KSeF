@@ -71,7 +71,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             ["Email:From"] = "faktury@fakturowanie.test",
             ["Email:Worker:Enabled"] = "false",
             ["Reminders:Worker:Enabled"] = "false",
-            ["Recurring:Worker:Enabled"] = "false"
+            ["Recurring:Worker:Enabled"] = "false",
+            // Limity żądań wyłączone - testy tworzą wielu użytkowników z jednego adresu (osobny test z limitami)
+            ["RateLimiting:Enabled"] = "false"
         };
         foreach (var (key, value) in AdditionalSettings()) settings[key] = value;
 

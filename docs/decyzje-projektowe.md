@@ -1035,3 +1035,36 @@ i uniemożliwiałoby rozróżnienie uprawnień. Zmiana dotyka podstaw bezpiecze�
 uprawnieniami. Izolacja danych pozostaje scentralizowana w `CurrentCompany`, a testy sprawdzają, że wskazanie cudzej
 firmy (nagłówek, wybór) nie daje dostępu do jej danych i że odebranie dostępu działa natychmiast.
 
+---
+
+## D47. Utwardzenie aplikacji: nagłówki bezpieczeństwa (CSP) i limity liczby żądań
+
+**Kontekst:** końcowy przegląd bezpieczeństwa przed wdrożeniem. Aplikacja miała ochronę na poziomie danych (izolacja,
+role, walidacja), ale brakowało zabezpieczeń na poziomie przeglądarki i ochrony przed masowymi żądaniami. Blokada
+konta po 5 nieudanych logowaniach (D3) chroni pojedyncze konto, ale nie zatrzymuje prób logowania na wiele kont
+z jednego adresu ani masowej rejestracji. Link zaproszenia (D46) zawiera token w adresie strony.
+
+**Decyzja:**
+- nagłówki każdej odpowiedzi: **Content-Security-Policy** (`script-src 'self' 'wasm-unsafe-eval'` - tylko skrypty
+  i WebAssembly z serwera aplikacji, bez skryptów wstawionych w stronę i bez `unsafe-eval`; `frame-ancestors 'none'`,
+  `object-src 'none'`, `img-src 'self' data:` dla kodu QR, `connect-src 'self'`), `Referrer-Policy: no-referrer`
+  (adres z tokenem zaproszenia nie wycieka), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Permissions-Policy` (bez kamery, mikrofonu, lokalizacji, płatności), `Cross-Origin-Opener-Policy`;
+  jedyny skrypt w `index.html` (rejestracja service workera) przeniesiony do pliku,
+- `style-src` dopuszcza `'unsafe-inline'` - komponenty używają atrybutów `style` (np. szerokość pasków wykresów);
+  wstrzyknięcie stylu nie wykonuje kodu, a skrypty pozostają zablokowane,
+- **limity żądań** (wbudowany `RateLimiter` ASP.NET Core): logowanie, rejestracja, odświeżanie tokenu, podgląd
+  i przyjęcie zaproszenia - 10 na minutę z adresu IP; całe API - 600 na minutę na użytkownika (lub adres IP
+  niezalogowanego); przekroczenie - 429 z nagłówkiem `Retry-After`; wartości w konfiguracji (`RateLimiting:*`),
+- weryfikacja: test E2E przechodzi przez główne strony i nasłuchuje zdarzeń `securitypolicyviolation` - brak naruszeń;
+  wszystkie scenariusze E2E działają z włączoną polityką.
+
+**Alternatywy:**
+- CSP z `nonce` dla skryptów w stronie: niepotrzebne po przeniesieniu jedynego skryptu do pliku,
+- limity w odwrotnym proxy (nginx, Caddy): działają przed aplikacją, ale nie znają użytkownika (tylko adres IP)
+  i są poza kodem testowanym w CI - limity w aplikacji można je uzupełnić,
+- CAPTCHA przy rejestracji: skuteczna przeciw botom, ale wymaga zewnętrznej usługi i utrudnia dostępność.
+
+**Uzasadnienie:** obrona wielowarstwowa - nawet jeśli błąd pozwoliłby wstrzyknąć treść do strony, przeglądarka nie wykona
+obcego skryptu; zgadywanie haseł i tokenów z jednego adresu jest spowolnione niezależnie od kont.
+
