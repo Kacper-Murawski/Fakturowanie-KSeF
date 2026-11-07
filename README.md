@@ -23,9 +23,16 @@ instrukcja użytkownika): [`docs/`](docs/README.md).
 
 Wymagania: .NET 10 SDK, Docker.
 
-**Windows - najprościej:** uruchom `start-dev.bat` z głównego katalogu repozytorium. Skrypt uruchamia bazę
-w Dockerze i aplikację, która sama wykonuje migracje i przy pierwszym starcie wgrywa dane demonstracyjne
-(opis niżej). Ręcznie, na dowolnym systemie:
+**Windows - kliknij i działaj:** po sklonowaniu repozytorium uruchom `start-dev.bat`. Skrypt:
+- sprawdza Git, .NET 10 SDK i Docker Desktop - brakujące instaluje przez `winget` (po instalacji Dockera
+  potrzebny jest restart komputera), a niedziałający Docker Desktop uruchamia,
+- pobiera submoduł klienta KSeF, uruchamia bazę i Mailpit, wykrywa bazę ze starszej wersji projektu
+  (blokującą migracje) i proponuje jej wyczyszczenie,
+- przy pustej bazie pyta jednorazowo o własne konto (zapis w user-secrets),
+- uruchamia aplikację (migracje i dane demonstracyjne przy starcie) i otwiera przeglądarkę, gdy aplikacja odpowie.
+
+`reset-dev.bat` usuwa lokalną bazę i uruchamia aplikację z nowymi danymi demonstracyjnymi.
+Ręcznie, na dowolnym systemie:
 
 ```bash
 git clone --recursive <adres-repozytorium>                  # --recursive pobiera też klienta KSeF MF
@@ -65,7 +72,7 @@ z kompletnymi danymi firm, kontrahentami, katalogiem i fakturami wystawionymi mi
   resecie, więc ponowna wysyłka szkiców do testowego KSeF nie koliduje z poprzednimi.
 
 **Własne konto** (np. z prawdziwym adresem, na który mają przychodzić powiadomienia) - dane logowania tylko w
-user-secrets, nie w repozytorium:
+user-secrets, nie w repozytorium. `start-dev.bat` pyta o nie przy pustej bazie; ręcznie:
 
 ```bash
 dotnet user-secrets --project FakturowanieKSeF.Api set "DemoData:Owner:Email" "twoj.adres@gmail.com"
