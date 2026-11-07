@@ -23,6 +23,10 @@ instrukcja użytkownika): [`docs/`](docs/README.md).
 
 Wymagania: .NET 10 SDK, Docker.
 
+**Windows - najprościej:** uruchom `start-dev.bat` z głównego katalogu repozytorium. Skrypt uruchamia bazę
+w Dockerze i aplikację, która sama wykonuje migracje i przy pierwszym starcie wgrywa dane demonstracyjne
+(opis niżej). Ręcznie, na dowolnym systemie:
+
 ```bash
 git clone --recursive <adres-repozytorium>                  # --recursive pobiera też klienta KSeF MF
 git submodule update --init                                # (jeśli sklonowano bez --recursive)
@@ -38,6 +42,51 @@ Wiadomości e-mail wysyłane przez aplikację (lokalnie nie trafiają do odbiorc
 
 Jeśli `dotnet ef database update` zgłasza `relation "..." already exists`, baza zawiera tabele ze starszej wersji
 projektu. Wyczyść ją (usuwa dane testowe): `docker compose down -v`, `docker compose up -d`, ponownie `dotnet ef database update`.
+
+### Dane demonstracyjne (konta testowe)
+
+Przy uruchomieniu z `DemoData__Seed=true` (robi to `start-dev.bat`) aplikacja w trybie deweloperskim tworzy konta
+z kompletnymi danymi firm, kontrahentami, katalogiem i fakturami wystawionymi między sobą (D49):
+
+| Konto | Hasło | Firma |
+|---|---|---|
+| TestUser1@example.com | TestUser1@ | Studio Graficzne Piksel (biuro rachunkowe TestUser4 ma tu rolę księgowej) |
+| TestUser2@example.com | TestUser2@ | Hurtownia Biuro-Max (proformy) |
+| TestUser3@example.com | TestUser3@ | Kod i Kawa (faktura w EUR) |
+| TestUser4@example.com | TestUser4@ | Biuro Rachunkowe Saldo |
+
+- **Historia** (ostatnie 6 miesięcy): faktury oznaczone jako przyjęte w KSeF z **przykładowym** numerem KSeF - nie
+  zostały wysłane do KSeF (kod QR na PDF się nie zweryfikuje, brak UPO). U nabywcy z danych demonstracyjnych ta sama
+  faktura jest fakturą otrzymaną. Są też płatności, korekta, proformy, faktura cykliczna i faktura odrzucona.
+- **Szkice z dzisiejszą datą**: można je naprawdę wysłać do **testowego** KSeF. Przy pierwszym starcie aplikacja generuje
+  firmom tokeny testowego KSeF (gdy KSeF nie odpowiada - token wygenerujesz później w „Moja firma”). Faktura wysłana do
+  innego konta trafia do niego po „Pobierz z KSeF” (KSeF udostępnia ją nabywcy zwykle po około minucie).
+- Dane powstają raz; pełny reset: `docker compose down -v` i ponowne uruchomienie. NIP-y firm są losowe przy każdym
+  resecie, więc ponowna wysyłka szkiców do testowego KSeF nie koliduje z poprzednimi.
+
+**Własne konto** (np. z prawdziwym adresem, na który mają przychodzić powiadomienia) - dane logowania tylko w
+user-secrets, nie w repozytorium:
+
+```bash
+dotnet user-secrets --project FakturowanieKSeF.Api set "DemoData:Owner:Email" "twoj.adres@gmail.com"
+dotnet user-secrets --project FakturowanieKSeF.Api set "DemoData:Owner:Password" "TwojeHaslo1@"
+```
+
+Konto dostaje własną firmę z włączonymi powiadomieniami o nowych fakturach kosztowych i przypomnieniami; konta
+testowe mają dla niego szkice faktur. Lokalnie poczta trafia do Mailpita (http://localhost:8025). Aby wiadomości
+dochodziły na prawdziwą skrzynkę, ustaw serwer SMTP, np. Gmail z
+[hasłem aplikacji](https://myaccount.google.com/apppasswords):
+
+```bash
+dotnet user-secrets --project FakturowanieKSeF.Api set "Email:SmtpHost" "smtp.gmail.com"
+dotnet user-secrets --project FakturowanieKSeF.Api set "Email:SmtpPort" "587"
+dotnet user-secrets --project FakturowanieKSeF.Api set "Email:Security" "StartTls"
+dotnet user-secrets --project FakturowanieKSeF.Api set "Email:SmtpUsername" "twoj.adres@gmail.com"
+dotnet user-secrets --project FakturowanieKSeF.Api set "Email:SmtpPassword" "haslo-aplikacji"
+dotnet user-secrets --project FakturowanieKSeF.Api set "Email:From" "twoj.adres@gmail.com"
+```
+
+Konta i dane demonstracyjne są wyłącznie deweloperskie - poza środowiskiem Development aplikacja odmawia ich wgrania.
 
 ## Wdrożenie
 

@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Sekrety deweloperskie (np. konto autora w danych demonstracyjnych, SMTP) - dotnet user-secrets, poza repozytorium -->
+    <UserSecretsId>fakturowanie-ksef-api</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
