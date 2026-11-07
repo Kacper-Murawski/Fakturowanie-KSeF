@@ -5,7 +5,7 @@ Materiały źródłowe do pracy inżynierskiej. Proponowane przyporządkowanie d
 | Rozdział pracy | Dokument |
 |---|---|
 | Analiza problemu, KSeF, wymagania | [`spike-ksef/README.md`](spike-ksef/README.md), [`integracja-ksef.md`](integracja-ksef.md), [`plan-mvp.md`](plan-mvp.md) |
-| Przypadki użycia | [`przypadki-uzycia.md`](przypadki-uzycia.md) |
+| Przypadki użycia (MVP i funkcje dodatkowe, role) | [`przypadki-uzycia.md`](przypadki-uzycia.md) |
 | Architektura i technologie | [`architektura.md`](architektura.md) |
 | Decyzje projektowe (z alternatywami i uzasadnieniem) | [`decyzje-projektowe.md`](decyzje-projektowe.md) (D1–D48) |
 | Model danych (ERD) | [`model-danych.md`](model-danych.md) |
@@ -18,6 +18,7 @@ Materiały źródłowe do pracy inżynierskiej. Proponowane przyporządkowanie d
 | Uruchomienie środowiska deweloperskiego | [`../README.md`](../README.md) |
 | Rozwój po MVP (funkcje dodatkowe) | [`funkcje-dodatkowe.md`](funkcje-dodatkowe.md) |
 | Wdrożenie (Docker, Caddy z HTTPS, kopie zapasowe) | [`wdrozenie.md`](wdrozenie.md) |
+| Podsumowanie, wnioski, ograniczenia, kierunki rozwoju | [`podsumowanie.md`](podsumowanie.md) |
 
 Artefakty z testowego KSeF: [`spike-ksef/`](spike-ksef/) (faktury, UPO), [`przyklady/`](przyklady/) (PDF).
 
