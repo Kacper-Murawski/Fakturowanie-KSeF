@@ -67,6 +67,15 @@ po polsku.
 | POST | `/api/account/2fa/disable` | Wyłączenie - wymaga kodu z aplikacji lub kodu odzyskiwania |
 | POST | `/api/account/2fa/recovery-codes` | Nowe kody odzyskiwania - wymaga kodu z aplikacji |
 | GET | `/api/exchange-rates/{currency}?date=` | Kurs średni NBP z ostatniego dnia roboczego przed datą (dniem sprzedaży) - podgląd w formularzu; 502 - API NBP niedostępne (D43) |
+| GET | `/api/account/companies` | Firmy dostępne dla użytkownika (własna i z zaproszeń) z rolą i znacznikiem bieżącej (D46) |
+| POST | `/api/account/active-company` | Wybór bieżącej firmy (`companyId`) - tylko spośród dostępnych (404); ustawia ciasteczko HttpOnly `ksef.company`. Inni klienci API mogą wysyłać nagłówek `X-Company-Id` |
+| GET | `/api/account/invitations/{token}` | Podgląd zaproszenia (firma, rola, adres, ważność) |
+| POST | `/api/account/invitations/accept` | Przyjęcie zaproszenia (`token`); 403 - konto z innym adresem niż zaproszenie, 404 - token nieważny, wygasły, odwołany lub użyty |
+| GET | `/api/company/members` | Właściciel: użytkownicy firmy i oczekujące zaproszenia |
+| POST | `/api/company/members/invitations` | Właściciel: zaproszenie (`email`, `role`: `Employee` / `Accountant`) - e-mail z linkiem ważnym 7 dni; zwraca link |
+| DELETE | `/api/company/members/invitations/{id}` | Właściciel: odwołanie zaproszenia |
+| PUT | `/api/company/members/{id}` | Właściciel: zmiana roli |
+| DELETE | `/api/company/members/{id}` | Właściciel: odebranie dostępu |
 | GET | `/api/dashboard` | Dane wykresów pulpitu: sprzedaż i koszty netto w 12 miesiącach, wiekowanie należności, 5 największych nabywców (D40) |
 | GET | `/api/payments/summary` | Należności i zobowiązania: pozostało do zapłaty, w tym po terminie (kwoty w PLN) |
 | POST | `/api/invoices/{id}/email` | Wysłanie faktury e-mailem (`to`, `message`) - PDF i XML w załączniku; 202 - wiadomość w kolejce. 409 - faktura nieprzyjęta w KSeF lub poczta nieskonfigurowana, 429 - dzienny limit wiadomości firmy (D36) |
@@ -100,6 +109,10 @@ po polsku.
 | 409 | Konflikt: duplikat (numer faktury, NIP kontrahenta), zmiana danych w międzyczasie (nieaktualna wersja), operacja niedozwolona w danym statusie, brak utworzonej firmy |
 
 ## Reguły biznesowe
+
+**Uprawnienia ról (D46).** Operacje zmieniające dane wymagają roli: dane firmy, token KSeF, powiadomienia i użytkownicy -
+właściciel; faktury, kontrahenci, katalog, faktury cykliczne, e-maile - właściciel lub pracownik; płatności - każda rola.
+Brak uprawnień - 403. Odczyt - każda rola.
 
 **Izolacja danych.** Identyfikator firmy nigdy nie pochodzi z żądania. Jest ustalany na podstawie zalogowanego
 użytkownika (`CurrentCompany`) i dodawany do każdego zapytania. Dostęp do cudzego rekordu, nawet przy znanym

@@ -20,6 +20,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
     public DbSet<Product> Products => Set<Product>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<RecurringInvoice> RecurringInvoices => Set<RecurringInvoice>();
+    public DbSet<CompanyMember> CompanyMembers => Set<CompanyMember>();
+    public DbSet<CompanyInvitation> CompanyInvitations => Set<CompanyInvitation>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<KsefSubmission> KsefSubmissions => Set<KsefSubmission>();
@@ -103,6 +105,25 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
             // Wzoru używanego przez harmonogram nie można usunąć (409 w API); generator i tak sprawdza jego istnienie
             e.HasOne(r => r.TemplateInvoice).WithMany().HasForeignKey(r => r.TemplateInvoiceId).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(r => !r.IsDeleted && !r.TemplateInvoice.IsDeleted);
+        });
+
+        // ---------------- Użytkownicy firmy (D46) ----------------
+        builder.Entity<CompanyMember>(e =>
+        {
+            e.Property(m => m.Role).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(m => new { m.CompanyId, m.UserId }).IsUnique();
+            e.HasIndex(m => m.UserId);
+            e.HasOne(m => m.Company).WithMany().HasForeignKey(m => m.CompanyId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(m => !m.Company.IsDeleted);
+        });
+        builder.Entity<CompanyInvitation>(e =>
+        {
+            e.Property(i => i.Role).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(i => i.TokenHash).IsUnique();
+            e.HasIndex(i => new { i.CompanyId, i.Email });
+            e.HasOne(i => i.Company).WithMany().HasForeignKey(i => i.CompanyId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(i => !i.Company.IsDeleted);
         });
 
         // ---------------- Invoice ----------------

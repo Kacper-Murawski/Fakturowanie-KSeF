@@ -20,10 +20,11 @@
   (`api.ksef.mf.gov.pl`) ani DEMO. Każdy HttpClient do KSeF musi mieć `KsefTestOnlyHandler`;
   `KsefEnvironment` celowo nie ma wartości produkcyjnej. Nie zmieniaj tego bez wyraźnej decyzji autora.
 - **Izolacja danych między użytkownikami (multi-tenancy):** dane biznesowe należą do firmy (`CompanyId`),
-  firma do konta (`Company.OwnerId`). Każde zapytanie musi być filtrowane po firmie zalogowanego użytkownika,
-  żaden endpoint nie może zwrócić cudzych danych. `CompanyId` bierz WYŁĄCZNIE z `CurrentCompany`
-  (tożsamość zalogowanego użytkownika), nigdy z żądania; cudzy rekord = 404. Nowy endpoint = nowy przypadek
-  w `DataIsolationTests`.
+  firma ma właściciela (`Company.OwnerId`) i ewentualnie członków z rolami (`CompanyMembers`, D46). Każde zapytanie
+  musi być filtrowane po bieżącej firmie, żaden endpoint nie może zwrócić cudzych danych. `CompanyId` bierz WYŁĄCZNIE
+  z `CurrentCompany` (wybór firmy z ciasteczka/nagłówka jest uwzględniany tylko spośród firm dostępnych dla tożsamości),
+  nigdy z żądania; cudzy rekord = 404. Nowy endpoint zmieniający dane = filtr roli (`RequireRoleForChanges`/`RequireRole`)
+  i przypadek w testach izolacji/ról.
 - DTO, enumy, walidacja i kalkulator kwot są w `FakturowanieKSeF.Contracts` (bez zależności od EF) - współdzielone
   przez API i klienta Blazor. Klient NIE może referencjonować `FakturowanieKSeF.Models`.
 - Frontend (Blazor WASM): logowanie ciasteczkiem sesji (`AuthService`, bez tokenów w JS), wywołania API przez

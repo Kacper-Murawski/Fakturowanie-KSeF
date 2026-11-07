@@ -39,7 +39,7 @@ public static class NotificationEndpoints
                     return Results.Problem(title: ex.Message, statusCode: StatusCodes.Status429TooManyRequests);
                 }
             })
-            .WithTags("E-mail").RequireAuthorization()
+            .WithTags("E-mail").RequireAuthorization().RequireRole(CompanyRoles.Issuers)
             .WithSummary("Przypomnienie o płatności dla nabywcy (kwota pozostała do zapłaty, faktura w załączniku)");
 
         api.MapGet("/invoices/{id:int}/email-recipient", async (int id, CurrentCompany current, AppDbContext db,
@@ -53,7 +53,8 @@ public static class NotificationEndpoints
             .WithTags("E-mail").RequireAuthorization()
             .WithSummary("Podpowiedź adresu nabywcy: e-mail kontrahenta albo ostatni adres, na który wysłano fakturę");
 
-        var settings = api.MapGroup("/company/notifications").WithTags("Firma").RequireAuthorization();
+        var settings = api.MapGroup("/company/notifications").WithTags("Firma").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRole.Owner);
 
         settings.MapGet("/", async (CurrentCompany current, EmailOutbox outbox, AppDbContext db, CancellationToken ct) =>
             await current.FindAsync(ct) is not { } company

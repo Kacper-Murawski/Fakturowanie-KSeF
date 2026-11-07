@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **290 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **297 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -49,6 +49,7 @@ jednostkowe, integracyjne i E2E.
 | Waluty obce | `ExchangeRateLookupTests`, `CurrencyXmlTests`, `CurrencyApiTests`, `ExternalApiLiveTests` | dzień kursu (weekend, 11 listopada, święta); pamięć podręczna; odczyt odpowiedzi API NBP i 404; XML w EUR zgodny z XSD (`P_14_xW`, `KursWaluty`), odczyt; kurs przy zapisie i po zmianie daty; awaria NBP; korekta z kursem faktury korygowanej; należności i eksport bez sumowania walut; E2E |
 | Import sprzedaży z KSeF | `IssuedImportTests` | dane z XML (nabywca, adres, termin, pozycje, kwoty); tylko do odczytu, rozliczenia; brak duplikatów (ponowny import, faktura wysłana z aplikacji rozpoznana po skrócie); ten sam numer z innego programu; korekta łączona z fakturą; pomijanie nieobsługiwanych rodzajów; limit czasu, izolacja; brak odpytywania o UPO; E2E |
 | Aplikacja mobilna (PWA) | `HostingTests` (PWA), E2E `Pwa_…` | manifest (typ, tryb, ikony PNG, ikona maskable), service worker i rejestracja; produkcyjny service worker pomija `/api/`; E2E: rejestracja service workera, ekran telefonu (menu, formularz faktury bez poziomego przewijania); ręcznie: opublikowana wersja - 70 plików w pamięci podręcznej, 0 odpowiedzi API |
+| Role w firmie | `CompanyRoleTests` | księgowa: odczyt, eksport, płatności, 403 przy wystawianiu i zmianach; pracownik: wystawianie i wysyłka, 403 przy ustawieniach i użytkownikach; zaproszenie: cudze konto, zgadywany, jednorazowy, odwołany, wygasły token, w bazie tylko skrót; wybór cudzej firmy nagłówkiem lub ciasteczkiem nie daje dostępu; biuro rachunkowe z własną firmą i firmą klienta; zmiana roli i odebranie dostępu; E2E: zaproszenie, przyjęcie, tryb księgowej |
 | Eksport dla księgowej | `CsvFormatTests`, `ExportApiTests` | format CSV (BOM, separator, ochrona przed formułami, kwoty ujemne); okres; tylko faktury przyjęte w KSeF i otrzymane w okresie; kwoty per stawka z XML; zawartość paczki ZIP (XML zgodny z wysłanym, UPO); izolacja |
 | Wykaz podatników VAT (uzupełnienie) | `VatWhiteListClientTests` | strona zabezpieczenia przed botami (HTML) - czytelny komunikat |
 | Wykaz podatników VAT | `WhiteListAddressTests`, `VatWhiteListClientTests`, `VatRegistryApiTests`, `VatRegistryLimitTests`, testy rachunku w `ReceivedInvoicesTests` | rozbiór adresu z wykazu; odczyt odpowiedzi i błędów API MF (wyszukiwanie, sprawdzenie rachunku); pamięć podręczna; limity dzienne; awaria MF; zapis wyniku sprawdzenia, rachunki zagraniczne, izolacja |

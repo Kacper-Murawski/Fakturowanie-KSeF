@@ -10,7 +10,9 @@ public enum EmailKind
     /// <summary>Powiadomienie użytkownika o nowych fakturach kosztowych z KSeF.</summary>
     ReceivedInvoices,
     /// <summary>Powiadomienie użytkownika o przygotowanych fakturach cyklicznych.</summary>
-    RecurringInvoices
+    RecurringInvoices,
+    /// <summary>Zaproszenie do firmy (D46).</summary>
+    Invitation
 }
 
 /// <summary>Stan wiadomości w kolejce wysyłki.</summary>

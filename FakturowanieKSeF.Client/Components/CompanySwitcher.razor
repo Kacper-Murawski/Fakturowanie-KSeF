@@ -1,0 +1,31 @@
+@* Przełącznik firmy w górnym pasku (D46) - gdy użytkownik ma dostęp do więcej niż jednej firmy *@
+@inject CompanyContext Ctx
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+@if (Ctx.Companies.Count > 1)
+{
+    <select class="form-select form-select-sm w-auto" aria-label="Firma" data-testid="company-switcher"
+            value="@Ctx.Active?.Id" @onchange="SwitchAsync">
+        @foreach (var c in Ctx.Companies)
+        {
+            <option value="@c.Id">@c.Name (@CompanyContext.RoleName(c.Role))</option>
+        }
+    </select>
+}
+else if (Ctx.Active is { Role: not CompanyRole.Owner } active)
+{
+    <span class="small text-muted" data-testid="company-role">@active.Name · @CompanyContext.RoleName(active.Role)</span>
+}
+
+@code {
+    protected override async Task OnInitializedAsync() => await Ctx.EnsureLoadedAsync();
+
+    private async Task SwitchAsync(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var id)) return;
+        await Api.PostAsync<bool>("api/account/active-company", new SelectCompanyRequest { CompanyId = id });
+        // Pełne przeładowanie - wszystkie widoki pobierają dane wybranej firmy
+        Navigation.NavigateTo("", forceLoad: true);
+    }
+}

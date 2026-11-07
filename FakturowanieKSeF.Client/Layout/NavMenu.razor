@@ -1,3 +1,4 @@
+@inject CompanyContext Ctx
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Fakturowanie KSeF</a>
@@ -19,11 +20,14 @@
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Faktury
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="faktury/nowa" Match="NavLinkMatch.All">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Nowa faktura
-            </NavLink>
-        </div>
+        @if (Ctx.CanIssue)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="faktury/nowa" Match="NavLinkMatch.All">
+                    <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Nowa faktura
+                </NavLink>
+            </div>
+        }
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="cykliczne">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Faktury cykliczne
@@ -59,6 +63,8 @@
 
 @code {
     private bool collapseNavMenu = true;
+
+    protected override async Task OnInitializedAsync() => await Ctx.EnsureLoadedAsync();
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 

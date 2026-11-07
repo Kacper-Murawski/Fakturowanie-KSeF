@@ -2,6 +2,7 @@
 @inject ApiClient Api
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject CompanyContext Ctx
 @implements IDisposable
 
 <PageTitle>Faktura @invoice?.Number - Fakturowanie KSeF</PageTitle>
@@ -34,33 +35,36 @@ else
             }
         </div>
         <div class="d-flex flex-wrap gap-2">
-            @if (invoice.Kind == InvoiceKind.Proforma)
-            {
-                @if (invoice.IssuedFromProforma is null)
-                {
-                    <button class="btn btn-success" @onclick="ConvertAsync" disabled="@busy" title="Szkic faktury VAT z nabywcą i pozycjami proformy">Wystaw fakturę VAT</button>
-                }
-                <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
-                <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
-            }
-            else if (invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected)
-            {
-                <button class="btn btn-success" @onclick="SendAsync" disabled="@busy">@(busy ? "Wysyłanie…" : "Wyślij do KSeF")</button>
-                <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
-                <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
-            }
             @if (invoice.LastSubmission?.HasUpo == true)
             {
                 <a class="btn btn-outline-success" href="api/invoices/@invoice.Id/upo" download>Pobierz UPO</a>
             }
-            @if (invoice is { Kind: InvoiceKind.Vat, Status: InvoiceStatus.Accepted })
+            @if (Ctx.CanIssue)
             {
-                <a class="btn btn-outline-warning" href="faktury/nowa?korekta=@invoice.Id" title="Faktura korygująca (KOR) do tej faktury">Wystaw korektę</a>
-            }
-            @if (invoice.Kind == InvoiceKind.Vat)
-            {
-                <a class="btn btn-outline-primary" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami">Wystaw podobną</a>
-                <a class="btn btn-outline-primary" href="cykliczne/nowa?wzor=@invoice.Id" title="Szkice tej faktury co miesiąc, kwartał lub rok">Ustaw jako cykliczną</a>
+                @if (invoice.Kind == InvoiceKind.Proforma)
+                {
+                    @if (invoice.IssuedFromProforma is null)
+                    {
+                        <button class="btn btn-success" @onclick="ConvertAsync" disabled="@busy" title="Szkic faktury VAT z nabywcą i pozycjami proformy">Wystaw fakturę VAT</button>
+                    }
+                    <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
+                    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+                }
+                else if (invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected)
+                {
+                    <button class="btn btn-success" @onclick="SendAsync" disabled="@busy">@(busy ? "Wysyłanie…" : "Wyślij do KSeF")</button>
+                    <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
+                    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+                }
+                @if (invoice is { Kind: InvoiceKind.Vat, Status: InvoiceStatus.Accepted })
+                {
+                    <a class="btn btn-outline-warning" href="faktury/nowa?korekta=@invoice.Id" title="Faktura korygująca (KOR) do tej faktury">Wystaw korektę</a>
+                }
+                @if (invoice.Kind == InvoiceKind.Vat)
+                {
+                    <a class="btn btn-outline-primary" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami">Wystaw podobną</a>
+                    <a class="btn btn-outline-primary" href="cykliczne/nowa?wzor=@invoice.Id" title="Szkice tej faktury co miesiąc, kwartał lub rok">Ustaw jako cykliczną</a>
+                }
             }
             <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/pdf" download>Pobierz PDF</a>
             @if (invoice.Kind != InvoiceKind.Proforma)
@@ -183,7 +187,7 @@ else
                       InfoChanged="info => invoice = invoice with { Payment = info }" />
     }
 
-    @if (invoice.Status == InvoiceStatus.Accepted || invoice.Kind == InvoiceKind.Proforma)
+    @if (Ctx.CanIssue && (invoice.Status == InvoiceStatus.Accepted || invoice.Kind == InvoiceKind.Proforma))
     {
         <InvoiceEmailPanel InvoiceId="invoice.Id" Remaining="invoice.Payment?.Remaining" />
     }
@@ -290,7 +294,11 @@ else
 
     private Timer? refreshTimer;
 
-    protected override async Task OnParametersSetAsync() => await LoadAsync();
+    protected override async Task OnParametersSetAsync()
+    {
+        await Ctx.EnsureLoadedAsync();
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {

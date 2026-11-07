@@ -1,0 +1,140 @@
+@* Użytkownicy firmy i zaproszenia - tylko dla właściciela (D46) *@
+@inject ApiClient Api
+
+<section class="card mt-4 form-narrow" data-testid="company-members">
+    <div class="card-body">
+        <h2 class="h5">Użytkownicy firmy</h2>
+        <p class="small text-muted">
+            Zaproś <strong>księgową</strong> (odczyt, eksport, płatności) lub <strong>pracownika</strong> (wystawianie i wysyłka faktur).
+            Zaproszona osoba dostanie e-mail z linkiem ważnym 7 dni i przyjmie zaproszenie po zalogowaniu na konto z tym adresem.
+        </p>
+
+        <ProblemAlert Problem="problem" />
+
+        @if (data is { } d)
+        {
+            <div class="table-responsive">
+            <table class="table table-sm" data-testid="members">
+                <thead><tr><th>E-mail</th><th>Rola</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var m in d.Members)
+                    {
+                        <tr>
+                            <td>@m.Email</td>
+                            <td>
+                                @if (m.MemberId is { } id)
+                                {
+                                    <select class="form-select form-select-sm w-auto" aria-label="Rola" value="@m.Role"
+                                            @onchange="e => ChangeRoleAsync(id, e.Value?.ToString())">
+                                        <option value="@CompanyRole.Employee">pracownik</option>
+                                        <option value="@CompanyRole.Accountant">księgowa</option>
+                                    </select>
+                                }
+                                else
+                                {
+                                    <span>właściciel</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (m.MemberId is { } removeId)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Odbierz dostęp" @onclick="() => RemoveAsync(removeId)">✕</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var i in d.Invitations)
+                    {
+                        <tr class="text-muted">
+                            <td>@i.Email</td>
+                            <td>@CompanyContext.RoleName(i.Role) <span class="badge bg-secondary">zaproszenie do @Format.Date(DateOnly.FromDateTime(i.ExpiresAt))</span></td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" title="Odwołaj zaproszenie" @onclick="() => RevokeAsync(i.Id)">✕</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+
+            <EditForm Model="model" OnValidSubmit="InviteAsync" FormName="invite">
+                <DeepValidator @ref="validator" />
+                <div class="row g-2 align-items-end">
+                    <div class="col-sm-6">
+                        <label class="form-label small" for="invite-email">Adres e-mail</label>
+                        <InputTextLive id="invite-email" type="email" class="form-control" @bind-Value="model.Email" />
+                        <ValidationMessage For="() => model.Email" />
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="form-label small" for="invite-role">Rola</label>
+                        <InputSelect id="invite-role" class="form-select" @bind-Value="model.Role">
+                            <option value="@CompanyRole.Accountant">księgowa</option>
+                            <option value="@CompanyRole.Employee">pracownik</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-sm-3">
+                        <button type="submit" class="btn btn-outline-primary w-100">Zaproś</button>
+                    </div>
+                </div>
+            </EditForm>
+
+            @if (created is { } c)
+            {
+                <div class="alert alert-success small mt-3" data-testid="invitation-link">
+                    @(c.EmailSent ? "Wysłano zaproszenie e-mailem." : "Poczta nie jest skonfigurowana - przekaż link zaproszonej osobie.")
+                    Link (ważny 7 dni, tylko dla konta @c.Invitation.Email):<br />
+                    <code class="user-select-all">@c.Link</code>
+                </div>
+            }
+        }
+    </div>
+</section>
+
+@code {
+    private CompanyMembersDto? data;
+    private InviteMemberRequest model = new();
+    private InvitationCreatedDto? created;
+    private DeepValidator? validator;
+    private ApiProblem? problem;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var result = await Api.GetAsync<CompanyMembersDto>("api/company/members");
+        data = result.Value;
+        problem = result.Problem;
+    }
+
+    private async Task InviteAsync()
+    {
+        var result = await Api.PostAsync<InvitationCreatedDto>("api/company/members/invitations", model);
+        problem = result.Problem;
+        if (result.Value is { } c)
+        {
+            created = c;
+            model = new InviteMemberRequest();
+            await LoadAsync();
+        }
+        else if (problem is not null) validator?.ShowServerErrors(problem);
+    }
+
+    private async Task ChangeRoleAsync(int memberId, string? role)
+    {
+        if (!Enum.TryParse<CompanyRole>(role, out var r)) return;
+        problem = (await Api.PutAsync<bool>($"api/company/members/{memberId}", new ChangeMemberRoleRequest { Role = r })).Problem;
+        await LoadAsync();
+    }
+
+    private async Task RemoveAsync(int memberId)
+    {
+        problem = (await Api.DeleteAsync($"api/company/members/{memberId}")).Problem;
+        await LoadAsync();
+    }
+
+    private async Task RevokeAsync(int invitationId)
+    {
+        problem = (await Api.DeleteAsync($"api/company/members/invitations/{invitationId}")).Problem;
+        await LoadAsync();
+    }
+}

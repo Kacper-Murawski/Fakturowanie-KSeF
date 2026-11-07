@@ -10,7 +10,8 @@ public static class CompanyEndpoints
 {
     public static void MapCompanyEndpoints(this RouteGroupBuilder api)
     {
-        var group = api.MapGroup("/company").WithTags("Firma").RequireAuthorization();
+        var group = api.MapGroup("/company").WithTags("Firma").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRole.Owner); // dane firmy zmienia tylko właściciel (D46)
 
         group.MapGet("/", async (CurrentCompany current, CancellationToken ct) =>
                 await current.FindAsync(ct) is { } company

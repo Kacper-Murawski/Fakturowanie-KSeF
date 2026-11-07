@@ -2,6 +2,7 @@
 @attribute [AllowAnonymous]
 @inject AuthService Auth
 @inject NavigationManager Navigation
+@inject CompanyContext Ctx
 
 <PageTitle>Logowanie - Fakturowanie KSeF</PageTitle>
 
@@ -88,6 +89,7 @@
 
         if (result.Succeeded)
         {
+            Ctx.Reset();
             // Tylko adresy względne - ochrona przed przekierowaniem na obcą stronę (open redirect)
             var target = string.IsNullOrEmpty(ReturnUrl) || ReturnUrl.Contains("://") || ReturnUrl.StartsWith("//") ? "" : ReturnUrl;
             Navigation.NavigateTo(target);

@@ -12,7 +12,8 @@ public static class RecurringInvoiceEndpoints
 {
     public static void MapRecurringInvoiceEndpoints(this RouteGroupBuilder api)
     {
-        var group = api.MapGroup("/recurring-invoices").WithTags("Faktury cykliczne").RequireAuthorization();
+        var group = api.MapGroup("/recurring-invoices").WithTags("Faktury cykliczne").RequireAuthorization()
+            .RequireRoleForChanges(CompanyRoles.Issuers); // księgowa - tylko odczyt (D46)
 
         group.MapGet("/", async (CurrentCompany current, AppDbContext db, CancellationToken ct) =>
             {
