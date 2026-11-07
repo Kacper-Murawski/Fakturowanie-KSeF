@@ -74,6 +74,7 @@ builder.Services.AddScoped<ReceivedInvoiceSync>();
 builder.Services.AddScoped<IssuedInvoiceImport>();
 builder.Services.AddSingleton<InvoicePdfRenderer>();
 builder.Services.AddScoped<AccountingExport>();
+builder.Services.AddScoped<FakturowanieKSeF.Api.Infrastructure.DemoData.DemoDataSeeder>();
 
 // Poczta: kolejka wiadomości w bazie + usługa wysyłki w tle (D36). Lokalnie Mailpit z docker compose.
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
@@ -168,6 +169,22 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
             app.Logger.LogWarning("Baza danych niedostępna (próba {Attempt}) - ponowienie za 3 s", attempt);
             await Task.Delay(TimeSpan.FromSeconds(3));
         }
+    }
+}
+
+// Dane demonstracyjne (konta testowe z fakturami) - wyłącznie środowisko deweloperskie (D49)
+if (app.Configuration.GetValue("DemoData:Seed", false))
+{
+    if (!app.Environment.IsDevelopment())
+        throw new InvalidOperationException("Dane demonstracyjne (DemoData:Seed) można wgrać wyłącznie w środowisku Development.");
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<FakturowanieKSeF.Api.Infrastructure.DemoData.DemoDataSeeder>().SeedAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Nie udało się wgrać danych demonstracyjnych");
     }
 }
 

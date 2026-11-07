@@ -394,7 +394,7 @@ public static class InvoiceEndpoints
     /// Zapłata oznaczona w XML faktury (Zaplacono) staje się płatnością w rozliczeniu. Wcześniejszy zapis z odrzuconej
     /// wysyłki jest zastępowany - ponowna wysyłka po poprawkach nie dubluje płatności (D33).
     /// </summary>
-    private static void RecordPaymentFromInvoice(AppDbContext db, Invoice invoice, TimeProvider time)
+    internal static void RecordPaymentFromInvoice(AppDbContext db, Invoice invoice, TimeProvider time)
     {
         foreach (var old in invoice.Payments.Where(p => p.FromInvoice).ToList())
         {
