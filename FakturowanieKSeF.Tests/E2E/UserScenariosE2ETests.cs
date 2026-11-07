@@ -861,5 +861,36 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator("[data-testid=payment-panel]")).ToBeVisibleAsync();
         await Expect(page.Locator("text=Wyślij do KSeF")).ToHaveCountAsync(0);
     }
+
+    [E2EFact]
+    public async Task Pwa_AplikacjaDoInstalacji_ManifestIServiceWorker()
+    {
+        var page = await fx.NewPageAsync();
+        await page.GotoAsync("/login");
+
+        var manifestHref = await page.Locator("link[rel=manifest]").GetAttributeAsync("href");
+        Assert.Equal("manifest.webmanifest", manifestHref);
+        await Expect(page.Locator("meta[name=theme-color]")).ToHaveAttributeAsync("content", "#052767");
+
+        // Service worker zarejestrowany (w wersji deweloperskiej bez pamięci podręcznej)
+        var script = await page.EvaluateAsync<string>("async () => (await navigator.serviceWorker.ready).active.scriptURL");
+        Assert.EndsWith("/service-worker.js", script);
+        // Ekran telefonu: menu zwinięte pod przyciskiem, formularz faktury w jednej kolumnie
+        await page.SetViewportSizeAsync(390, 844);
+        await RegisterAsync(page);
+        await CreateCompanyAsync(page, TestUsers.RandomNip());
+        await page.GotoAsync("/");
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
+        await E2EFixture.ScreenshotAsync(page, "35-telefon-pulpit");
+        await page.ClickAsync("button.navbar-toggler");
+        await Expect(page.Locator("nav >> text=Nowa faktura")).ToBeVisibleAsync();
+        await E2EFixture.ScreenshotAsync(page, "36-telefon-menu");
+        await page.ClickAsync("nav >> text=Nowa faktura");
+        await FillManualBuyerAsync(page, "Klient z telefonu", "1234563218");
+        await FillItemAsync(page, 0, "Usługa", "1", "100");
+        await Expect(page.Locator("[data-testid=total-gross]")).ToContainTextAsync("123,00");
+        // Brak poziomego przewijania całej strony (tabela pozycji przewija się we własnym kontenerze)
+        Assert.True(await page.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= window.innerWidth + 1"));
+    }
 }
 

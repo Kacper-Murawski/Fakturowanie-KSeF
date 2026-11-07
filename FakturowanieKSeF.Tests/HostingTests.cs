@@ -48,4 +48,38 @@ public class HostingTests : IClassFixture<ApiFactory>
         response.EnsureSuccessStatusCode();
         Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
     }
+
+    [Fact]
+    public async Task Pwa_ManifestIkonyIServiceWorker_SaSerwowane()
+    {
+        var manifest = await _client.GetAsync("/manifest.webmanifest");
+        manifest.EnsureSuccessStatusCode();
+        Assert.Equal("application/manifest+json", manifest.Content.Headers.ContentType!.MediaType);
+
+        using var json = System.Text.Json.JsonDocument.Parse(await manifest.Content.ReadAsStringAsync());
+        Assert.Equal("standalone", json.RootElement.GetProperty("display").GetString());
+        var icons = json.RootElement.GetProperty("icons").EnumerateArray().ToList();
+        Assert.Contains(icons, i => i.GetProperty("sizes").GetString() == "512x512" && i.TryGetProperty("purpose", out var p) && p.GetString() == "maskable");
+        foreach (var icon in icons)
+        {
+            var png = await _client.GetByteArrayAsync("/" + icon.GetProperty("src").GetString());
+            Assert.Equal([0x89, 0x50, 0x4E, 0x47], png[..4]);
+        }
+
+        (await _client.GetAsync("/service-worker.js")).EnsureSuccessStatusCode();
+        var index = await _client.GetStringAsync("/");
+        Assert.Contains("rel=\"manifest\"", index);
+        Assert.Contains("serviceWorker.register", index);
+    }
+
+    /// <summary>Produkcyjny service worker nie może przechowywać odpowiedzi API (dane użytkownika) - D45.</summary>
+    [Fact]
+    public void ProdukcyjnyServiceWorker_NiePrzechowujeOdpowiedziApi()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "FakturowanieKSeF.Client", "wwwroot", "service-worker.published.js");
+        var script = File.ReadAllText(path);
+        Assert.Contains("url.pathname.startsWith('/api/')", script);
+        Assert.Contains("if (!isApi)", script);
+    }
 }
+

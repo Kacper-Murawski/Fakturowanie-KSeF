@@ -960,3 +960,34 @@ metadane faktur także w roli sprzedawcy (`Podmiot1`), więc można je pobrać t
 **Uzasadnienie:** kompletny obraz sprzedaży niezależnie od narzędzia, którym wystawiono fakturę, z ponownym użyciem
 mechanizmu odbioru (HWM, limity) i bez ryzyka zdublowania faktur wysłanych z aplikacji.
 
+---
+
+## D45. Aplikacja mobilna jako PWA (ta sama aplikacja, instalowana na telefonie)
+
+**Kontekst:** konkurencyjne programy mają aplikacje mobilne. Użytkownik chce sprawdzić fakturę, zarejestrować wpłatę
+albo wystawić fakturę z telefonu. Osobna aplikacja natywna oznaczałaby drugi kod (Android, iOS) i publikację w sklepach.
+
+**Decyzja:**
+- Progressive Web App: manifest (`manifest.webmanifest` - nazwa, ikony w tym „maskable”, kolor motywu, tryb
+  `standalone`, skróty „Nowa faktura” i „Faktury otrzymane”) i service worker; aplikację instaluje się z przeglądarki
+  („Dodaj do ekranu głównego”) - ma ikonę i otwiera się w osobnym oknie bez paska adresu,
+- **pełna funkcjonalność** - to ta sama aplikacja Blazor co w przeglądarce, z układem dostosowanym do wąskich ekranów
+  (menu zwijane, formularze w jednej kolumnie, tabele przewijane we własnym kontenerze),
+- service worker przechowuje **wyłącznie pliki aplikacji** z listy generowanej przy publikacji (z kontrolą skrótów
+  SHA-256) i usuwa stare wersje po aktualizacji; **odpowiedzi API (dane faktur, PDF, XML) nigdy nie trafiają do pamięci
+  podręcznej** - dane zawsze pochodzą z serwera i nie zostają na telefonie po wylogowaniu; w wersji deweloperskiej
+  service worker nic nie przechowuje (zmiany widoczne od razu),
+- bez trybu offline dla danych i bez powiadomień push (powiadomienia działają e-mailem - D36-D38).
+
+**Alternatywy:**
+- aplikacja natywna (Kotlin/Swift) lub wieloplatformowa (.NET MAUI, Flutter): dostęp do funkcji telefonu i obecność
+  w sklepach, ale drugi interfejs do utrzymania, osobne wydania i uwierzytelnianie tokenami zamiast ciasteczka,
+- Blazor Hybrid (MAUI z komponentami Razor): współdzieli komponenty, ale wymaga publikacji w sklepach,
+- przechowywanie danych offline (IndexedDB) z synchronizacją: praca bez sieci, ale dane finansowe na urządzeniu
+  (ryzyko przy utracie telefonu) i konflikty synchronizacji; wystawienie faktury i tak wymaga połączenia z KSeF,
+- powiadomienia Web Push: wymagają kluczy VAPID, subskrypcji per urządzenie, a na iOS - instalacji PWA.
+
+**Uzasadnienie:** aplikacja „na telefon” bez drugiego kodu i bez sklepów, z bezpiecznym zachowaniem pamięci
+podręcznej (tylko pliki aplikacji). Działanie produkcyjnego service workera sprawdzono w przeglądarce: 70 plików
+aplikacji w pamięci podręcznej, żadnej odpowiedzi API, strona ładuje się po przeładowaniu z pamięci.
+
