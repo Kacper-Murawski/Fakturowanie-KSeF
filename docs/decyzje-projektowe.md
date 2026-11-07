@@ -1099,3 +1099,39 @@ Faktyczne wdrożenie odłożono, ale konfiguracja ma być gotowa, powtarzalna i 
 **Uzasadnienie:** cały serwer uruchamia się jednym poleceniem z jednego pliku konfiguracji, z HTTPS bez ręcznej obsługi
 certyfikatów i z sekretami poza repozytorium. Konfigurację uruchomiono w kontenerach i sprawdzono (docs/wdrozenie.md).
 
+---
+
+## D49. Dane demonstracyjne dla środowiska deweloperskiego (konta testowe z fakturami)
+
+**Kontekst:** do prezentacji (np. na obronie) i ręcznych testów potrzebne są gotowe konta z kompletnymi danymi:
+firmy, kontrahenci, faktury w różnych stanach i faktury wymieniane między kontami. Ręczne przygotowanie tego po każdym
+wyczyszczeniu bazy zajmuje dużo czasu, a pusta aplikacja nie pokazuje pulpitu, rozliczeń ani wykresów.
+
+**Decyzja:**
+- usługa `DemoDataSeeder` uruchamiana przy starcie, gdy `DemoData:Seed=true` - **wyłącznie w środowisku Development**
+  (w innym środowisku aplikacja odmawia startu z tym ustawieniem); dane powstają raz (istnienie konta TestUser1),
+- cztery konta `TestUser1-4@example.com` (domena zarezerwowana - poczta nie trafi do przypadkowych osób) z firmami
+  o różnych profilach, kontrahentami (pozostałe firmy i osoba prywatna) i katalogiem; opcjonalnie konto autora
+  z adresem i hasłem w user-secrets (`DemoData:Owner:*`), z włączonymi powiadomieniami - poza repozytorium,
+- **dwa rodzaje faktur:** historia z ostatnich miesięcy oznaczona jako przyjęta w KSeF z przykładowym numerem KSeF
+  (bez wysyłki; opis w statusie wysyłki), z lustrzaną fakturą otrzymaną u nabywcy, płatnościami, korektą, proformami,
+  fakturą walutową, cykliczną i odrzuconą - oraz **szkice z bieżącą datą**, które użytkownik wysyła sam do testowego
+  KSeF; tokeny testowego KSeF generowane przy starcie mechanizmem D24 (gdy KSeF nie odpowiada - pomijane),
+- faktury powstają tą samą ścieżką co z formularza (`ApplyAsync`, numeracja, generator FA(3) z walidacją XSD),
+  więc PDF, podgląd, eksport i wykresy działają na danych demonstracyjnych tak jak na prawdziwych,
+- NIP-y firm i rachunki losowe (z poprawnymi sumami kontrolnymi) przy każdym wgraniu - po wyczyszczeniu bazy
+  wysłanie do testowego KSeF faktur o tych samych numerach nie koliduje z wcześniej wysłanymi,
+- daty liczone względem dnia uruchomienia - zawsze są należności po terminie i dane na wykresie.
+
+**Alternatywy:**
+- skrypt SQL z danymi: szybki, ale omija logikę aplikacji (kwoty, XML, numeracja) i rozjeżdża się z modelem przy
+  każdej migracji,
+- dane w migracji EF (`HasData`): trafiłyby także na produkcję,
+- wysyłanie całej historii do testowego KSeF przy starcie: prawdziwe numery i UPO, ale kilka minut oczekiwania,
+  zależność od dostępności KSeF i obciążanie środowiska testowego MF przy każdym resecie bazy; dlatego prawdziwa
+  wysyłka dotyczy tylko szkiców wysyłanych świadomie przez użytkownika.
+
+**Uzasadnienie:** jedno uruchomienie daje aplikację gotową do pokazania wszystkich funkcji, a szkice pozwalają
+pokazać pełny obieg z prawdziwym (testowym) KSeF: wysyłkę, numer KSeF, UPO, kod QR i odbiór faktury przez nabywcę.
+Dane i konta nie mogą trafić na produkcję.
+

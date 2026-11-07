@@ -65,4 +65,5 @@
   `VatRegistryLookup` (pamięć podręczna + dzienne limity, bo MF limituje zapytania na adres IP serwera).
 - Testy: `dotnet test` (wymaga działającego PostgreSQL; testy tworzą i usuwają bazy `ksef_test_*`).
 - API pod prefiksem `/api`; klient Blazor serwowany przez API (fallback do `index.html`).
+- Dane demonstracyjne: `DemoDataSeeder` (`DemoData:Seed=true`, tylko Development, D49); nowa funkcja z danymi = uwzględnij ją w seedzie.
 - Migracje: `dotnet ef migrations add <Nazwa> --project FakturowanieKSeF.Api --output-dir Data/Migrations`.

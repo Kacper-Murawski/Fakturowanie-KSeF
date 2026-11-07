@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **306 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **312 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres
@@ -51,6 +51,7 @@ jednostkowe, integracyjne i E2E.
 | Aplikacja mobilna (PWA) | `HostingTests` (PWA), E2E `Pwa_…` | manifest (typ, tryb, ikony PNG, ikona maskable), service worker i rejestracja; produkcyjny service worker pomija `/api/`; E2E: rejestracja service workera, ekran telefonu (menu, formularz faktury bez poziomego przewijania); ręcznie: opublikowana wersja - 70 plików w pamięci podręcznej, 0 odpowiedzi API |
 | Role w firmie | `CompanyRoleTests` | księgowa: odczyt, eksport, płatności, 403 przy wystawianiu i zmianach; pracownik: wystawianie i wysyłka, 403 przy ustawieniach i użytkownikach; zaproszenie: cudze konto, zgadywany, jednorazowy, odwołany, wygasły token, w bazie tylko skrót; wybór cudzej firmy nagłówkiem lub ciasteczkiem nie daje dostępu; biuro rachunkowe z własną firmą i firmą klienta; zmiana roli i odebranie dostępu; E2E: zaproszenie, przyjęcie, tryb księgowej |
 | Utwardzenie (D47) | `SecurityHeadersTests`, `RateLimitTests`, `ApiRateLimitTests`, E2E `PolitykaCsp_…` | nagłówki (CSP, nosniff, DENY, no-referrer, Permissions-Policy) na stronach, API i plikach; brak skryptów w stronie; limit logowania z adresu (429, `Retry-After`); limit API na użytkownika; E2E - główne strony bez naruszeń CSP, kod QR jako obraz `data:` |
+| Dane demonstracyjne (D49) | `DemoDataTests` | logowanie kont testowych i konta autora, kompletne firmy z tokenem KSeF, brak duplikatów przy ponownym uruchomieniu, XML zgodny z XSD, faktury otrzymane u nabywców, izolacja danych, rola księgowej, wysyłka szkicu do KSeF (atrapa); ręcznie: wysyłka szkicu do testowego KSeF i odbiór u nabywcy |
 | Wdrożenie (D48) | zadanie CI `docker-image`, ręcznie: `docs/wdrozenie.md` | budowanie obrazu; odmowa startu z hasłem deweloperskim; stos produkcyjny w kontenerach: migracje, HTTPS przez Caddy, nagłówki, logowanie, PDF w kontenerze |
 | Eksport dla księgowej | `CsvFormatTests`, `ExportApiTests` | format CSV (BOM, separator, ochrona przed formułami, kwoty ujemne); okres; tylko faktury przyjęte w KSeF i otrzymane w okresie; kwoty per stawka z XML; zawartość paczki ZIP (XML zgodny z wysłanym, UPO); izolacja |
 | Wykaz podatników VAT (uzupełnienie) | `VatWhiteListClientTests` | strona zabezpieczenia przed botami (HTML) - czytelny komunikat |

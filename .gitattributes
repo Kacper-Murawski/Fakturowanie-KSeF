@@ -1,0 +1,2 @@
+# Skrypty Windows muszą mieć końce linii CRLF
+*.bat text eol=crlf
