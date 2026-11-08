@@ -15,16 +15,22 @@
 else
 {
     var doc = invoice.Document;
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div class="page-header">
         <div>
-            <h1 class="mb-1">Faktura @(doc?.InvoiceType ?? "VAT") @doc?.InvoiceNumber</h1>
-            <span class="badge bg-info text-dark">Otrzymana z KSeF</span>
-            <span class="ms-2 small">Numer KSeF: <strong>@invoice.KsefNumber</strong> (otrzymana @Format.DateTime(invoice.KsefAcceptedAt))</span>
+            <a class="small fw-semibold d-inline-flex align-items-center gap-1 mb-1" href="faktury-otrzymane"><Icon Name="chevron-left" Size="15" /> Faktury otrzymane</a>
+            <h1 class="mb-2">Faktura @(doc?.InvoiceType ?? "VAT") @doc?.InvoiceNumber</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="pill pill-info">Otrzymana z KSeF</span>
+                @if (invoice.Payment is { } pay)
+                {
+                    <PaymentBadge Status="pay.Status" IsOverdue="pay.IsOverdue" />
+                }
+                <span class="small muted">Numer KSeF: <strong class="text-body">@invoice.KsefNumber</strong> · otrzymana @Format.DateTime(invoice.KsefAcceptedAt)</span>
+            </div>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-outline-secondary" href="api/received-invoices/@invoice.Id/pdf" download>Pobierz PDF</a>
-            <a class="btn btn-outline-secondary" href="api/received-invoices/@invoice.Id/xml" download>Pobierz XML</a>
-            <a class="btn btn-outline-secondary" href="faktury-otrzymane">Wróć do listy</a>
+        <div class="page-actions">
+            <a class="btn btn-outline-secondary" href="api/received-invoices/@invoice.Id/pdf" download><Icon Name="printer" Size="16" /> Pobierz PDF</a>
+            <a class="btn btn-outline-secondary" href="api/received-invoices/@invoice.Id/xml" download><Icon Name="file" Size="16" /> Pobierz XML</a>
         </div>
     </div>
 
@@ -33,17 +39,12 @@ else
         <div class="alert alert-warning">@invoice.DocumentError Pełna treść faktury jest dostępna w pliku XML.</div>
     }
 
-    @if (invoice.Payment is { } payment)
-    {
-        <PaymentPanel InvoiceUrl="@($"api/received-invoices/{invoice.Id}")" Info="payment" Received="true"
-                      TotalGross="doc?.TotalGross ?? payment.PaidAmount + payment.Remaining" Currency="@(doc?.Currency ?? "PLN")"
-                      DueDate="doc?.DueDate" InfoChanged="info => invoice = invoice with { Payment = info }" />
-    }
-
+    <div class="form-layout">
+    <div class="form-main">
     @if (doc is not null)
     {
-        <div class="invoice-sheet card">
-            <div class="card-body">
+        <div class="invoice-sheet surface">
+            <div class="sheet-body">
                 @if (doc.IsCorrection)
                 {
                     <div class="alert alert-secondary small" data-testid="received-correction">
@@ -58,19 +59,33 @@ else
                         <div>Wiersze oznaczone „przed” to stan przed korektą; kwoty podsumowania to różnica.</div>
                     </div>
                 }
-                <div class="small mb-4">
-                    Data wystawienia: <strong>@Format.Date(doc.IssueDate)</strong><br />
-                    Data sprzedaży: <strong>@Format.Date(doc.SaleDate ?? doc.IssueDate)</strong>
+                <div class="sheet-head">
+                    <div>
+                        <div class="sheet-kind">Faktura @(doc.InvoiceType ?? "VAT") · otrzymana</div>
+                        <div class="sheet-number">@doc.InvoiceNumber</div>
+                    </div>
+                    <dl class="sheet-dates">
+                        <dt>Data wystawienia</dt><dd>@Format.Date(doc.IssueDate)</dd>
+                        <dt>Data sprzedaży</dt><dd>@Format.Date(doc.SaleDate ?? doc.IssueDate)</dd>
+                        @if (doc.DueDate is not null)
+                        {
+                            <dt>Termin płatności</dt><dd>@Format.Date(doc.DueDate)</dd>
+                        }
+                    </dl>
                 </div>
 
-                <div class="row mb-4">
+                <div class="row g-3 mb-4">
                     <div class="col-sm-6">
-                        <h2 class="h6 text-muted text-uppercase">Sprzedawca</h2>
-                        <DocumentParty Data="doc.Seller" />
+                        <div class="sheet-party">
+                            <h2 class="sheet-label">Sprzedawca</h2>
+                            <DocumentParty Data="doc.Seller" />
+                        </div>
                     </div>
                     <div class="col-sm-6">
-                        <h2 class="h6 text-muted text-uppercase">Nabywca</h2>
-                        <DocumentParty Data="doc.Buyer" />
+                        <div class="sheet-party">
+                            <h2 class="sheet-label">Nabywca</h2>
+                            <DocumentParty Data="doc.Buyer" />
+                        </div>
                     </div>
                 </div>
 
@@ -88,7 +103,7 @@ else
                                         @l.Name
                                         @if (l.BeforeCorrection)
                                         {
-                                            <span class="badge bg-secondary ms-1">przed</span>
+                                            <span class="pill ms-1">przed</span>
                                         }
                                     </td>
                                     <td>@l.Unit</td>
@@ -102,9 +117,9 @@ else
                     </table>
                 </div>
 
-                <div class="row justify-content-end">
-                    <div class="col-md-6">
-                        <table class="table table-sm">
+                <div class="row justify-content-end mt-3">
+                    <div class="col-md-7 col-xl-6">
+                        <table class="table table-sm summary-table">
                             <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th></tr></thead>
                             <tbody>
                                 @foreach (var s in doc.VatSummary)
@@ -113,11 +128,11 @@ else
                                 }
                             </tbody>
                         </table>
-                        <p class="fs-5 text-end">Do zapłaty: <strong>@Format.Money(doc.TotalGross, doc.Currency)</strong></p>
+                        <p class="fs-5 text-end sheet-total">Do zapłaty: <strong>@Format.Money(doc.TotalGross, doc.Currency)</strong></p>
                     </div>
                 </div>
 
-                <div class="small">
+                <div class="small sheet-payment">
                     @if (doc.PaymentMethod is not null)
                     {
                         <span>Forma płatności: <strong>@doc.PaymentMethod</strong></span>
@@ -173,6 +188,17 @@ else
             </div>
         </div>
     }
+    </div>
+    <aside class="form-aside">
+    @if (invoice.Payment is { } payment)
+    {
+        <PaymentPanel InvoiceUrl="@($"api/received-invoices/{invoice.Id}")" Info="payment" Received="true"
+                      TotalGross="doc?.TotalGross ?? payment.PaidAmount + payment.Remaining" Currency="@(doc?.Currency ?? "PLN")"
+                      DueDate="doc?.DueDate" InfoChanged="info => invoice = invoice with { Payment = info }" />
+    }
+
+    </aside>
+    </div>
 }
 
 @code {

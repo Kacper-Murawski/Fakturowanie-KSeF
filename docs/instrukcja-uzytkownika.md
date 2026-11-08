@@ -129,6 +129,11 @@ w menu **Faktury cykliczne**; możesz je wstrzymać, zmienić lub usunąć (fakt
 
 ## 5. Wysyłka do KSeF
 
+**Strona faktury** ma dwie kolumny. Po lewej jest sama faktura (sprzedawca, nabywca, pozycje, podsumowanie i płatność),
+po prawej: **Rozliczenie** (wpłaty), **E-mail** (wysyłka i przypomnienia) oraz **Dokumenty i dalsze kroki** - PDF, XML,
+UPO, korekta, „Wystaw podobną” i „Ustaw jako cykliczną”. Najważniejsza akcja (np. **Wyślij do KSeF**) jest zawsze
+w nagłówku obok statusu faktury. Na telefonie prawa kolumna przesuwa się pod fakturę.
+
 W podglądzie szkicu wybierz **Wyślij do KSeF** i potwierdź. Faktura otrzyma status „Wysłana do KSeF”,
 a strona będzie odświeżać się automatycznie.
 

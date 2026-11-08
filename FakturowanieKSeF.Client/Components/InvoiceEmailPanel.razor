@@ -2,18 +2,18 @@
 @implements IDisposable
 @inject ApiClient Api
 
-<section class="card mb-3" data-testid="email-panel">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="h5 mb-0">E-mail</h2>
+<section class="surface p-4" data-testid="email-panel">
+    <div>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="section-title">E-mail</h2>
             @if (!formOpen)
             {
-                <div class="d-flex gap-2">
+                <div class="d-grid gap-2 w-100 mt-2">
+                    <button type="button" class="btn btn-outline-primary" @onclick="() => OpenForm(false)"><Icon Name="mail" Size="16" /> Wyślij e-mailem</button>
                     @if (Remaining > 0)
                     {
-                        <button type="button" class="btn btn-outline-warning btn-sm" @onclick="() => OpenForm(true)">Przypomnij o płatności</button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => OpenForm(true)"><Icon Name="bell" Size="16" /> Przypomnij o płatności</button>
                     }
-                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => OpenForm(false)">Wyślij e-mailem</button>
                 </div>
             }
         </div>
@@ -49,7 +49,7 @@
 
         @if (messages.Count > 0)
         {
-            <table class="table table-sm mt-3 mb-0" data-testid="email-history">
+            <table class="table table-sm small mt-3 mb-0" data-testid="email-history">
                 <thead><tr><th>Data</th><th>Do</th><th>Rodzaj</th><th>Stan</th></tr></thead>
                 <tbody>
                     @foreach (var m in messages)
@@ -62,13 +62,13 @@
                                 @switch (m.Status)
                                 {
                                     case EmailStatus.Sent:
-                                        <span class="badge bg-success">wysłano</span>
+                                        <span class="pill pill-success">wysłano</span>
                                         break;
                                     case EmailStatus.Failed:
-                                        <span class="badge bg-danger" title="@m.LastError">błąd wysyłki</span>
+                                        <span class="pill pill-danger" title="@m.LastError">błąd wysyłki</span>
                                         break;
                                     default:
-                                        <span class="badge bg-secondary" title="@m.LastError">@(m.Attempts > 0 ? "ponowna próba wkrótce" : "w kolejce")</span>
+                                        <span class="pill" title="@m.LastError">@(m.Attempts > 0 ? "ponowna próba wkrótce" : "w kolejce")</span>
                                         break;
                                 }
                             </td>

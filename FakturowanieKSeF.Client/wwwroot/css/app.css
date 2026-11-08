@@ -782,3 +782,19 @@ a.pill:hover { filter: brightness(.95); }
     .items-grid > tbody > tr > td:nth-child(7) { grid-column: 3; grid-row: 3 !important; }
     .items-grid > tbody > tr > td:nth-child(8) { grid-column: 4; grid-row: 3 !important; }
 }
+
+/* ---------------- Podgląd faktury (etap 4) ---------------- */
+.invoice-sheet { max-width: none; }
+.sheet-body { padding: 2rem; }
+.sheet-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem 2rem; padding-bottom: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--bs-border-color); }
+.sheet-kind { font-size: .75rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--app-primary-text); }
+.sheet-number { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
+.sheet-dates { display: grid; grid-template-columns: auto auto; gap: .25rem 1rem; margin: 0; font-size: .875rem; }
+.sheet-dates dt { font-weight: 400; color: var(--bs-secondary-color); }
+.sheet-dates dd { margin: 0; font-weight: 600; text-align: right; }
+.sheet-party { height: 100%; padding: 1rem 1.125rem; border-radius: .875rem; background: var(--app-surface-2); border: 1px solid var(--bs-border-color); }
+.sheet-label { font-size: .6875rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--bs-secondary-color); margin-bottom: .5rem; }
+.sheet-total strong { color: var(--app-primary-text); }
+.sheet-payment { margin-top: 1rem; padding: 1rem 1.125rem; border-radius: .875rem; background: var(--app-surface-2); border: 1px solid var(--bs-border-color); }
+.form-aside .surface h2.section-title { font-size: 1rem; }
+@media (max-width: 575.98px) { .sheet-body { padding: 1.25rem; } }

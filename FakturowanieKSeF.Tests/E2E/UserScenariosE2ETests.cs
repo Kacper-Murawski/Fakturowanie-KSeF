@@ -192,7 +192,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
         // Usługa w tle (atrapa KSeF) przetwarza wysyłkę; strona odświeża status automatycznie
         await Expect(page.Locator("[data-testid=status-badge]")).ToContainTextAsync("Przyjęta w KSeF", new() { Timeout = 60_000 });
         await Expect(page.GetByText("Pobierz UPO")).ToBeVisibleAsync(new() { Timeout = 30_000 });
-        await Expect(page.Locator("h1 + span + span")).ToContainTextAsync(nip + "-");
+        await Expect(page.Locator("[data-testid=ksef-number]")).ToContainTextAsync(nip + "-");
 
         var upo = await page.RunAndWaitForDownloadAsync(() => page.ClickAsync("text=Pobierz UPO"));
         Assert.StartsWith("UPO_" + nip, upo.SuggestedFilename);
@@ -607,8 +607,9 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(panel.Locator("[data-testid=email-history] tbody tr")).ToHaveCountAsync(2);
         await Expect(panel.Locator("[data-testid=email-history] tbody tr").First).ToContainTextAsync("przypomnienie o płatności");
         await Expect(panel.Locator("[data-testid=email-history] tbody tr").First).ToContainTextAsync("wysłano", new() { Timeout = 30_000 });
-        // Regresja: znacznik stanu musi mieć tło (klasy Bootstrapa 5.2 nie działają w 5.1 - biały tekst na białym)
-        await Expect(panel.Locator("[data-testid=email-history] .badge").First).ToHaveCSSAsync("background-color", "rgb(25, 135, 84)");
+        // Regresja: znacznik stanu musi mieć tło i czytelny kolor tekstu (plakietka pill-success, D50)
+        await Expect(panel.Locator("[data-testid=email-history] .pill").First).ToHaveCSSAsync("background-color", "rgb(231, 246, 236)");
+        await Expect(panel.Locator("[data-testid=email-history] .pill").First).ToHaveCSSAsync("color", "rgb(22, 101, 52)");
         await E2EFixture.ScreenshotAsync(page, "27-przypomnienie-o-platnosci");
 
         var mails = fx.App.Email.To(buyerEmail);
