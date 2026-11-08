@@ -6,8 +6,8 @@
         var share = max > 0 ? (double)(item.Value / max) * 100 : 0;
         <div class="viz-barlist-row" title="@($"{item.Label}: {Format.Money(item.Value)}{(item.Note is null ? "" : $" ({item.Note})")}")">
             <div class="viz-barlist-label">
-                @if (item.Href is not null) { <a href="@item.Href">@item.Label</a> } else { @item.Label }
-                @if (item.Note is not null) { <span class="text-muted small"> · @item.Note</span> }
+                <span class="viz-barlist-name">@if (item.Href is not null) { <a href="@item.Href">@item.Label</a> } else { @item.Label }</span>
+                @if (item.Note is not null) { <span class="viz-barlist-note">@item.Note</span> }
             </div>
             <div class="viz-barlist-track">
                 <div class="viz-barlist-area">

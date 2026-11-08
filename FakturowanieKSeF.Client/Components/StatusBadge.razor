@@ -1,4 +1,4 @@
-<span class="badge @Format.StatusCss(Status)" data-testid="status-badge">@Format.Status(Status)</span>
+<span class="@Format.StatusCss(Status) pill-dot" data-testid="status-badge">@Format.Status(Status)</span>
 
 @code {
     [Parameter, EditorRequired] public InvoiceStatus Status { get; set; }

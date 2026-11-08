@@ -3,65 +3,75 @@
 
 <PageTitle>Faktury cykliczne - Fakturowanie KSeF</PageTitle>
 
-<h1>Faktury cykliczne</h1>
-<p class="text-muted">
-    W wybranym dniu aplikacja przygotowuje <strong>szkic</strong> faktury na wzór wskazanej faktury (aktualne dane kontrahenta,
-    nowy numer i daty). Szkic sprawdzasz i wysyłasz do KSeF samodzielnie. Harmonogram dodasz przyciskiem
-    <strong>Ustaw jako cykliczną</strong> na stronie faktury.
-</p>
+<div class="page-header">
+    <div>
+        <h1>Faktury cykliczne</h1>
+        <p class="page-subtitle">
+            W wybranym dniu aplikacja przygotowuje <strong>szkic</strong> faktury na wzór wskazanej faktury (aktualne dane kontrahenta,
+            nowy numer i daty). Szkic sprawdzasz i wysyłasz do KSeF samodzielnie.
+        </p>
+    </div>
+</div>
 
 <ProblemAlert Problem="problem" />
 
-@if (list is null)
-{
-    <p class="text-muted">Wczytywanie…</p>
-}
-else if (list.Count == 0)
-{
-    <p class="text-muted">Nie masz jeszcze faktur cyklicznych.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-hover align-middle" data-testid="recurring-list">
-            <thead>
-                <tr><th>Nazwa / wzór</th><th>Nabywca</th><th class="text-end">Kwota</th><th>Co</th><th>Najbliższe wystawienie</th><th>Ostatnia faktura</th><th></th></tr>
-            </thead>
-            <tbody>
-                @foreach (var r in list)
-                {
-                    <tr class="@(r.IsActive ? "" : "text-muted")">
-                        <td>
-                            <a href="cykliczne/@r.Id">@(r.Name ?? $"Na wzór {r.TemplateNumber}")</a>
-                            @if (r.Name is not null) { <div class="small text-muted">wzór @r.TemplateNumber</div> }
-                            @if (!r.IsActive) { <span class="badge bg-secondary">wstrzymana</span> }
-                            @if (r.LastError is not null) { <div class="small text-danger">@r.LastError</div> }
-                        </td>
-                        <td>@r.BuyerName</td>
-                        <td class="text-end">@Format.Money(r.TotalGross, r.Currency)</td>
-                        <td>@Format.Interval(r.IntervalMonths)</td>
-                        <td>@(r.IsActive ? Format.Date(r.NextIssueDate) : "—")@(r.EndDate is null ? "" : $" (do {Format.Date(r.EndDate)})")</td>
-                        <td>
-                            @if (r.LastInvoiceId is not null)
-                            {
-                                <a href="faktury/@r.LastInvoiceId">@Format.Date(r.LastIssuedOn)</a>
-                                <span class="small text-muted">(łącznie @r.IssuedCount)</span>
-                            }
-                            else
-                            {
-                                <span class="text-muted">—</span>
-                            }
-                        </td>
-                        <td class="text-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń harmonogram (faktury pozostają)"
-                                    disabled="@busy" @onclick="() => DeleteAsync(r)">✕</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
+<section class="table-card" aria-label="Harmonogramy faktur cyklicznych">
+    @if (list is null)
+    {
+        <p class="muted p-4 mb-0">Wczytywanie…</p>
+    }
+    else if (list.Count == 0)
+    {
+        <div class="empty-state">
+            <span class="empty-icon"><Icon Name="repeat" Size="24" /></span>
+            <h2>Brak faktur cyklicznych</h2>
+            <p class="mb-0">Nie masz jeszcze faktur cyklicznych. Otwórz fakturę, którą wystawiasz regularnie, i wybierz
+                <strong>Ustaw jako cykliczną</strong>.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle" data-testid="recurring-list">
+                <thead>
+                    <tr><th>Nazwa / wzór</th><th>Nabywca</th><th class="text-end">Kwota</th><th>Co</th><th>Najbliższe wystawienie</th><th>Ostatnia faktura</th><th><span class="visually-hidden">Akcje</span></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in list)
+                    {
+                        <tr class="@(r.IsActive ? "" : "text-muted")">
+                            <td>
+                                <a class="row-link" href="cykliczne/@r.Id">@(r.Name ?? $"Na wzór {r.TemplateNumber}")</a>
+                                @if (r.Name is not null) { <div class="cell-sub">wzór @r.TemplateNumber</div> }
+                                @if (!r.IsActive) { <span class="pill mt-1">wstrzymana</span> }
+                                @if (r.LastError is not null) { <div class="small text-danger">@r.LastError</div> }
+                            </td>
+                            <td>@r.BuyerName</td>
+                            <td class="text-end text-nowrap cell-main">@Format.Money(r.TotalGross, r.Currency)</td>
+                            <td><span class="pill pill-primary">@Format.Interval(r.IntervalMonths)</span></td>
+                            <td class="text-nowrap">@(r.IsActive ? Format.Date(r.NextIssueDate) : "—")@(r.EndDate is null ? "" : $" (do {Format.Date(r.EndDate)})")</td>
+                            <td>
+                                @if (r.LastInvoiceId is not null)
+                                {
+                                    <a href="faktury/@r.LastInvoiceId">@Format.Date(r.LastIssuedOn)</a>
+                                    <div class="cell-sub">łącznie @r.IssuedCount</div>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń harmonogram (faktury pozostają)" aria-label="Usuń harmonogram"
+                                        disabled="@busy" @onclick="() => DeleteAsync(r)"><Icon Name="trash" Size="15" /></button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
 
 @code {
     private List<RecurringInvoiceDto>? list;

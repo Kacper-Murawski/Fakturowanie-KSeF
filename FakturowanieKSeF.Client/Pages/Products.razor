@@ -3,33 +3,81 @@
 
 <PageTitle>Katalog towarów i usług - Fakturowanie KSeF</PageTitle>
 
-<h1>Katalog towarów i usług</h1>
-<p class="text-muted">
-    Pozycje z katalogu podpowiadają się w polu nazwy na fakturze. Po wybraniu pozycji jej jednostka, cena netto i stawka VAT
-    są wpisywane automatycznie (na fakturze można je zmienić). Zmiana katalogu nie wpływa na wystawione faktury.
-</p>
+<div class="page-header">
+    <div>
+        <h1>Katalog towarów i usług</h1>
+        <p class="page-subtitle">
+            Pozycje podpowiadają się w nazwie na fakturze - jednostka, cena netto i stawka VAT wpisują się same
+            (na fakturze można je zmienić). Zmiana katalogu nie wpływa na wystawione faktury.
+        </p>
+    </div>
+</div>
 
-<section class="card mb-3">
-    <div class="card-body">
-        <h2 class="h5">@(editedId is null ? "Nowa pozycja" : "Edycja pozycji")</h2>
+<ProblemAlert Problem="problem" />
+
+<div class="dash-grid">
+    <section class="table-card dash-wide" aria-label="Pozycje katalogu">
+        @if (products is null)
+        {
+            <p class="muted p-4 mb-0">Wczytywanie…</p>
+        }
+        else if (products.Count == 0)
+        {
+            <div class="empty-state">
+                <span class="empty-icon"><Icon Name="box" Size="24" /></span>
+                <h2>Katalog jest pusty</h2>
+                <p class="mb-0">Dodaj usługi i towary, które często sprzedajesz - formularz obok.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle" data-testid="products">
+                    <thead>
+                        <tr><th>Nazwa</th><th>J.m.</th><th class="text-end">Cena netto</th><th>VAT</th><th class="text-end">Cena brutto</th><th><span class="visually-hidden">Akcje</span></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in products)
+                        {
+                            <tr class="@(editedId == p.Id ? "table-active" : null)">
+                                <td class="cell-main">@p.Name</td>
+                                <td>@p.Unit</td>
+                                <td class="text-end text-nowrap">@Format.Amount(p.UnitNetPrice)</td>
+                                <td><span class="pill">@p.VatRate.ToDisplayName()</span></td>
+                                <td class="text-end text-nowrap">@Format.Amount(InvoiceCalculator.CalculateLine(new LineInput(1, p.UnitNetPrice, p.VatRate)).GrossAmount)</td>
+                                <td class="text-end text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(p)"><Icon Name="edit" Size="15" /> Edytuj</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń z katalogu" aria-label="Usuń @p.Name z katalogu" disabled="@busy"
+                                            @onclick="() => DeleteAsync(p)"><Icon Name="trash" Size="15" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="surface dash-narrow p-4 align-self-start">
+        <h2 class="section-title mb-3">@(editedId is null ? "Nowa pozycja" : "Edycja pozycji")</h2>
         <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="product">
             <DeepValidator @ref="validator" />
             <div class="row g-2 align-items-start">
-                <div class="col-md-5">
+                <div class="col-12">
                     <label class="form-label" for="product-name">Nazwa</label>
                     <InputTextLive id="product-name" class="form-control" @bind-Value="model.Name" />
                     <ValidationMessage For="() => model.Name" />
                 </div>
-                <div class="col-md-2">
+                <div class="col-sm-4">
                     <label class="form-label" for="product-unit">J.m.</label>
                     <InputTextLive id="product-unit" class="form-control" @bind-Value="model.Unit" placeholder="np. szt., godz." />
                 </div>
-                <div class="col-md-2">
+                <div class="col-sm-4">
                     <label class="form-label" for="product-price">Cena netto</label>
                     <InputNumber id="product-price" class="form-control" @bind-Value="model.UnitNetPrice" step="0.01" />
                     <ValidationMessage For="() => model.UnitNetPrice" />
                 </div>
-                <div class="col-md-3">
+                <div class="col-sm-4">
                     <label class="form-label" for="product-vat">Stawka VAT</label>
                     <InputSelect id="product-vat" class="form-select" @bind-Value="model.VatRate">
                         @foreach (var rate in VatRateExtensions.Selectable)
@@ -47,46 +95,8 @@
                 }
             </div>
         </EditForm>
-    </div>
-</section>
-
-<ProblemAlert Problem="problem" />
-
-@if (products is null)
-{
-    <p class="text-muted">Wczytywanie…</p>
-}
-else if (products.Count == 0)
-{
-    <p class="text-muted">Katalog jest pusty.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-hover align-middle" data-testid="products">
-            <thead>
-                <tr><th>Nazwa</th><th>J.m.</th><th class="text-end">Cena netto</th><th>VAT</th><th class="text-end">Cena brutto</th><th></th></tr>
-            </thead>
-            <tbody>
-                @foreach (var p in products)
-                {
-                    <tr>
-                        <td>@p.Name</td>
-                        <td>@p.Unit</td>
-                        <td class="text-end">@Format.Amount(p.UnitNetPrice)</td>
-                        <td>@p.VatRate.ToDisplayName()</td>
-                        <td class="text-end">@Format.Amount(InvoiceCalculator.CalculateLine(new LineInput(1, p.UnitNetPrice, p.VatRate)).GrossAmount)</td>
-                        <td class="text-end text-nowrap">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(p)">Edytuj</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń z katalogu" disabled="@busy"
-                                    @onclick="() => DeleteAsync(p)">✕</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
+    </section>
+</div>
 
 @code {
     private List<ProductDto>? products;

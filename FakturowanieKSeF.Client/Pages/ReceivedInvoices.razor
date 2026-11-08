@@ -4,40 +4,48 @@
 
 <PageTitle>Faktury otrzymane - Fakturowanie KSeF</PageTitle>
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-    <h1 class="mb-0">Faktury otrzymane</h1>
-    <button class="btn btn-primary" @onclick="SyncAsync" disabled="@(syncing || status is { HasToken: false })">
-        @if (syncing)
-        {
-            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-        }
-        Pobierz z KSeF
-    </button>
+<div class="page-header">
+    <div>
+        <h1>Faktury otrzymane</h1>
+        <p class="page-subtitle">Faktury kosztowe wystawione na NIP Twojej firmy, pobrane z KSeF (środowisko testowe)</p>
+    </div>
+    <div class="page-actions">
+        <button class="btn btn-primary" @onclick="SyncAsync" disabled="@(syncing || status is { HasToken: false })">
+            @if (syncing)
+            {
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            }
+            else
+            {
+                <Icon Name="refresh" Size="17" />
+            }
+            Pobierz z KSeF
+        </button>
+    </div>
 </div>
-
-<p class="text-muted small">
-    Faktury wystawione na NIP Twojej firmy, pobrane z KSeF (środowisko testowe). Aplikacja pobiera nowe faktury automatycznie
-    co 15 minut; możesz też uruchomić pobieranie ręcznie. Nowa faktura jest dostępna do pobrania z KSeF po jej trwałym zapisaniu
-    w systemie - zwykle kilka minut po wystawieniu.
-</p>
 
 @if (status is { HasToken: false })
 {
-    <div class="alert alert-info">Aby pobierać faktury z KSeF, <a href="firma">skonfiguruj token KSeF</a> w ustawieniach firmy.</div>
+    <div class="alert alert-info d-flex gap-2 align-items-start">
+        <Icon Name="info" Size="20" />
+        <span>Aby pobierać faktury z KSeF, <a href="firma">skonfiguruj token KSeF</a> w ustawieniach firmy.</span>
+    </div>
 }
 else if (status is not null)
 {
-    <p class="small mb-3">
-        Ostatnia synchronizacja: <strong>@Format.DateTime(status.LastSyncAt)</strong>
+    <div class="surface d-flex flex-wrap align-items-center gap-3 px-3 py-2 mb-3 small">
+        <span class="pill pill-success pill-dot">Pobieranie automatyczne co 15 min</span>
+        <span>Ostatnia synchronizacja: <strong>@Format.DateTime(status.LastSyncAt)</strong></span>
         @if (status.SyncedUntil is not null)
         {
-            <span class="text-muted"> · kompletne dane do @Format.DateTime(status.SyncedUntil)</span>
+            <span class="muted">kompletne dane do @Format.DateTime(status.SyncedUntil)</span>
         }
         @if (status.LastError is not null)
         {
-            <br /><span class="text-danger">Błąd ostatniej synchronizacji: @status.LastError</span>
+            <span class="text-danger w-100">Błąd ostatniej synchronizacji: @status.LastError</span>
         }
-    </p>
+        <span class="muted w-100">Nowa faktura jest dostępna w KSeF po jej trwałym zapisaniu - zwykle kilka minut po wystawieniu.</span>
+    </div>
 }
 
 @if (syncMessage is not null)
@@ -46,86 +54,93 @@ else if (status is not null)
 }
 <ProblemAlert Problem="problem" />
 
-<div class="row g-2 mb-3 align-items-end">
-    <div class="col-md-4">
-        <label class="form-label small" for="q">Szukaj</label>
-        <input id="q" class="form-control" placeholder="Numer faktury, sprzedawca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small" for="payment">Płatność</label>
-        <select id="payment" class="form-select" @bind="Payment" @bind:after="ApplyFilters">
-            <option value="">Wszystkie</option>
-            <option value="@PaymentFilter.Unpaid">Do zapłaty</option>
-            <option value="@PaymentFilter.Overdue">Po terminie</option>
-            <option value="@PaymentFilter.Paid">Zapłacone</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small" for="from">Wystawione od</label>
-        <input id="from" type="date" class="form-control" @bind="From" @bind:after="ApplyFilters" />
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small" for="to">do</label>
-        <input id="to" type="date" class="form-control" @bind="To" @bind:after="ApplyFilters" />
-    </div>
-</div>
-
-@if (data is null)
-{
-    <p class="text-muted">Wczytywanie…</p>
-}
-else if (data.TotalCount == 0)
-{
-    <p class="text-muted">Brak faktur otrzymanych@(string.IsNullOrWhiteSpace(Q) && string.IsNullOrEmpty(Payment) && From is null && To is null ? "" : " spełniających kryteria").</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>Numer faktury</th><th>Sprzedawca</th><th>Data wystawienia</th><th>Otrzymana (KSeF)</th>
-                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Płatność</th><th>Numer KSeF</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var r in data.Items)
-                {
-                    <tr role="button" @onclick="() => Open(r.Id)">
-                        <td>
-                            <a href="faktury-otrzymane/@r.Id">@r.InvoiceNumber</a>
-                            @if (r.BankAccountOnWhiteList == false)
-                            {
-                                <div><span class="badge bg-danger" title="Rachunku z faktury nie ma w wykazie podatników VAT dla tego sprzedawcy">rachunek spoza białej listy</span></div>
-                            }
-                        </td>
-                        <td>@r.SellerName<div class="small text-muted">NIP @Format.Nip(r.SellerNip)</div></td>
-                        <td>@Format.Date(r.IssueDate)</td>
-                        <td>@Format.DateTime(r.KsefAcceptedAt)</td>
-                        <td class="text-end text-nowrap">@Format.Money(r.TotalNet, r.Currency)</td>
-                        <td class="text-end text-nowrap">@Format.Money(r.TotalGross, r.Currency)</td>
-                        <td>
-                            <PaymentBadge Status="r.PaymentStatus" IsOverdue="r.IsOverdue" />
-                            @if (r.DueDate is not null && r.PaymentStatus != PaymentStatus.Paid)
-                            {
-                                <div class="small text-muted">termin @Format.Date(r.DueDate)</div>
-                            }
-                        </td>
-                        <td class="small">@r.KsefNumber</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-
-    <nav class="d-flex justify-content-between align-items-center" aria-label="Stronicowanie">
-        <span class="text-muted small">Faktury @((data.Page - 1) * data.PageSize + 1)–@Math.Min(data.Page * data.PageSize, data.TotalCount) z @data.TotalCount</span>
-        <div class="btn-group">
-            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page <= 1)" @onclick="() => GoTo(data.Page - 1)">‹ Poprzednia</button>
-            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page * data.PageSize >= data.TotalCount)" @onclick="() => GoTo(data.Page + 1)">Następna ›</button>
+<section class="table-card" aria-label="Lista faktur otrzymanych">
+    <div class="table-card-toolbar">
+        <div class="filters">
+            <div class="filter-search">
+                <label class="visually-hidden" for="q">Szukaj</label>
+                <Icon Name="search" Size="16" Stroke="2" />
+                <input id="q" type="search" class="form-control" placeholder="Numer faktury, sprzedawca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
+            </div>
+            <label class="visually-hidden" for="payment">Płatność</label>
+            <select id="payment" class="form-select" @bind="Payment" @bind:after="ApplyFilters">
+                <option value="">Płatność: wszystkie</option>
+                <option value="@PaymentFilter.Unpaid">Do zapłaty</option>
+                <option value="@PaymentFilter.Overdue">Po terminie</option>
+                <option value="@PaymentFilter.Paid">Zapłacone</option>
+            </select>
+            <span class="filter-dates">
+                <label class="visually-hidden" for="from">Wystawione od</label>
+                <input id="from" type="date" class="form-control" title="Wystawione od" @bind="From" @bind:after="ApplyFilters" />
+                <span class="muted" aria-hidden="true">–</span>
+                <label class="visually-hidden" for="to">Wystawione do</label>
+                <input id="to" type="date" class="form-control" title="Wystawione do" @bind="To" @bind:after="ApplyFilters" />
+            </span>
         </div>
-    </nav>
-}
+    </div>
+
+    @if (data is null)
+    {
+        <p class="muted p-4 mb-0">Wczytywanie…</p>
+    }
+    else if (data.TotalCount == 0)
+    {
+        <div class="empty-state">
+            <span class="empty-icon"><Icon Name="inbox" Size="24" /></span>
+            <h2>Brak faktur</h2>
+            <p class="mb-0">Brak faktur otrzymanych@(string.IsNullOrWhiteSpace(Q) && string.IsNullOrEmpty(Payment) && From is null && To is null ? "" : " spełniających kryteria").</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle table-stack">
+                <thead>
+                    <tr>
+                        <th>Numer faktury</th><th>Sprzedawca</th><th>Wystawiona</th><th class="d-none d-xl-table-cell">Otrzymana (KSeF)</th>
+                        <th class="text-end">Brutto</th><th>Płatność</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in data.Items)
+                    {
+                        <tr role="button" @onclick="() => Open(r.Id)">
+                            <td data-col="main">
+                                <a class="row-link" href="faktury-otrzymane/@r.Id">@r.InvoiceNumber</a>
+                                @if (r.BankAccountOnWhiteList == false)
+                                {
+                                    <div class="mt-1"><span class="pill pill-danger" title="Rachunku z faktury nie ma w wykazie podatników VAT dla tego sprzedawcy">rachunek spoza białej listy</span></div>
+                                }
+                            </td>
+                            <td data-col="party">@r.SellerName<div class="cell-sub text-nowrap">NIP @Format.Nip(r.SellerNip)</div></td>
+                            <td data-col="date" data-label="Wystawiona" class="text-nowrap">@Format.Date(r.IssueDate)</td>
+                            <td data-col="extra" class="d-none d-xl-table-cell text-nowrap">@Format.DateTime(r.KsefAcceptedAt)</td>
+                            <td data-col="amount" class="text-end text-nowrap">
+                                <span class="cell-main">@Format.Money(r.TotalGross, r.Currency)</span>
+                                <div class="cell-sub">netto @Format.Money(r.TotalNet, r.Currency)</div>
+                            </td>
+                            <td data-col="status">
+                                <PaymentBadge Status="r.PaymentStatus" IsOverdue="r.IsOverdue" />
+                                @if (r.DueDate is not null && r.PaymentStatus != PaymentStatus.Paid)
+                                {
+                                    <div class="cell-sub mt-1">termin @Format.Date(r.DueDate)</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <nav class="table-card-footer" aria-label="Stronicowanie">
+            <span class="muted">Faktury @((data.Page - 1) * data.PageSize + 1)–@Math.Min(data.Page * data.PageSize, data.TotalCount) z @data.TotalCount</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page <= 1)" @onclick="() => GoTo(data.Page - 1)"><Icon Name="chevron-left" Size="16" /> Poprzednia</button>
+                <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page * data.PageSize >= data.TotalCount)" @onclick="() => GoTo(data.Page + 1)">Następna <Icon Name="chevron-right" Size="16" /></button>
+            </div>
+        </nav>
+    }
+</section>
 
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }

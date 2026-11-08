@@ -1,0 +1,30 @@
+@* Mini-wykres trendu w kafelku (D50) - dekoracja obok wartości liczbowej; liczby są w kafelku i na wykresie pulpitu *@
+@using System.Globalization
+
+@if (Values.Count > 1)
+{
+    <svg class="sparkline" width="96" height="36" viewBox="0 0 96 36" aria-hidden="true" focusable="false">
+        <polyline points="@Points" style="stroke: @Color"></polyline>
+    </svg>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<decimal> Values { get; set; } = [];
+    [Parameter] public string Color { get; set; } = "var(--viz-series-1)";
+
+    private string Points
+    {
+        get
+        {
+            var max = Values.Max();
+            var min = Values.Min();
+            var range = max - min == 0 ? 1 : max - min;
+            return string.Join(' ', Values.Select((v, i) =>
+            {
+                var x = 2 + i * (92.0 / (Values.Count - 1));
+                var y = 32 - (double)((v - min) / range) * 28;
+                return x.ToString("0.#", CultureInfo.InvariantCulture) + "," + y.ToString("0.#", CultureInfo.InvariantCulture);
+            }));
+        }
+    }
+}

@@ -414,7 +414,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator("[data-testid=payment-panel] [data-testid=remaining]")).ToContainTextAsync("984,00");
 
         await page.GotoAsync("/faktury");
-        await Expect(page.Locator("tbody .badge:has-text('KOR')")).ToHaveCountAsync(1);
+        await Expect(page.Locator("tbody .pill:has-text('KOR')")).ToHaveCountAsync(1);
     }
 
     [E2EFact]
@@ -796,7 +796,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator("text=Wystaw fakturę VAT")).ToHaveCountAsync(0);
 
         await page.ClickAsync("nav >> text=Faktury");
-        await Expect(page.Locator("tbody .badge[title^='Faktura proforma']")).ToHaveCountAsync(1);
+        await Expect(page.Locator("tbody .pill[title^='Faktura proforma']")).ToHaveCountAsync(1);
     }
 
     [E2EFact]
@@ -853,7 +853,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.ClickAsync("button:has-text('Pobierz z KSeF wystawione poza aplikacją')");
         await Expect(page.Locator("[data-testid=import-result]")).ToContainTextAsync("Pobrano faktury wystawione poza aplikacją: 1");
         await Expect(page.Locator("tbody")).ToContainTextAsync("STARY-PROGRAM/7/2026");
-        await Expect(page.Locator("tbody .badge:has-text('spoza aplikacji')")).ToHaveCountAsync(1);
+        await Expect(page.Locator("tbody .pill:has-text('spoza aplikacji')")).ToHaveCountAsync(1);
         await E2EFixture.ScreenshotAsync(page, "34-import-sprzedazy-z-ksef");
 
         await page.ClickAsync("tbody a:has-text('STARY-PROGRAM/7/2026')");
@@ -991,6 +991,38 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.ClickAsync("[data-testid=theme-toggle]");
         await Expect(html).ToHaveAttributeAsync("data-bs-theme", "light");
         await Expect(page.Locator("body")).ToHaveCSSAsync("background-color", "rgb(243, 245, 247)");
+    }
+
+    [E2EFact]
+    public async Task Pulpit_DoZrobienia_PodpowiadaNastepnyKrok_IListaJakoKartyNaTelefonie()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        var todo = page.Locator("[data-testid=todo]");
+
+        // Bez tokenu KSeF pulpit prowadzi do konfiguracji
+        await page.GotoAsync("/");
+        await Expect(todo).ToContainTextAsync("Połącz firmę z KSeF");
+
+        // Szkic faktury pojawia się jako sprawa do załatwienia z przejściem do listy szkiców
+        await page.GotoAsync("/faktury/nowa");
+        await FillManualBuyerAsync(page, "Nabywca Pulpitu", "1234563218");
+        await FillItemAsync(page, 0, "Usługa", "1", "100");
+        await page.ClickAsync("button[type=submit]");
+        await page.WaitForURLAsync(new Regex("/faktury/\\d+$"));
+        await page.ClickAsync("nav >> text=Pulpit");
+        await Expect(todo).ToContainTextAsync("1 szkic do wysłania do KSeF");
+        await E2EFixture.ScreenshotAsync(page, "11-pulpit");
+        await todo.Locator("a:has-text('Przejrzyj')").ClickAsync();
+        await page.WaitForURLAsync(new Regex("/faktury\\?status=Draft$"));
+        await Expect(page.Locator("[data-testid=status-tabs] button.active")).ToHaveTextAsync("Szkice");
+        await Expect(page.Locator("tbody")).ToContainTextAsync("Nabywca Pulpitu");
+
+        // Telefon: wiersz tabeli jako karta (bez nagłówka tabeli i bez poziomego przewijania strony)
+        await page.SetViewportSizeAsync(390, 844);
+        await Expect(page.Locator("table.table-stack thead")).ToBeHiddenAsync();
+        await Expect(page.Locator("tbody tr").First).ToContainTextAsync("123,00");
+        Assert.True(await page.EvaluateAsync<bool>("() => document.documentElement.scrollWidth <= window.innerWidth + 1"));
     }
 }
 
