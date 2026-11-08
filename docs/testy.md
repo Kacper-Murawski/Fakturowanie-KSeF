@@ -22,7 +22,7 @@ flowchart TB
 | E2E | Microsoft.Playwright, Chromium (`pl-PL`), aplikacja na Kestrel | `E2E_TESTS=1 dotnet test` | tak |
 | Na żywo z testowym KSeF | prawdziwa bramka + `api-test.ksef.mf.gov.pl` | `KSEF_LIVE_TESTS=1 dotnet test --filter KsefLiveTests` | nie (wymaga dostępu do KSeF) |
 
-Łącznie **314 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
+Łącznie **319 przypadków testowych**. CI w GitHub Actions uruchamia przy każdym wypchnięciu zmian testy
 jednostkowe, integracyjne i E2E.
 
 ## Zakres

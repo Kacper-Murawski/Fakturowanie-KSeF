@@ -1172,6 +1172,12 @@ jako dokument z panelem bocznym (rozliczenie, e-mail, dokumenty i dalsze kroki);
 dolny pasek nawigacji na telefonie z przyciskiem „+”, link „Przejdź do treści”, nowe ikony PWA oraz czytelny komunikat
 przy przekroczeniu limitu prób logowania (429) zamiast mylącego „Nieprawidłowy e-mail lub hasło”.
 
+**Poprawka po wdrożeniu u autora:** po aktualizacji przeglądarka użyła starego `index.html` i `app.css` z pamięci
+podręcznej (serwer nie wysyłał nagłówka `Cache-Control`, więc przeglądarka sama uznała pliki za aktualne) razem
+z nowym kodem Blazora - strona bez stylów i błąd skryptu motywu. Serwer wysyła teraz dla plików bez odcisku w nazwie
+(`index.html`, CSS, JS, manifest) `Cache-Control: no-cache` - przeglądarka zawsze sprawdza ETag (tania odpowiedź 304),
+a przełącznik motywu nie przerywa działania aplikacji, gdy skrypt motywu jest niedostępny.
+
 **Uzasadnienie:** nadpisanie zmiennych Bootstrapa daje spójny wygląd całej aplikacji od razu, a strony można
 przebudowywać etapami (listy i pulpit, formularze, podglądy, konto i telefon) bez okresu „pół na pół”. Rozwiązanie
 nie dodaje zależności uruchomieniowych ani wyjątków w polityce bezpieczeństwa treści.
