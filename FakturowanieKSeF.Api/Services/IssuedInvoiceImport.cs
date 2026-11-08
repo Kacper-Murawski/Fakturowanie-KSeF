@@ -58,6 +58,8 @@ public sealed partial class IssuedInvoiceImport(
             for (var pageNo = 0; pageNo < MaxPagesPerSync; pageNo++)
             {
                 var page = await gateway.QueryIssuedInvoicesAsync(company.Nip, token, from, pageNo, PageSize, ct);
+                logger.LogInformation("KSeF: faktury wystawione firmy {CompanyId} od {From:o}: {Count} faktur, HWM {Hwm:o}, kolejne strony: {HasMore}",
+                    company.Id, from, page.Invoices.Count, page.PermanentStorageHwmDate, page.HasMore);
                 var budgetExhausted = false;
 
                 foreach (var meta in page.Invoices)

@@ -330,35 +330,32 @@ else
                 @* Podsumowanie liczone tym samym kalkulatorem co na serwerze *@
                 <div>
                     <div>
-                        <table class="table table-sm mb-0 summary-table">
-                            <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th><th class="text-end">Brutto</th></tr></thead>
-                            <tbody>
-                                @foreach (var s in totals.ByVatRate)
-                                {
-                                    <tr>
-                                        <td>@s.VatRate.ToDisplayName()</td>
-                                        <td class="text-end">@Format.Amount(s.Net)</td>
-                                        <td class="text-end">@Format.Amount(s.Vat)</td>
-                                        <td class="text-end">@Format.Amount(s.Gross)</td>
-                                    </tr>
-                                }
-                                <tr class="fw-bold">
-                                    <td>Razem</td>
-                                    <td class="text-end">@Format.Amount(totals.TotalNet)</td>
-                                    <td class="text-end">@Format.Amount(totals.TotalVat)</td>
-                                    <td class="text-end" data-testid="total-gross">@Format.Money(totals.TotalGross, model.Currency)</td>
-                                </tr>
-                                @if (correctionTotals is { } ct)
-                                {
-                                    <tr class="table-warning fw-bold" data-testid="correction-difference">
-                                        <td>Różnica (korekta)</td>
-                                        <td class="text-end">@Format.Amount(ct.TotalNet)</td>
-                                        <td class="text-end">@Format.Amount(ct.TotalVat)</td>
-                                        <td class="text-end">@Format.Money(ct.TotalGross, model.Currency)</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        @* Podsumowanie w wierszach (zamiast tabeli 4 kolumn) - mieści się w wąskiej kolumnie i na telefonie *@
+                        <ul class="summary-rates">
+                            @foreach (var s in totals.ByVatRate)
+                            {
+                                <li>
+                                    <span class="pill">VAT @s.VatRate.ToDisplayName()</span>
+                                    <span class="summary-rate-values">netto @Format.Amount(s.Net) · VAT @Format.Amount(s.Vat)</span>
+                                </li>
+                            }
+                        </ul>
+                        <dl class="summary-totals">
+                            <dt>Razem netto</dt><dd>@Format.Money(totals.TotalNet, model.Currency)</dd>
+                            <dt>VAT</dt><dd>@Format.Money(totals.TotalVat, model.Currency)</dd>
+                        </dl>
+                        <div class="summary-gross">
+                            <span>@(IsCorrection ? "Brutto po korekcie" : "Do zapłaty")</span>
+                            <strong data-testid="total-gross">@Format.Money(totals.TotalGross, model.Currency)</strong>
+                        </div>
+                        @if (correctionTotals is { } ct)
+                        {
+                            <div class="summary-correction" data-testid="correction-difference">
+                                <span>Różnica (korekta)</span>
+                                <strong>@Format.Money(ct.TotalGross, model.Currency)</strong>
+                                <span class="small">netto @Format.Amount(ct.TotalNet) · VAT @Format.Amount(ct.TotalVat)</span>
+                            </div>
+                        }
                         @if (Currencies.IsForeign(model.Currency))
                         {
                             <div class="small mt-3" data-testid="exchange-rate">
