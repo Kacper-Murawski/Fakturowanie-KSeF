@@ -5,6 +5,7 @@
 
 <AuthorizeView>
     <Authorized>
+        <a class="skip-link" href="#content">Przejdź do treści</a>
         <div class="app-shell">
             <NavMenu Open="menuOpen" OnNavigate="CloseMenu" />
             <div class="app-backdrop @(menuOpen ? "open" : null)" @onclick="CloseMenu"></div>
@@ -47,19 +48,52 @@
                 </main>
             </div>
         </div>
+
+        @* Telefon: dolny pasek z najczęstszymi miejscami i dużym przyciskiem nowej faktury (D50) *@
+        <nav class="app-bottom-nav" aria-label="Nawigacja dolna">
+            <NavLink href="" Match="NavLinkMatch.All"><Icon Name="home" Size="22" /><span>Pulpit</span></NavLink>
+            <NavLink href="faktury" Match="NavLinkMatch.All"><Icon Name="file" Size="22" /><span>Faktury</span></NavLink>
+            @if (Ctx.CanIssue)
+            {
+                <NavLink class="app-bottom-cta" href="faktury/nowa" Match="NavLinkMatch.All" aria-label="Wystaw fakturę"><Icon Name="plus" Size="24" Stroke="2.4" /></NavLink>
+            }
+            <NavLink href="faktury-otrzymane"><Icon Name="inbox" Size="22" /><span>Otrzymane</span></NavLink>
+            <button type="button" @onclick="ToggleMenu" aria-expanded="@(menuOpen ? "true" : "false")"><Icon Name="menu" Size="22" /><span>Więcej</span></button>
+        </nav>
     </Authorized>
     <NotAuthorized>
-        @* Strony bez logowania (logowanie, rejestracja, zaproszenie): sam znak aplikacji i przełącznik motywu *@
-        <div class="d-flex align-items-center justify-content-between px-3 px-md-4 py-3">
-            <a class="app-brand" href="">
-                <AppLogo />
-                <span class="app-brand-name"><strong>Fakturowanie KSeF</strong><span>wersja testowa</span></span>
-            </a>
-            <ThemeToggle />
+        @* Strony bez logowania (logowanie, rejestracja, zaproszenie): panel z opisem aplikacji i formularz *@
+        <div class="auth-shell">
+            <aside class="auth-hero" aria-label="O aplikacji">
+                <div class="app-brand">
+                    <AppLogo Size="40" />
+                    <span class="app-brand-name"><strong>Fakturowanie KSeF</strong><span>wersja testowa</span></span>
+                </div>
+                <div>
+                    <h2 class="auth-hero-title">Faktury w KSeF bez stresu</h2>
+                    <ul class="auth-hero-list">
+                        <li><Icon Name="send" Size="18" /> Wystawiasz fakturę i wysyłasz ją do KSeF jednym kliknięciem.</li>
+                        <li><Icon Name="inbox" Size="18" /> Faktury kosztowe pobierają się z KSeF same.</li>
+                        <li><Icon Name="wallet" Size="18" /> Rozliczenia, przypomnienia o płatności i eksport dla księgowej.</li>
+                        <li><Icon Name="sparkles" Size="18" /> Pulpit podpowiada, co jest do zrobienia.</li>
+                    </ul>
+                </div>
+                <p class="auth-hero-note">Wersja testowa: łączy się wyłącznie z testowym środowiskiem KSeF - faktury nie mają mocy prawnej.</p>
+            </aside>
+            <div class="auth-main">
+                <div class="d-flex align-items-center justify-content-between px-3 px-md-4 py-3">
+                    <a class="app-brand auth-brand-mobile" href="">
+                        <AppLogo />
+                        <span class="app-brand-name"><strong>Fakturowanie KSeF</strong><span>wersja testowa</span></span>
+                    </a>
+                    <span></span>
+                    <ThemeToggle />
+                </div>
+                <main class="px-3 pb-4">
+                    @Body
+                </main>
+            </div>
         </div>
-        <main class="px-3">
-            @Body
-        </main>
     </NotAuthorized>
 </AuthorizeView>
 

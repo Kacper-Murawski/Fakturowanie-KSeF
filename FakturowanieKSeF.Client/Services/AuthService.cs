@@ -55,6 +55,9 @@ public sealed class AuthService(HttpClient http) : AuthenticationStateProvider
             twoFactorCode = Clean(twoFactorCode),
             twoFactorRecoveryCode = string.IsNullOrWhiteSpace(recoveryCode) ? null : recoveryCode.Replace(" ", "").Trim()
         });
+        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            return new(false, RequiresTwoFactor: twoFactorCode is not null || recoveryCode is not null,
+                Error: "Zbyt wiele prób logowania z tego adresu. Odczekaj chwilę (około minuty) i spróbuj ponownie.");
         if (!response.IsSuccessStatusCode)
         {
             var problem = await ApiClient.ReadProblemAsync(response);

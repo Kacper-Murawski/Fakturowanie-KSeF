@@ -92,25 +92,23 @@ else
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
-                            <tr><th>Lp.</th><th>Nazwa</th><th>J.m.</th><th class="text-end">Ilość</th><th class="text-end">Cena netto</th><th class="text-end">Wartość netto</th><th>VAT</th></tr>
+                            <tr><th>Lp.</th><th>Nazwa · ilość × cena netto</th><th>VAT</th><th class="text-end">Wartość netto</th></tr>
                         </thead>
                         <tbody>
                             @foreach (var l in doc.Lines)
                             {
                                 <tr>
-                                    <td>@l.Number</td>
+                                    <td class="muted">@l.Number</td>
                                     <td>
-                                        @l.Name
+                                        <span class="fw-semibold">@l.Name</span>
                                         @if (l.BeforeCorrection)
                                         {
                                             <span class="pill ms-1">przed</span>
                                         }
+                                        <div class="cell-sub">@(l.Quantity is { } q ? Format.Quantity(q) : "") @l.Unit@(l.UnitNetPrice is { } p ? $" × {Format.Amount(p)}" : "")</div>
                                     </td>
-                                    <td>@l.Unit</td>
-                                    <td class="text-end">@(l.Quantity is { } q ? Format.Quantity(q) : "")</td>
-                                    <td class="text-end">@(l.UnitNetPrice is { } p ? Format.Amount(p) : "")</td>
-                                    <td class="text-end">@(l.NetAmount is { } n ? Format.Amount(n) : "")</td>
-                                    <td>@VatLabel(l.VatRate)</td>
+                                    <td class="text-nowrap">@VatLabel(l.VatRate)</td>
+                                    <td class="text-end text-nowrap fw-semibold">@(l.NetAmount is { } n ? Format.Amount(n) : "")</td>
                                 </tr>
                             }
                         </tbody>
@@ -118,7 +116,7 @@ else
                 </div>
 
                 <div class="row justify-content-end mt-3">
-                    <div class="col-md-7 col-xl-6">
+                    <div class="col-md-10 col-xxl-8">
                         <table class="table table-sm summary-table">
                             <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th></tr></thead>
                             <tbody>

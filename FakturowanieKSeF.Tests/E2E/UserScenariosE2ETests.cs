@@ -883,6 +883,14 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.GotoAsync("/");
         await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
         await E2EFixture.ScreenshotAsync(page, "35-telefon-pulpit");
+        // Dolny pasek nawigacji na telefonie (D50): Pulpit, Faktury, +, Otrzymane, Więcej
+        var bottomNav = page.Locator("nav[aria-label='Nawigacja dolna']");
+        await Expect(bottomNav).ToBeVisibleAsync();
+        await bottomNav.Locator("a:has-text('Faktury')").ClickAsync();
+        await page.WaitForURLAsync(new Regex("/faktury$"));
+        await bottomNav.Locator("a[aria-label='Wystaw fakturę']").ClickAsync();
+        await page.WaitForURLAsync(new Regex("/faktury/nowa$"));
+        await page.GotoAsync("/");
         await page.ClickAsync("button.navbar-toggler");
         await Expect(page.Locator("nav >> text=Nowa faktura")).ToBeVisibleAsync();
         await E2EFixture.ScreenshotAsync(page, "36-telefon-menu");

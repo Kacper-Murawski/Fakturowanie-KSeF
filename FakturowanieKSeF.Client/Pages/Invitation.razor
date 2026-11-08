@@ -5,14 +5,19 @@
 
 <PageTitle>Zaproszenie - Fakturowanie KSeF</PageTitle>
 
-<h1>Zaproszenie do firmy</h1>
+<div class="page-header">
+    <div>
+        <h1>Zaproszenie do firmy</h1>
+        <p class="page-subtitle">Po przyjęciu firma pojawi się w przełączniku firm w górnym pasku.</p>
+    </div>
+</div>
 
 <ProblemAlert Problem="problem" />
 
 @if (preview is { } p)
 {
-    <div class="card form-narrow" data-testid="invitation">
-        <div class="card-body">
+    <div class="surface form-card form-narrow" data-testid="invitation">
+        <div>
             <p><strong>@p.CompanyName</strong> (NIP @Format.Nip(p.CompanyNip)) zaprasza Cię z rolą <strong>@CompanyContext.RoleName(p.Role)</strong>.</p>
             <p class="small text-muted">
                 @(p.Role == CompanyRole.Accountant

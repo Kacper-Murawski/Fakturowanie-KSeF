@@ -7,7 +7,8 @@
 <PageTitle>Logowanie - Fakturowanie KSeF</PageTitle>
 
 <div class="auth-card">
-    <h1 class="h3 mb-3">Logowanie</h1>
+    <h1 class="h3 mb-1">Logowanie</h1>
+    <p class="muted mb-4">Witaj ponownie! Zaloguj się, aby wystawiać i odbierać faktury w KSeF.</p>
 
     <EditForm Model="model" OnValidSubmit="LoginAsync" FormName="login">
         <DataAnnotationsValidator />
@@ -59,7 +60,7 @@
         </button>
     </EditForm>
 
-    <p class="mt-3 mb-0 text-center">Nie masz konta? <a href="register">Zarejestruj się</a></p>
+    <p class="mt-4 mb-0 text-center">Nie masz konta? <a class="fw-semibold" href="register">Zarejestruj się</a></p>
 </div>
 
 @code {

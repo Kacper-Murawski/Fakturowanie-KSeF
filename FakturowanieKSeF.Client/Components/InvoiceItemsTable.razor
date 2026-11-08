@@ -3,26 +3,26 @@
     <table class="table table-sm">
         <thead>
             <tr>
-                <th>Lp.</th><th>Nazwa</th><th>J.m.</th><th class="text-end">Ilość</th><th class="text-end">Cena netto</th>
-                <th class="text-end">Wartość netto</th><th>VAT</th><th class="text-end">Wartość brutto</th>
+                <th>Lp.</th><th>Nazwa · ilość × cena netto</th><th>VAT</th>
+                <th class="text-end">Netto</th><th class="text-end">Brutto</th>
             </tr>
         </thead>
         <tbody>
             @if (Items.Count == 0)
             {
-                <tr><td colspan="8" class="text-muted fst-italic">brak pozycji</td></tr>
+                <tr><td colspan="5" class="text-muted fst-italic">brak pozycji</td></tr>
             }
             @foreach (var i in Items)
             {
                 <tr>
-                    <td>@i.Position</td>
-                    <td>@i.Name</td>
-                    <td>@i.Unit</td>
-                    <td class="text-end">@Format.Quantity(i.Quantity)</td>
-                    <td class="text-end">@Format.Amount(i.UnitNetPrice)</td>
-                    <td class="text-end">@Format.Amount(i.NetAmount)</td>
-                    <td>@i.VatRate.ToDisplayName()</td>
-                    <td class="text-end">@Format.Amount(i.GrossAmount)</td>
+                    <td class="muted">@i.Position</td>
+                    <td>
+                        <span class="fw-semibold">@i.Name</span>
+                        <div class="cell-sub">@Format.Quantity(i.Quantity) @i.Unit × @Format.Amount(i.UnitNetPrice)</div>
+                    </td>
+                    <td class="text-nowrap">@i.VatRate.ToDisplayName()</td>
+                    <td class="text-end text-nowrap">@Format.Amount(i.NetAmount)</td>
+                    <td class="text-end text-nowrap fw-semibold">@Format.Amount(i.GrossAmount)</td>
                 </tr>
             }
         </tbody>

@@ -4,12 +4,16 @@
 
 <PageTitle>Bezpieczeństwo konta - Fakturowanie KSeF</PageTitle>
 
-<h1>Bezpieczeństwo konta</h1>
-<p class="text-muted">Konto: <strong>@email</strong></p>
+<div class="page-header">
+    <div>
+        <h1>Bezpieczeństwo konta</h1>
+        <p class="page-subtitle">Konto: <strong>@email</strong></p>
+    </div>
+</div>
 
-<section class="card form-narrow" data-testid="two-factor">
-    <div class="card-body">
-        <h2 class="h5">Logowanie dwuskładnikowe</h2>
+<section class="surface form-card form-narrow" data-testid="two-factor">
+    <div>
+        <div class="step-head"><span class="step-num"><Icon Name="shield" Size="17" /></span><h2>Logowanie dwuskładnikowe</h2></div>
         <p class="small text-muted">
             Oprócz hasła logowanie wymaga 6-cyfrowego kodu z aplikacji uwierzytelniającej w telefonie (np. Google Authenticator,
             Microsoft Authenticator). Nawet po wycieku hasła nikt nie zaloguje się bez Twojego telefonu.
@@ -37,7 +41,7 @@
         }
         else if (status.Enabled)
         {
-            <p><span class="badge bg-success">włączone</span> <span class="small text-muted">Pozostało kodów odzyskiwania: @status.RecoveryCodesLeft</span></p>
+            <p><span class="pill pill-success pill-dot">włączone</span> <span class="small text-muted">Pozostało kodów odzyskiwania: @status.RecoveryCodesLeft</span></p>
             @if (status.RecoveryCodesLeft <= 3)
             {
                 <div class="alert alert-warning small">Kończą się kody odzyskiwania - wygeneruj nowe.</div>
@@ -53,7 +57,7 @@
         }
         else if (setup is null)
         {
-            <p><span class="badge bg-secondary">wyłączone</span></p>
+            <p><span class="pill pill-dot">wyłączone</span></p>
             <button type="button" class="btn btn-primary btn-sm" disabled="@busy" @onclick="SetupAsync">Włącz logowanie dwuskładnikowe</button>
         }
         else
