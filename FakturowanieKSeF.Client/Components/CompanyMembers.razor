@@ -47,7 +47,7 @@
                     {
                         <tr class="text-muted">
                             <td>@i.Email</td>
-                            <td>@CompanyContext.RoleName(i.Role) <span class="badge bg-secondary">zaproszenie do @Format.Date(DateOnly.FromDateTime(i.ExpiresAt))</span></td>
+                            <td>@CompanyContext.RoleName(i.Role) <span class="pill pill-warning">zaproszenie do @Format.Date(DateOnly.FromDateTime(i.ExpiresAt))</span></td>
                             <td class="text-end">
                                 <button type="button" class="btn btn-sm btn-outline-secondary" title="Odwołaj zaproszenie" aria-label="Odwołaj zaproszenie" @onclick="() => RevokeAsync(i.Id)"><Icon Name="x" Size="15" /></button>
                             </td>

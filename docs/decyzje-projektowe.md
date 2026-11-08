@@ -1165,6 +1165,13 @@ telefon. Kierunek wybrano na klikalnych makietach (pulpit, lista faktur, formula
 - Tailwind CSS: wymaga etapu budowania (Node.js) w projekcie .NET i przepisania wszystkich szablonów naraz,
 - pozostanie przy wyglądzie szablonu: najmniej pracy, ale słabe wrażenie i brak trybu ciemnego.
 
+**Realizacja (5 etapów, osobne gałęzie):** fundament (tokeny, układ, menu, tryb ciemny); pulpit z kartą „Do zrobienia”
+(aplikacja podpowiada następny krok: szkice do wysłania, odrzucone, po terminie, brak tokenu KSeF) i listy z zakładkami
+statusów, na telefonie jako karty; formularz faktury w trzech krokach z podsumowaniem przyklejonym z boku; strona faktury
+jako dokument z panelem bocznym (rozliczenie, e-mail, dokumenty i dalsze kroki); logowanie z panelem opisu aplikacji,
+dolny pasek nawigacji na telefonie z przyciskiem „+”, link „Przejdź do treści”, nowe ikony PWA oraz czytelny komunikat
+przy przekroczeniu limitu prób logowania (429) zamiast mylącego „Nieprawidłowy e-mail lub hasło”.
+
 **Uzasadnienie:** nadpisanie zmiennych Bootstrapa daje spójny wygląd całej aplikacji od razu, a strony można
 przebudowywać etapami (listy i pulpit, formularze, podglądy, konto i telefon) bez okresu „pół na pół”. Rozwiązanie
 nie dodaje zależności uruchomieniowych ani wyjątków w polityce bezpieczeństwa treści.

@@ -682,7 +682,7 @@ a.kpi:hover { color: inherit; border-color: var(--app-soft-border); }
 .todo-list { display: flex; flex-direction: column; gap: .625rem; margin: 0; padding: 0; list-style: none; }
 .todo-item { display: flex; flex-wrap: wrap; align-items: center; gap: .875rem; padding: .875rem 1rem; border-radius: .875rem; background: var(--app-surface); }
 .todo-icon { width: 2.5rem; height: 2.5rem; flex: none; border-radius: .75rem; display: grid; place-items: center; }
-.todo-text { flex: 1 1 14rem; min-width: 0; }
+.todo-text { flex: 1 1 9rem; min-width: 0; }
 .todo-text strong { display: block; }
 .todo-done { display: flex; align-items: center; gap: .75rem; padding: .875rem 1rem; border-radius: .875rem; background: var(--app-surface); }
 .icon-primary { background: var(--app-soft); color: var(--app-primary-text); }
@@ -798,3 +798,56 @@ a.pill:hover { filter: brightness(.95); }
 .sheet-payment { margin-top: 1rem; padding: 1rem 1.125rem; border-radius: .875rem; background: var(--app-surface-2); border: 1px solid var(--bs-border-color); }
 .form-aside .surface h2.section-title { font-size: 1rem; }
 @media (max-width: 575.98px) { .sheet-body { padding: 1.25rem; } }
+
+/* ---------------- Logowanie, telefon, dostępność (etap 5) ---------------- */
+.skip-link { position: absolute; left: .75rem; top: -3rem; z-index: 2000; padding: .5rem .875rem; border-radius: .625rem; background: var(--app-primary); color: var(--app-on-primary); font-weight: 600; text-decoration: none; }
+.skip-link:focus { top: .75rem; color: var(--app-on-primary); }
+
+.auth-shell { display: flex; min-height: 100vh; }
+.auth-hero {
+    flex: 0 0 min(44%, 560px);
+    display: flex; flex-direction: column; justify-content: space-between; gap: 2rem;
+    padding: 2.5rem 3rem;
+    background: #064e3b;
+    color: #ecfdf5;
+}
+.auth-hero .app-brand-name span { color: #a7f3d0; }
+.auth-hero .app-logo rect { fill: #34d399; }
+.auth-hero .app-logo path { stroke: #05261c; }
+.auth-hero-title { font-size: 2.25rem; font-weight: 750; letter-spacing: -.03em; line-height: 1.15; margin-bottom: 1.5rem; color: #ffffff; }
+.auth-hero-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; font-size: 1.0625rem; }
+.auth-hero-list li { display: flex; gap: .75rem; align-items: flex-start; }
+.auth-hero-list .app-icon { flex: none; margin-top: .2rem; color: #6ee7b7; }
+.auth-hero-note { margin: 0; font-size: .8125rem; color: #a7f3d0; }
+.auth-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.auth-main main { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.auth-main .auth-card { margin: 1rem auto 3rem; width: 100%; }
+.auth-brand-mobile { visibility: hidden; }
+@media (max-width: 991.98px) {
+    .auth-hero { display: none; }
+    .auth-brand-mobile { visibility: visible; }
+}
+
+/* Dolny pasek nawigacji na telefonie */
+.app-bottom-nav { display: none; }
+@media (max-width: 991.98px) {
+    .app-bottom-nav {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030;
+        display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end;
+        padding: .375rem .5rem calc(.5rem + env(safe-area-inset-bottom));
+        background: var(--app-topbar-bg); backdrop-filter: saturate(160%) blur(10px);
+        border-top: 1px solid var(--bs-border-color);
+    }
+    .app-bottom-nav > a, .app-bottom-nav > button {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .125rem;
+        min-height: 3rem; border: 0; background: transparent; color: var(--bs-secondary-color);
+        font-size: .6875rem; font-weight: 600; text-decoration: none; cursor: pointer;
+    }
+    .app-bottom-nav > a.active { color: var(--app-primary-text); }
+    .app-bottom-nav > .app-bottom-cta {
+        justify-self: center; width: 3.5rem; height: 3.5rem; min-height: 0; margin-bottom: .125rem;
+        border-radius: 1.125rem; background: var(--app-primary); color: var(--app-on-primary); box-shadow: var(--app-shadow-sm);
+    }
+    .app-bottom-nav > .app-bottom-cta.active { color: var(--app-on-primary); }
+    .app-content { padding-bottom: 6.5rem; }
+}
