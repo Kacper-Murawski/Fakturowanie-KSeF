@@ -1,9 +1,9 @@
 @* Użytkownicy firmy i zaproszenia - tylko dla właściciela (D46) *@
 @inject ApiClient Api
 
-<section class="card mt-4 form-narrow" data-testid="company-members">
-    <div class="card-body">
-        <h2 class="h5">Użytkownicy firmy</h2>
+<section class="surface form-card form-narrow mt-4" data-testid="company-members">
+    <div>
+        <div class="step-head"><span class="step-num"><Icon Name="users" Size="17" /></span><h2>Użytkownicy firmy</h2></div>
         <p class="small text-muted">
             Zaproś <strong>księgową</strong> (odczyt, eksport, płatności) lub <strong>pracownika</strong> (wystawianie i wysyłka faktur).
             Zaproszona osoba dostanie e-mail z linkiem ważnym 7 dni i przyjmie zaproszenie po zalogowaniu na konto z tym adresem.
@@ -38,7 +38,7 @@
                             <td class="text-end">
                                 @if (m.MemberId is { } removeId)
                                 {
-                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Odbierz dostęp" @onclick="() => RemoveAsync(removeId)">✕</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Odbierz dostęp" aria-label="Odbierz dostęp" @onclick="() => RemoveAsync(removeId)"><Icon Name="trash" Size="15" /></button>
                                 }
                             </td>
                         </tr>
@@ -49,7 +49,7 @@
                             <td>@i.Email</td>
                             <td>@CompanyContext.RoleName(i.Role) <span class="badge bg-secondary">zaproszenie do @Format.Date(DateOnly.FromDateTime(i.ExpiresAt))</span></td>
                             <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" title="Odwołaj zaproszenie" @onclick="() => RevokeAsync(i.Id)">✕</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" title="Odwołaj zaproszenie" aria-label="Odwołaj zaproszenie" @onclick="() => RevokeAsync(i.Id)"><Icon Name="x" Size="15" /></button>
                             </td>
                         </tr>
                     }

@@ -1,9 +1,9 @@
 @* Ustawienia powiadomień e-mail - osadzane na stronie „Moja firma” (D37) *@
 @inject ApiClient Api
 
-<section class="card mt-4 form-narrow" data-testid="notification-settings">
-    <div class="card-body">
-        <h2 class="h5">Powiadomienia e-mail</h2>
+<section class="surface form-card form-narrow mt-4" data-testid="notification-settings">
+    <div>
+        <div class="step-head"><span class="step-num"><Icon Name="bell" Size="17" /></span><h2>Powiadomienia e-mail</h2></div>
 
         @if (settings is null)
         {

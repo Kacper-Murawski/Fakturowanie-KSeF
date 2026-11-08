@@ -5,7 +5,13 @@
 
 <PageTitle>@Title - Fakturowanie KSeF</PageTitle>
 
-<h1>@Title</h1>
+<div class="page-header">
+    <div>
+        <a class="small fw-semibold d-inline-flex align-items-center gap-1 mb-1" href="@(Id is null ? "faktury" : $"faktury/{Id}")"><Icon Name="chevron-left" Size="15" /> @(Id is null ? "Faktury" : "Wróć do faktury")</a>
+        <h1>@Title</h1>
+        <p class="page-subtitle">Wypełnij trzy kroki - kwoty i podsumowanie liczą się na bieżąco.</p>
+    </div>
+</div>
 @if (templateNumber is not null)
 {
     <div class="alert alert-info" role="status" data-testid="template-info">
@@ -35,7 +41,7 @@ else
 
         @if (Id is null && !IsCorrection)
         {
-            <div class="btn-group mb-3" role="group" aria-label="Rodzaj dokumentu" data-testid="document-kind">
+            <div class="btn-group mb-3 kind-switch" role="group" aria-label="Rodzaj dokumentu" data-testid="document-kind">
                 <input type="radio" class="btn-check" name="kind" id="kind-vat" checked="@(!model.IsProforma)" @onchange="() => SetProformaAsync(false)" />
                 <label class="btn btn-outline-primary" for="kind-vat">Faktura VAT</label>
                 <input type="radio" class="btn-check" name="kind" id="kind-proforma" checked="@model.IsProforma" @onchange="() => SetProformaAsync(true)" />
@@ -50,47 +56,14 @@ else
             </div>
         }
 
-        @* ---------------- Nagłówek ---------------- *@
-        <section class="card mb-3">
-            <div class="card-body row g-3">
-                <div class="col-md-4">
-                    <label class="form-label" for="number">Numer faktury</label>
-                    <InputTextLive id="number" class="form-control" @bind-Value="model.Number" placeholder="@suggestedNumber" />
-                    <div class="form-text">@(Id is null ? "Puste - numer zostanie nadany automatycznie." : "")</div>
-                    <ValidationMessage For="() => model.Number" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="issue">Data wystawienia</label>
-                    <InputDate id="issue" class="form-control" @bind-Value="model.IssueDate" @bind-Value:after="OnDatesChangedAsync" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="sale">Data sprzedaży</label>
-                    <InputDate id="sale" class="form-control" @bind-Value="model.SaleDate" @bind-Value:after="LoadRateAsync" />
-                    <div class="form-text">Jeśli inna niż wystawienia.</div>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="place">Miejsce wystawienia</label>
-                    <InputTextLive id="place" class="form-control" @bind-Value="model.IssuePlace" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="currency">Waluta</label>
-                    <InputSelect id="currency" class="form-select" @bind-Value="model.Currency" @bind-Value:after="LoadRateAsync" disabled="@IsCorrection">
-                        @foreach (var c in Currencies.Supported)
-                        {
-                            <option value="@c">@c</option>
-                        }
-                    </InputSelect>
-                    <ValidationMessage For="() => model.Currency" />
-                </div>
-            </div>
-        </section>
-
+        <div class="form-layout">
+            <div class="form-main">
         @* ---------------- Korekta: faktura korygowana i przyczyna ---------------- *@
         @if (IsCorrection)
         {
-            <section class="card mb-3 border-warning" data-testid="correction-header">
-                <div class="card-body">
-                    <h2 class="h5">Faktura korygowana</h2>
+            <section class="surface form-step form-step-warning" data-testid="correction-header" aria-labelledby="step-correction">
+                <div>
+                    <div class="step-head"><span class="step-num">1</span><h2 id="step-correction">Faktura korygowana</h2></div>
                     <p class="mb-3">
                         <strong>@corrected?.Number</strong> z dnia @Format.Date(corrected?.IssueDate), numer KSeF @corrected?.KsefNumber
                         <br />Nabywca: <strong>@corrected?.Buyer.Name</strong>@(corrected?.Buyer.Nip is { } nip ? $", NIP {Format.Nip(nip)}" : "")
@@ -118,9 +91,9 @@ else
         else
         {
         @* ---------------- Nabywca ---------------- *@
-        <section class="card mb-3">
-            <div class="card-body">
-                <h2 class="h5">Nabywca</h2>
+        <section class="surface form-step" aria-labelledby="step-buyer">
+            <div>
+                <div class="step-head"><span class="step-num">1</span><h2 id="step-buyer">Nabywca</h2></div>
                 <div class="mb-3">
                     <label class="form-label" for="customer">Kontrahent</label>
                     <select id="customer" class="form-select" value="@(model.CustomerId?.ToString() ?? "")" @onchange="OnCustomerChanged">
@@ -153,28 +126,124 @@ else
                 }
                 else if (SelectedCustomer is { } sc)
                 {
-                    <p class="mb-0 text-muted">@sc.Address.Street, @sc.Address.PostalCode @sc.Address.City</p>
+                    <div class="party-card">
+                        <span class="app-avatar">@sc.Name[..1]</span>
+                        <span>
+                            <strong>@sc.Name</strong>
+                            <span class="d-block muted small">@(sc.Nip is null ? "osoba prywatna" : $"NIP {Format.Nip(sc.Nip)}") · @sc.Address.Street, @sc.Address.PostalCode @sc.Address.City</span>
+                        </span>
+                    </div>
                 }
             </div>
         </section>
         }
 
+        @* ---------------- Nagłówek ---------------- *@
+        <section class="surface form-step" aria-labelledby="step-dates">
+            <div class="step-head"><span class="step-num">2</span><h2 id="step-dates">Numer, daty i płatność</h2></div>
+            <div class="row g-3">
+                <div class="col-md-6 col-xl-4">
+                    <label class="form-label" for="number">Numer faktury</label>
+                    <InputTextLive id="number" class="form-control" @bind-Value="model.Number" placeholder="@suggestedNumber" />
+                    <div class="form-text">@(Id is null ? "Puste - numer zostanie nadany automatycznie." : "")</div>
+                    <ValidationMessage For="() => model.Number" />
+                </div>
+                <div class="col-sm-6 col-xl-4">
+                    <label class="form-label" for="issue">Data wystawienia</label>
+                    <InputDate id="issue" class="form-control" @bind-Value="model.IssueDate" @bind-Value:after="OnDatesChangedAsync" />
+                </div>
+                <div class="col-sm-6 col-xl-4">
+                    <label class="form-label" for="sale">Data sprzedaży</label>
+                    <InputDate id="sale" class="form-control" @bind-Value="model.SaleDate" @bind-Value:after="LoadRateAsync" />
+                    <div class="form-text">Jeśli inna niż wystawienia.</div>
+                </div>
+                <div class="col-sm-6 col-xl-4">
+                    <label class="form-label" for="place">Miejsce wystawienia</label>
+                    <InputTextLive id="place" class="form-control" @bind-Value="model.IssuePlace" />
+                </div>
+                <div class="col-sm-6 col-xl-4">
+                    <label class="form-label" for="currency">Waluta</label>
+                    <InputSelect id="currency" class="form-select" @bind-Value="model.Currency" @bind-Value:after="LoadRateAsync" disabled="@IsCorrection">
+                        @foreach (var c in Currencies.Supported)
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => model.Currency" />
+                </div>
+            </div>
+            <hr class="my-4" />
+            <div class="row g-3">
+                <div class="col-sm-6 col-xl-4">
+                    <label class="form-label" for="payment">Forma płatności</label>
+                    <InputSelect id="payment" class="form-select" @bind-Value="model.PaymentMethod">
+                        @foreach (var m in Enum.GetValues<PaymentMethod>())
+                        {
+                            <option value="@m">@Format.Payment(m)</option>
+                        }
+                    </InputSelect>
+                </div>
+                @if (model.PaidOn is null)
+                {
+                    <div class="col-sm-6 col-xl-4">
+                        <label class="form-label" for="due">Termin płatności</label>
+                        <InputDate id="due" class="form-control" @bind-Value="model.DueDate" />
+                        <div class="btn-group btn-group-sm mt-1">
+                            @foreach (var days in new[] { 7, 14, 30 })
+                            {
+                                <button type="button" class="btn btn-outline-secondary" @onclick="() => model.DueDate = model.IssueDate.AddDays(days)">@days dni</button>
+                            }
+                        </div>
+                        <ValidationMessage For="() => model.DueDate" />
+                    </div>
+                }
+                @if (corrected is null && !model.IsProforma)
+                {
+                    <div class="col-12 col-xl-6">
+                        <div class="form-check mt-md-4">
+                            <input id="paid" type="checkbox" class="form-check-input" checked="@(model.PaidOn is not null)"
+                                   @onchange="e => TogglePaid((bool)e.Value!)" />
+                            <label class="form-check-label" for="paid">Zapłacono przy wystawieniu (np. gotówką, kartą lub przedpłatą)</label>
+                        </div>
+                        @if (model.PaidOn is not null)
+                        {
+                            <div class="input-group input-group-sm mt-1" style="max-width: 16rem">
+                                <span class="input-group-text">Data zapłaty</span>
+                                <InputDate id="paid-on" class="form-control" @bind-Value="model.PaidOn" />
+                            </div>
+                            <div class="form-text">Informacja o zapłacie trafi do KSeF razem z fakturą, a faktura od razu będzie oznaczona jako opłacona.</div>
+                        }
+                        <ValidationMessage For="() => model.PaidOn" />
+                    </div>
+                }
+                @if (model.PaymentMethod == PaymentMethod.Transfer)
+                {
+                    <div class="col-12 col-xl-6">
+                        <label class="form-label" for="bank">Numer rachunku</label>
+                        <InputTextLive id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="@(companyAccount ?? "")" />
+                        <div class="form-text">Puste - zostanie użyty rachunek z danych firmy.</div>
+                        <ValidationMessage For="() => model.BankAccountNumber" />
+                    </div>
+                }
+            </div>
+        </section>
+
         @* ---------------- Pozycje ---------------- *@
-        <section class="card mb-3">
-            <div class="card-body">
+        <section class="surface form-step" aria-labelledby="step-items">
+            <div>
                 @if (IsCorrection)
                 {
-                    <h2 class="h5">Stan przed korektą</h2>
+                    <div class="step-head"><span class="step-num">3</span><h2 id="step-items">Stan przed korektą</h2></div>
                     <InvoiceItemsTable Items="before" TestId="items-before" />
-                    <h2 class="h5">Stan po korekcie</h2>
+                    <h3 class="h6 mt-4">Stan po korekcie</h3>
                     <p class="small text-muted">Zmień pozycje tak, jak powinny wyglądać po korekcie (cena, ilość, stawka). Usunięcie wszystkich pozycji oznacza korektę do zera.</p>
                 }
                 else
                 {
-                    <h2 class="h5">Pozycje</h2>
+                    <div class="step-head"><span class="step-num">3</span><h2 id="step-items">Pozycje</h2></div>
                 }
                 <div class="table-responsive">
-                    <table class="table align-middle items-table">
+                    <table class="table align-middle items-table items-grid">
                         <thead>
                             <tr>
                                 <th style="width:3rem">Lp.</th>
@@ -196,7 +265,7 @@ else
                                 var index = n;
                                 <tr>
                                     <td>@(n + 1)</td>
-                                    <td>
+                                    <td data-label="Nazwa towaru lub usługi">
                                         <InputTextLive class="form-control" @bind-Value="item.Name" @bind-Value:after="() => FillFromCatalog(item)"
                                                        list="product-catalog" aria-label="@($"Nazwa pozycji {n + 1}")" />
                                         <ValidationMessage For="() => item.Name" />
@@ -205,16 +274,16 @@ else
                                             <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => AddToCatalogAsync(item)">zapisz w katalogu</button>
                                         }
                                     </td>
-                                    <td><InputTextLive class="form-control" @bind-Value="item.Unit" aria-label="Jednostka miary" /></td>
-                                    <td>
+                                    <td data-label="J.m."><InputTextLive class="form-control" @bind-Value="item.Unit" aria-label="Jednostka miary" /></td>
+                                    <td data-label="Ilość">
                                         <InputNumber class="form-control" @bind-Value="item.Quantity" @bind-Value:after="Recalculate" step="any" aria-label="Ilość" />
                                         <ValidationMessage For="() => item.Quantity" />
                                     </td>
-                                    <td>
+                                    <td data-label="Cena netto">
                                         <InputNumber class="form-control" @bind-Value="item.UnitNetPrice" @bind-Value:after="Recalculate" step="0.01" aria-label="Cena netto" />
                                         <ValidationMessage For="() => item.UnitNetPrice" />
                                     </td>
-                                    <td>
+                                    <td data-label="VAT">
                                         <InputSelect class="form-select" @bind-Value="item.VatRate" @bind-Value:after="Recalculate" aria-label="Stawka VAT">
                                             @foreach (var rate in VatRateExtensions.Selectable)
                                             {
@@ -222,11 +291,11 @@ else
                                             }
                                         </InputSelect>
                                     </td>
-                                    <td class="text-end text-nowrap">@(line is null ? "" : Format.Amount(line.NetAmount))</td>
-                                    <td class="text-end text-nowrap">@(line is null ? "" : Format.Amount(line.GrossAmount))</td>
+                                    <td class="text-end text-nowrap" data-label="Netto">@(line is null ? "" : Format.Amount(line.NetAmount))</td>
+                                    <td class="text-end text-nowrap fw-semibold" data-label="Brutto">@(line is null ? "" : Format.Amount(line.GrossAmount))</td>
                                     <td>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń pozycję"
-                                                disabled="@(model.Items.Count == 1 && !IsCorrection)" @onclick="() => RemoveItem(index)">✕</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Usuń pozycję" aria-label="Usuń pozycję"
+                                                disabled="@(model.Items.Count == 1 && !IsCorrection)" @onclick="() => RemoveItem(index)"><Icon Name="trash" Size="15" /></button>
                                     </td>
                                 </tr>
                             }
@@ -239,7 +308,7 @@ else
                         <option value="@p.Name">@Format.Amount(p.UnitNetPrice) netto, VAT @p.VatRate.ToDisplayName()</option>
                     }
                 </datalist>
-                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddItem">+ Dodaj pozycję</button>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-2" @onclick="AddItem">+ Dodaj pozycję</button>
 
                 @if (model.Items.Any(i => i.VatRate == VatRate.Exempt))
                 {
@@ -251,10 +320,17 @@ else
                     </div>
                 }
 
+            </div>
+        </section>
+
+            </div>
+        <aside class="form-aside">
+            <section class="surface p-4" aria-labelledby="summary-h">
+                <h2 id="summary-h" class="section-title mb-3">Podsumowanie</h2>
                 @* Podsumowanie liczone tym samym kalkulatorem co na serwerze *@
-                <div class="row justify-content-end mt-3">
-                    <div class="col-md-6">
-                        <table class="table table-sm mb-0">
+                <div>
+                    <div>
+                        <table class="table table-sm mb-0 summary-table">
                             <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th><th class="text-end">Brutto</th></tr></thead>
                             <tbody>
                                 @foreach (var s in totals.ByVatRate)
@@ -285,7 +361,7 @@ else
                         </table>
                         @if (Currencies.IsForeign(model.Currency))
                         {
-                            <div class="small text-end mt-2" data-testid="exchange-rate">
+                            <div class="small mt-3" data-testid="exchange-rate">
                                 @if (rate is { } r)
                                 {
                                     <div>Kurs średni NBP z @Format.Date(r.EffectiveDate) (tabela @r.TableNo): <strong>@r.Rate.ToString("0.0000##", Format.Pl) PLN</strong></div>
@@ -304,69 +380,13 @@ else
                         }
                     </div>
                 </div>
+            <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-primary btn-lg" disabled="@busy"><Icon Name="check" Size="18" Stroke="2.2" /> @(busy ? "Zapisywanie…" : "Zapisz fakturę")</button>
+                <a class="btn btn-outline-secondary" href="@(Id is null ? "faktury" : $"faktury/{Id}")">Anuluj</a>
             </div>
-        </section>
-
-        @* ---------------- Płatność ---------------- *@
-        <section class="card mb-3">
-            <div class="card-body row g-3">
-                <div class="col-md-3">
-                    <label class="form-label" for="payment">Forma płatności</label>
-                    <InputSelect id="payment" class="form-select" @bind-Value="model.PaymentMethod">
-                        @foreach (var m in Enum.GetValues<PaymentMethod>())
-                        {
-                            <option value="@m">@Format.Payment(m)</option>
-                        }
-                    </InputSelect>
-                </div>
-                @if (model.PaidOn is null)
-                {
-                    <div class="col-md-3">
-                        <label class="form-label" for="due">Termin płatności</label>
-                        <InputDate id="due" class="form-control" @bind-Value="model.DueDate" />
-                        <div class="btn-group btn-group-sm mt-1">
-                            @foreach (var days in new[] { 7, 14, 30 })
-                            {
-                                <button type="button" class="btn btn-outline-secondary" @onclick="() => model.DueDate = model.IssueDate.AddDays(days)">@days dni</button>
-                            }
-                        </div>
-                        <ValidationMessage For="() => model.DueDate" />
-                    </div>
-                }
-                @if (corrected is null && !model.IsProforma)
-                {
-                    <div class="col-md-6">
-                        <div class="form-check mt-md-4">
-                            <input id="paid" type="checkbox" class="form-check-input" checked="@(model.PaidOn is not null)"
-                                   @onchange="e => TogglePaid((bool)e.Value!)" />
-                            <label class="form-check-label" for="paid">Zapłacono przy wystawieniu (np. gotówką, kartą lub przedpłatą)</label>
-                        </div>
-                        @if (model.PaidOn is not null)
-                        {
-                            <div class="input-group input-group-sm mt-1" style="max-width: 16rem">
-                                <span class="input-group-text">Data zapłaty</span>
-                                <InputDate id="paid-on" class="form-control" @bind-Value="model.PaidOn" />
-                            </div>
-                            <div class="form-text">Informacja o zapłacie trafi do KSeF razem z fakturą, a faktura od razu będzie oznaczona jako opłacona.</div>
-                        }
-                        <ValidationMessage For="() => model.PaidOn" />
-                    </div>
-                }
-                @if (model.PaymentMethod == PaymentMethod.Transfer)
-                {
-                    <div class="col-md-6">
-                        <label class="form-label" for="bank">Numer rachunku</label>
-                        <InputTextLive id="bank" class="form-control" @bind-Value="model.BankAccountNumber" placeholder="@(companyAccount ?? "")" />
-                        <div class="form-text">Puste - zostanie użyty rachunek z danych firmy.</div>
-                        <ValidationMessage For="() => model.BankAccountNumber" />
-                    </div>
-                }
-            </div>
-        </section>
-
-        <div class="d-flex gap-2 mb-5">
-            <button type="submit" class="btn btn-primary" disabled="@busy">@(busy ? "Zapisywanie…" : "Zapisz fakturę")</button>
-            <a class="btn btn-outline-secondary" href="@(Id is null ? "faktury" : $"faktury/{Id}")">Anuluj</a>
+            <p class="small muted mt-3 mb-0">@(model.IsProforma ? "Proforma nie trafia do KSeF." : "Po zapisie sprawdzisz fakturę i wyślesz ją do KSeF jednym kliknięciem.")</p>
+            </section>
+        </aside>
         </div>
     </EditForm>
 }
