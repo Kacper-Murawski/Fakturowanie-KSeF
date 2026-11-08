@@ -207,8 +207,16 @@ i **zobowiązań**, w tym kwoty po terminie. Kliknięcie kwoty otwiera listę od
 
 ## 8. Lista faktur i pulpit
 
-W menu **Faktury** jest lista faktur z wyszukiwaniem (numer, nabywca, NIP, numer KSeF), filtrami statusu i dat
-oraz stronicowaniem. **Pulpit** pokazuje liczbę faktur w każdym statusie.
+W menu **Faktury** jest lista faktur z wyszukiwaniem (numer, nabywca, NIP, numer KSeF), zakładkami statusu
+(Wszystkie / Szkice / Wysłane / W KSeF / Odrzucone), filtrami płatności i dat oraz stronicowaniem. Wyszukiwarka
+w górnym pasku działa z każdej strony. Na telefonie każda faktura jest pokazana jako karta: numer i kwota u góry,
+nabywca, status KSeF i płatności poniżej.
+
+**Pulpit** zaczyna się od karty **Do zrobienia** - aplikacja sama podpowiada następny krok: szkice do wysłania
+do KSeF, faktury odrzucone do poprawy, faktury po terminie, zaległe faktury kosztowe i brak połączenia z KSeF.
+Każda sprawa ma przycisk, który otwiera właściwą listę. Obok jest stan połączenia z KSeF (token, ostatnie pobranie,
+liczba faktur w każdym statusie), a niżej kafelki: sprzedaż i koszty netto w bieżącym miesiącu (z trendem i wynikiem
+poprzedniego miesiąca), należności i zobowiązania.
 
 ![Lista faktur](zrzuty/10-lista-faktur.png)
 

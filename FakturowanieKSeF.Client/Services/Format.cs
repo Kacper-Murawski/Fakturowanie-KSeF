@@ -39,13 +39,14 @@ public static class Format
         _ => status.ToString()
     };
 
+    /// <summary>Klasa plakietki statusu (D50): miękkie tło, tekst w kolorze statusu - zawsze razem z nazwą statusu.</summary>
     public static string StatusCss(InvoiceStatus status) => status switch
     {
-        InvoiceStatus.Draft => "bg-secondary",
-        InvoiceStatus.Pending => "bg-warning text-dark",
-        InvoiceStatus.Accepted => "bg-success",
-        InvoiceStatus.Rejected => "bg-danger",
-        _ => "bg-light text-dark"
+        InvoiceStatus.Draft => "pill",
+        InvoiceStatus.Pending => "pill pill-warning",
+        InvoiceStatus.Accepted => "pill pill-success",
+        InvoiceStatus.Rejected => "pill pill-danger",
+        _ => "pill"
     };
 
     public static string Payment(PaymentMethod method) => method switch

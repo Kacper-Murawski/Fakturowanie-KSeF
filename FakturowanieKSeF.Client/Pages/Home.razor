@@ -1,133 +1,215 @@
 ﻿@page "/"
 @inject ApiClient Api
+@inject CompanyContext Ctx
+@using System.Globalization
 
 <PageTitle>Pulpit - Fakturowanie KSeF</PageTitle>
 
-<h1>Pulpit</h1>
+<div class="page-header">
+    <div>
+        <h1>Pulpit</h1>
+        @if (company is not null)
+        {
+            <p class="page-subtitle">@company.Name, NIP @Format.Nip(company.Nip) · @Today</p>
+        }
+    </div>
+    @if (company is not null && Ctx.CanIssue)
+    {
+        <div class="page-actions">
+            <a class="btn btn-outline-secondary" href="kontrahenci/nowy"><Icon Name="users" Size="17" /> Dodaj kontrahenta</a>
+            <a class="btn btn-primary" href="faktury/nowa"><Icon Name="plus" Size="17" Stroke="2.2" /> Wystaw fakturę</a>
+        </div>
+    }
+</div>
 
 @if (loading)
 {
-    <p class="text-muted">Wczytywanie…</p>
+    <p class="muted">Wczytywanie…</p>
 }
 else if (company is null)
 {
-    <div class="card border-primary">
-        <div class="card-body">
-            <h2 class="h5">Witaj! Zacznij od danych swojej firmy</h2>
-            <p class="mb-3">Dane firmy (nazwa, NIP, adres) pojawią się jako sprzedawca na każdej wystawianej fakturze.</p>
+    <section class="todo">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <span class="todo-icon icon-primary"><Icon Name="building" Size="22" /></span>
+            <div class="flex-grow-1">
+                <h2 class="section-title">Witaj! Zacznij od danych swojej firmy</h2>
+                <p class="mb-0 muted">Dane firmy (nazwa, NIP, adres) pojawią się jako sprzedawca na każdej wystawianej fakturze.</p>
+            </div>
             <a class="btn btn-primary" href="firma">Uzupełnij dane firmy</a>
         </div>
-    </div>
+    </section>
 }
 else
 {
-    <p class="text-muted">@company.Name, NIP @Format.Nip(company.Nip)</p>
-
-    <div class="row g-3 mb-4">
-        @foreach (var (label, status, count) in counters)
-        {
-            <div class="col-6 col-lg-3">
-                <a class="card text-decoration-none h-100" href="faktury?status=@status">
-                    <div class="card-body">
-                        <div class="text-muted small">@label</div>
-                        <div class="fs-3 fw-semibold">@count</div>
-                    </div>
-                </a>
+    <div class="dash-grid">
+        @* Do zrobienia: aplikacja podpowiada następny krok (D50) *@
+        <section class="todo dash-wide" aria-labelledby="todo-h" data-testid="todo">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                <h2 id="todo-h" class="section-title">Do zrobienia</h2>
+                @if (todos.Count > 0)
+                {
+                    <span class="muted small">@todos.Count @Spraw(todos.Count)</span>
+                }
             </div>
-        }
+            @if (todos.Count == 0)
+            {
+                <div class="todo-done">
+                    <span class="todo-icon icon-primary"><Icon Name="check" Size="20" Stroke="2.2" /></span>
+                    <span><strong>Wszystko załatwione.</strong> <span class="muted">Brak szkiców, odrzuconych faktur i zaległości.</span></span>
+                </div>
+            }
+            else
+            {
+                <ul class="todo-list">
+                    @foreach (var t in todos)
+                    {
+                        <li class="todo-item">
+                            <span class="todo-icon @t.IconCss"><Icon Name="@t.Icon" Size="20" /></span>
+                            <span class="todo-text">
+                                <strong>@t.Title</strong>
+                                <span class="muted small">@t.Detail</span>
+                            </span>
+                            <a class="btn @(t.Primary ? "btn-primary" : "btn-outline-secondary") btn-sm" href="@t.Href">@t.Action</a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="surface dash-narrow p-4 d-flex flex-column gap-3" aria-labelledby="ksef-h" data-testid="ksef-card">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+                <h2 id="ksef-h" class="section-title">KSeF</h2>
+                <span class="pill pill-warning">Środowisko testowe</span>
+            </div>
+            <dl class="stat-list">
+                <dt>Token</dt>
+                <dd>
+                    @if (company.HasKsefToken)
+                    {
+                        <span class="pill pill-success"><Icon Name="check" Size="13" Stroke="2.6" /> aktywny</span>
+                    }
+                    else
+                    {
+                        <a class="pill pill-danger" href="firma">brak - skonfiguruj</a>
+                    }
+                </dd>
+                <dt>Ostatnie pobranie</dt>
+                <dd>@(sync?.LastSyncAt is null ? "—" : Format.DateTime(sync.LastSyncAt))</dd>
+                @foreach (var (label, status, count) in counters)
+                {
+                    <dt>@label</dt>
+                    <dd><a href="faktury?status=@status">@count</a></dd>
+                }
+            </dl>
+        </section>
     </div>
 
     @if (payments is { } s)
     {
-        <div class="row g-3 mb-4" data-testid="payments-summary">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h2 class="h6 text-muted">Należności (do zapłaty przez nabywców)</h2>
-                        <a class="fs-4 fw-semibold text-decoration-none" href="faktury?payment=Unpaid" data-testid="receivables">@Format.Money(s.ReceivablesTotal)</a>
-                        <div class="small text-muted">@s.ReceivablesCount @Faktur(s.ReceivablesCount)</div>
-                        @if (s.ReceivablesOverdueCount > 0)
-                        {
-                            <a class="d-block mt-2 text-danger fw-semibold" href="faktury?payment=Overdue">
-                                Po terminie: @Format.Money(s.ReceivablesOverdue) (@s.ReceivablesOverdueCount @Faktur(s.ReceivablesOverdueCount))
-                            </a>
-                        }
-                    </div>
-                </div>
+        <div class="kpi-grid" data-testid="payments-summary">
+            @if (current is { } cm)
+            {
+                <a class="surface kpi" href="faktury">
+                    <span class="kpi-head">Sprzedaż netto · @MonthName(cm)</span>
+                    <span class="kpi-row">
+                        <span class="kpi-value">@Format.Money(cm.SalesNet)</span>
+                        <Sparkline Values="@salesTrend" Color="var(--viz-series-1)" />
+                    </span>
+                    <span class="kpi-note">@(previous is null ? "faktury przekazane do KSeF" : $"{MonthName(previous)}: {Format.Money(previous.SalesNet)}")</span>
+                </a>
+                <a class="surface kpi" href="faktury-otrzymane">
+                    <span class="kpi-head">Koszty netto · @MonthName(cm)</span>
+                    <span class="kpi-row">
+                        <span class="kpi-value">@Format.Money(cm.CostsNet)</span>
+                        <Sparkline Values="@costsTrend" Color="var(--viz-series-2)" />
+                    </span>
+                    <span class="kpi-note">@(previous is null ? "faktury otrzymane z KSeF" : $"{MonthName(previous)}: {Format.Money(previous.CostsNet)}")</span>
+                </a>
+            }
+            <div class="surface kpi">
+                <span class="kpi-head">
+                    Należności
+                    @if (s.ReceivablesOverdueCount > 0)
+                    {
+                        <a class="pill pill-danger" href="faktury?payment=Overdue">@s.ReceivablesOverdueCount po terminie</a>
+                    }
+                </span>
+                <a class="kpi-value text-decoration-none" href="faktury?payment=Unpaid" data-testid="receivables">@Format.Money(s.ReceivablesTotal)</a>
+                <span class="kpi-note">
+                    do zapłaty przez nabywców: @s.ReceivablesCount @Faktur(s.ReceivablesCount)
+                    @if (s.ReceivablesOverdueCount > 0) { <span>· po terminie @Format.Money(s.ReceivablesOverdue)</span> }
+                </span>
             </div>
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h2 class="h6 text-muted">Zobowiązania (faktury otrzymane do zapłaty)</h2>
-                        <a class="fs-4 fw-semibold text-decoration-none" href="faktury-otrzymane?payment=Unpaid" data-testid="payables">@Format.Money(s.PayablesTotal)</a>
-                        <div class="small text-muted">@s.PayablesCount @Faktur(s.PayablesCount)</div>
-                        @if (s.PayablesOverdueCount > 0)
-                        {
-                            <a class="d-block mt-2 text-danger fw-semibold" href="faktury-otrzymane?payment=Overdue">
-                                Po terminie: @Format.Money(s.PayablesOverdue) (@s.PayablesOverdueCount @Faktur(s.PayablesOverdueCount))
-                            </a>
-                        }
-                    </div>
-                </div>
+            <div class="surface kpi">
+                <span class="kpi-head">
+                    Zobowiązania
+                    @if (s.PayablesOverdueCount > 0)
+                    {
+                        <a class="pill pill-danger" href="faktury-otrzymane?payment=Overdue">@s.PayablesOverdueCount po terminie</a>
+                    }
+                </span>
+                <a class="kpi-value text-decoration-none" href="faktury-otrzymane?payment=Unpaid" data-testid="payables">@Format.Money(s.PayablesTotal)</a>
+                <span class="kpi-note">
+                    do zapłaty dostawcom: @s.PayablesCount @Faktur(s.PayablesCount)
+                    @if (s.PayablesOverdueCount > 0) { <span>· po terminie @Format.Money(s.PayablesOverdue)</span> }
+                </span>
             </div>
         </div>
     }
 
     @if (dashboard is { } d)
     {
-        <div class="row g-3 mb-4">
-            <div class="col-lg-8">
-                <section class="card h-100">
-                    <div class="card-body">
-                        <h2 class="h6 mb-1">Sprzedaż i koszty netto - ostatnie 12 miesięcy</h2>
-                        <p class="small text-muted mb-2">Sprzedaż: faktury przekazane do KSeF (z korektami). Koszty: faktury otrzymane z KSeF. Kwoty w PLN.</p>
-                        <MonthlyChart Months="d.Months" />
-                    </div>
+        <div class="dash-grid">
+            <section class="surface dash-wide p-4" aria-labelledby="chart-h">
+                <h2 id="chart-h" class="section-title">Sprzedaż i koszty netto</h2>
+                <p class="small muted mb-3">Ostatnie 12 miesięcy. Sprzedaż: faktury przekazane do KSeF (z korektami). Koszty: faktury otrzymane z KSeF. Kwoty w PLN.</p>
+                <MonthlyChart Months="d.Months" />
+            </section>
+            <div class="dash-narrow d-flex flex-column gap-3">
+                <section class="surface p-4" aria-labelledby="aging-h">
+                    <h2 id="aging-h" class="section-title mb-3">Należności według terminu</h2>
+                    <BarList TestId="aging" Items="@(d.ReceivablesAging.Select(a => new BarList.Item(a.Label, a.Amount,
+                        a.Count == 0 ? null : $"{a.Count} {Faktur(a.Count)}")).ToList())" />
+                    <a class="small fw-semibold d-inline-block mt-3" href="faktury?payment=Unpaid">Zobacz nieopłacone faktury →</a>
                 </section>
-            </div>
-            <div class="col-lg-4 d-flex flex-column gap-3">
-                <section class="card">
-                    <div class="card-body">
-                        <h2 class="h6">Należności według terminu</h2>
-                        <BarList TestId="aging" Items="@(d.ReceivablesAging.Select(a => new BarList.Item(a.Label, a.Amount,
-                            a.Count == 0 ? null : $"{a.Count} {Faktur(a.Count)}")).ToList())" />
-                    </div>
-                </section>
-                <section class="card">
-                    <div class="card-body">
-                        <h2 class="h6">Najwięksi nabywcy (12 miesięcy, netto)</h2>
-                        @if (d.TopCustomers.Count == 0)
-                        {
-                            <p class="small text-muted mb-0">Brak sprzedaży w tym okresie.</p>
-                        }
-                        else
-                        {
-                            <BarList TestId="top-customers" Items="@(d.TopCustomers.Select(c => new BarList.Item(c.Name, c.SalesNet,
-                                $"{c.Count} {Faktur(c.Count)}", $"faktury?q={Uri.EscapeDataString(c.Nip ?? c.Name)}")).ToList())" />
-                        }
-                    </div>
+                <section class="surface p-4" aria-labelledby="top-h">
+                    <h2 id="top-h" class="section-title mb-3">Najwięksi nabywcy <span class="muted fw-normal small">(12 miesięcy, netto)</span></h2>
+                    @if (d.TopCustomers.Count == 0)
+                    {
+                        <p class="small muted mb-0">Brak sprzedaży w tym okresie.</p>
+                    }
+                    else
+                    {
+                        <BarList TestId="top-customers" Items="@(d.TopCustomers.Select(c => new BarList.Item(c.Name, c.SalesNet,
+                            $"{c.Count} {Faktur(c.Count)}", $"faktury?q={Uri.EscapeDataString(c.Nip ?? c.Name)}")).ToList())" />
+                    }
                 </section>
             </div>
         </div>
     }
-
-    <div class="d-flex gap-2">
-        <a class="btn btn-primary" href="faktury/nowa">Wystaw fakturę</a>
-        <a class="btn btn-outline-secondary" href="kontrahenci/nowy">Dodaj kontrahenta</a>
-    </div>
 }
 
 @code {
+    private sealed record Todo(string Icon, string IconCss, string Title, string Detail, string Action, string Href, bool Primary = false);
+
+    private static readonly CultureInfo Pl = CultureInfo.GetCultureInfo("pl-PL");
+
     private bool loading = true;
     private CompanyDto? company;
     private PaymentsSummaryDto? payments;
     private DashboardDto? dashboard;
+    private ReceivedSyncStatusDto? sync;
+    private MonthlyTotalsDto? current, previous;
+    private IReadOnlyList<decimal> salesTrend = [], costsTrend = [];
     private List<(string label, InvoiceStatus status, int count)> counters = [];
+    private readonly List<Todo> todos = [];
+
+    private static string Today => DateTime.Today.ToString("dddd, d MMMM yyyy", Pl);
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Api.GetAsync<CompanyDto>("api/company");
-        company = result.Value;
+        await Ctx.EnsureLoadedAsync();
+        company = (await Api.GetAsync<CompanyDto>("api/company")).Value;
 
         if (company is not null)
         {
@@ -138,19 +220,58 @@ else
                 ("Przyjęte w KSeF", InvoiceStatus.Accepted),
                 ("Odrzucone", InvoiceStatus.Rejected)
             ];
-            foreach (var (label, status) in statuses)
+            var pages = await Task.WhenAll(statuses.Select(s =>
+                Api.GetAsync<PagedResult<InvoiceListItemDto>>($"api/invoices?status={s.Item2}&pageSize=1")));
+            for (var n = 0; n < statuses.Length; n++)
+                counters.Add((statuses[n].Item1, statuses[n].Item2, pages[n].Value?.TotalCount ?? 0));
+
+            var paymentsTask = Api.GetAsync<PaymentsSummaryDto>("api/payments/summary");
+            var dashboardTask = Api.GetAsync<DashboardDto>("api/dashboard");
+            var syncTask = Api.GetAsync<ReceivedSyncStatusDto>("api/received-invoices/sync-status");
+            payments = (await paymentsTask).Value;
+            dashboard = (await dashboardTask).Value;
+            sync = (await syncTask).Value;
+
+            if (dashboard is { Months.Count: > 0 } d)
             {
-                var page = await Api.GetAsync<PagedResult<InvoiceListItemDto>>($"api/invoices?status={status}&pageSize=1");
-                counters.Add((label, status, page.Value?.TotalCount ?? 0));
+                current = d.Months[^1];
+                previous = d.Months.Count > 1 ? d.Months[^2] : null;
+                salesTrend = d.Months.TakeLast(7).Select(m => m.SalesNet).ToList();
+                costsTrend = d.Months.TakeLast(7).Select(m => m.CostsNet).ToList();
             }
-            payments = (await Api.GetAsync<PaymentsSummaryDto>("api/payments/summary")).Value;
-            dashboard = (await Api.GetAsync<DashboardDto>("api/dashboard")).Value;
+            BuildTodos();
         }
 
         loading = false;
     }
 
+    private void BuildTodos()
+    {
+        int Count(InvoiceStatus s) => counters.FirstOrDefault(c => c.status == s).count;
+        var drafts = Count(InvoiceStatus.Draft);
+        var rejected = Count(InvoiceStatus.Rejected);
+
+        if (!company!.HasKsefToken && Ctx.IsOwner)
+            todos.Add(new("key", "icon-warning", "Połącz firmę z KSeF", "Bez tokenu KSeF nie wyślesz faktur ani nie pobierzesz faktur kosztowych.", "Skonfiguruj", "firma", true));
+        if (drafts > 0 && Ctx.CanIssue)
+            todos.Add(new("send", "icon-primary", $"{drafts} {Szkic(drafts)} do wysłania do KSeF", "Sprawdź szkice i wyślij je jednym kliknięciem.", "Przejrzyj", "faktury?status=Draft", true));
+        if (rejected > 0 && Ctx.CanIssue)
+            todos.Add(new("alert", "icon-danger", $"{rejected} {Faktur(rejected)} {(rejected == 1 ? "odrzucona" : "odrzucone")} przez KSeF", "Popraw dane wskazane w komunikacie KSeF i wyślij ponownie.", "Popraw", "faktury?status=Rejected"));
+        if (payments is { ReceivablesOverdueCount: > 0 } p)
+            todos.Add(new("clock", "icon-danger", $"{p.ReceivablesOverdueCount} {Faktur(p.ReceivablesOverdueCount)} po terminie", $"Nabywcy zalegają z {Format.Money(p.ReceivablesOverdue)} - wyślij przypomnienie.", "Zobacz", "faktury?payment=Overdue"));
+        if (payments is { PayablesOverdueCount: > 0 } q)
+            todos.Add(new("wallet", "icon-warning", $"Faktury kosztowe po terminie: {q.PayablesOverdueCount}", $"Do zapłaty dostawcom {Format.Money(q.PayablesOverdue)}.", "Zobacz", "faktury-otrzymane?payment=Overdue"));
+    }
+
+    private static string MonthName(MonthlyTotalsDto m) => Pl.DateTimeFormat.GetMonthName(m.Month);
+
     /// <summary>Polska odmiana: 1 faktura, 2-4 faktury, 5+ faktur (12-14 faktur).</summary>
     private static string Faktur(int n) =>
         n == 1 ? "faktura" : n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14 ? "faktury" : "faktur";
+
+    private static string Szkic(int n) =>
+        n == 1 ? "szkic" : n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14 ? "szkice" : "szkiców";
+
+    private static string Spraw(int n) =>
+        n == 1 ? "sprawa" : n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14 ? "sprawy" : "spraw";
 }

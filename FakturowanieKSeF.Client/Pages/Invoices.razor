@@ -5,17 +5,21 @@
 
 <PageTitle>Faktury - Fakturowanie KSeF</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="mb-0">Faktury</h1>
+<div class="page-header">
+    <div>
+        <h1>Faktury</h1>
+        <p class="page-subtitle">Faktury sprzedaży wystawione w aplikacji i pobrane z KSeF</p>
+    </div>
     @if (Ctx.CanIssue)
     {
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary" disabled="@importing" @onclick="ImportAsync"
-                title="Faktury sprzedażowe wystawione w innym programie lub aplikacji MF, przesłane do KSeF">
-            @(importing ? "Pobieranie…" : "Pobierz z KSeF wystawione poza aplikacją")
-        </button>
-        <a class="btn btn-primary" href="faktury/nowa">Nowa faktura</a>
-    </div>
+        <div class="page-actions">
+            <button class="btn btn-outline-secondary" disabled="@importing" @onclick="ImportAsync"
+                    title="Faktury sprzedażowe wystawione w innym programie lub aplikacji MF, przesłane do KSeF">
+                <Icon Name="refresh" Size="17" />
+                @(importing ? "Pobieranie…" : "Pobierz z KSeF wystawione poza aplikacją")
+            </button>
+            <a class="btn btn-primary" href="faktury/nowa"><Icon Name="plus" Size="17" Stroke="2.2" /> Nowa faktura</a>
+        </div>
     }
 </div>
 
@@ -29,113 +33,123 @@
 
 <ProblemAlert Problem="problem" />
 
-<div class="row g-2 mb-3 align-items-end">
-    <div class="col-md-3">
-        <label class="form-label small" for="q">Szukaj</label>
-        <input id="q" class="form-control" placeholder="Numer, nabywca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small" for="status">Status</label>
-        <select id="status" class="form-select" @bind="Status" @bind:after="ApplyFiltersAsync">
-            <option value="">Wszystkie</option>
-            @foreach (var s in Enum.GetValues<InvoiceStatus>())
+<section class="table-card" aria-label="Lista faktur">
+    <div class="table-card-toolbar">
+        <div class="segmented" role="group" aria-label="Status faktur" data-testid="status-tabs">
+            @foreach (var (value, label) in StatusTabs)
             {
-                <option value="@s">@Format.Status(s)</option>
+                <button type="button" class="@((Status ?? "") == value ? "active" : null)" aria-pressed="@((Status ?? "") == value ? "true" : "false")"
+                        @onclick="() => SetStatusAsync(value)">@label</button>
             }
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small" for="payment">Płatność</label>
-        <select id="payment" class="form-select" @bind="Payment" @bind:after="ApplyFiltersAsync">
-            <option value="">Wszystkie</option>
-            <option value="@PaymentFilter.Unpaid">Nieopłacone</option>
-            <option value="@PaymentFilter.Overdue">Po terminie</option>
-            <option value="@PaymentFilter.Paid">Opłacone</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small" for="from">Wystawione od</label>
-        <input id="from" type="date" class="form-control" @bind="From" @bind:after="ApplyFiltersAsync" />
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small" for="to">do</label>
-        <input id="to" type="date" class="form-control" @bind="To" @bind:after="ApplyFiltersAsync" />
-    </div>
-</div>
-
-@if (data is null)
-{
-    <p class="text-muted">Wczytywanie…</p>
-}
-else if (data.TotalCount == 0)
-{
-    <p class="text-muted">Brak faktur spełniających kryteria.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>Numer</th><th>Data wystawienia</th><th>Nabywca</th>
-                    <th class="text-end">Netto</th><th class="text-end">Brutto</th><th>Status</th><th>Płatność</th><th>Numer KSeF</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var i in data.Items)
-                {
-                    <tr role="button" @onclick="() => Open(i.Id)">
-                        <td>
-                            <a href="faktury/@i.Id">@i.Number</a>
-                            @if (i.Kind == InvoiceKind.Correction)
-                            {
-                                <span class="badge bg-warning text-dark ms-1" title="Faktura korygująca">KOR</span>
-                            }
-                            @if (i.Kind == InvoiceKind.Proforma)
-                            {
-                                <span class="badge bg-info text-dark ms-1" title="Faktura proforma - nie trafia do KSeF">PRO</span>
-                            }
-                            @if (i.Origin == InvoiceOrigin.KsefImport)
-                            {
-                                <span class="badge bg-light text-dark border ms-1" title="Wystawiona poza aplikacją, pobrana z KSeF">spoza aplikacji</span>
-                            }
-                        </td>
-                        <td>@Format.Date(i.IssueDate)</td>
-                        <td>@i.BuyerName<div class="small text-muted">@(i.BuyerNip is null ? "" : "NIP " + Format.Nip(i.BuyerNip))</div></td>
-                        <td class="text-end text-nowrap">@Format.Money(i.TotalNet, i.Currency)</td>
-                        <td class="text-end text-nowrap">@Format.Money(i.TotalGross, i.Currency)</td>
-                        <td>
-                            @if (i.Kind == InvoiceKind.Proforma)
-                            {
-                                <span class="badge bg-light text-dark border">proforma</span>
-                            }
-                            else
-                            {
-                                <StatusBadge Status="i.Status" />
-                            }
-                        </td>
-                        <td>
-                            <PaymentBadge Status="i.PaymentStatus" IsOverdue="i.IsOverdue" />
-                            @if (i.PaymentStatus is not null && i.DueDate is not null && i.PaymentStatus != PaymentStatus.Paid)
-                            {
-                                <div class="small text-muted">termin @Format.Date(i.DueDate)</div>
-                            }
-                        </td>
-                        <td class="small">@(i.KsefNumber ?? "—")</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-
-    <nav class="d-flex justify-content-between align-items-center" aria-label="Stronicowanie">
-        <span class="text-muted small">Faktury @((data.Page - 1) * data.PageSize + 1)–@Math.Min(data.Page * data.PageSize, data.TotalCount) z @data.TotalCount</span>
-        <div class="btn-group">
-            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page <= 1)" @onclick="() => GoToPageAsync(data.Page - 1)">‹ Poprzednia</button>
-            <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page * data.PageSize >= data.TotalCount)" @onclick="() => GoToPageAsync(data.Page + 1)">Następna ›</button>
         </div>
-    </nav>
-}
+        <div class="filters">
+            <div class="filter-search">
+                <label class="visually-hidden" for="q">Szukaj</label>
+                <Icon Name="search" Size="16" Stroke="2" />
+                <input id="q" type="search" class="form-control" placeholder="Numer, nabywca, NIP, numer KSeF…" @bind="Q" @bind:event="oninput" @bind:after="SearchAsync" />
+            </div>
+            <label class="visually-hidden" for="payment">Płatność</label>
+            <select id="payment" class="form-select" @bind="Payment" @bind:after="ApplyFiltersAsync">
+                <option value="">Płatność: wszystkie</option>
+                <option value="@PaymentFilter.Unpaid">Nieopłacone</option>
+                <option value="@PaymentFilter.Overdue">Po terminie</option>
+                <option value="@PaymentFilter.Paid">Opłacone</option>
+            </select>
+            <span class="filter-dates">
+                <label class="visually-hidden" for="from">Wystawione od</label>
+                <input id="from" type="date" class="form-control" title="Wystawione od" @bind="From" @bind:after="ApplyFiltersAsync" />
+                <span class="muted" aria-hidden="true">–</span>
+                <label class="visually-hidden" for="to">Wystawione do</label>
+                <input id="to" type="date" class="form-control" title="Wystawione do" @bind="To" @bind:after="ApplyFiltersAsync" />
+            </span>
+        </div>
+    </div>
+
+    @if (data is null)
+    {
+        <p class="muted p-4 mb-0">Wczytywanie…</p>
+    }
+    else if (data.TotalCount == 0)
+    {
+        <div class="empty-state">
+            <span class="empty-icon"><Icon Name="file" Size="24" /></span>
+            <h2>Brak faktur</h2>
+            <p>Brak faktur spełniających kryteria.</p>
+            @if (Ctx.CanIssue && !HasFilters)
+            {
+                <a class="btn btn-primary" href="faktury/nowa"><Icon Name="plus" Size="17" Stroke="2.2" /> Wystaw pierwszą fakturę</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle table-stack">
+                <thead>
+                    <tr>
+                        <th>Numer</th><th>Nabywca</th><th>Wystawiona</th>
+                        <th class="text-end">Brutto</th><th>KSeF</th><th>Płatność</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in data.Items)
+                    {
+                        <tr role="button" @onclick="() => Open(i.Id)">
+                            <td data-col="main">
+                                <a class="row-link" href="faktury/@i.Id">@i.Number</a>
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    @if (i.Kind == InvoiceKind.Correction)
+                                    {
+                                        <span class="pill pill-warning" title="Faktura korygująca">KOR</span>
+                                    }
+                                    @if (i.Kind == InvoiceKind.Proforma)
+                                    {
+                                        <span class="pill pill-info" title="Faktura proforma - nie trafia do KSeF">PRO</span>
+                                    }
+                                    @if (i.Origin == InvoiceOrigin.KsefImport)
+                                    {
+                                        <span class="pill" title="Wystawiona poza aplikacją, pobrana z KSeF">spoza aplikacji</span>
+                                    }
+                                </div>
+                            </td>
+                            <td data-col="party">@i.BuyerName<div class="cell-sub text-nowrap">@(i.BuyerNip is null ? "" : "NIP " + Format.Nip(i.BuyerNip))</div></td>
+                            <td data-col="date" data-label="Wystawiona" class="text-nowrap">@Format.Date(i.IssueDate)</td>
+                            <td data-col="amount" class="text-end text-nowrap">
+                                <span class="cell-main">@Format.Money(i.TotalGross, i.Currency)</span>
+                                <div class="cell-sub">netto @Format.Money(i.TotalNet, i.Currency)</div>
+                            </td>
+                            <td data-col="status">
+                                @if (i.Kind == InvoiceKind.Proforma)
+                                {
+                                    <span class="pill pill-info">proforma</span>
+                                }
+                                else
+                                {
+                                    <StatusBadge Status="i.Status" />
+                                }
+                            </td>
+                            <td data-col="payment">
+                                <PaymentBadge Status="i.PaymentStatus" IsOverdue="i.IsOverdue" />
+                                @if (i.PaymentStatus is not null && i.DueDate is not null && i.PaymentStatus != PaymentStatus.Paid)
+                                {
+                                    <div class="cell-sub mt-1">termin @Format.Date(i.DueDate)</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <nav class="table-card-footer" aria-label="Stronicowanie">
+            <span class="muted">Faktury @((data.Page - 1) * data.PageSize + 1)–@Math.Min(data.Page * data.PageSize, data.TotalCount) z @data.TotalCount</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page <= 1)" @onclick="() => GoToPageAsync(data.Page - 1)"><Icon Name="chevron-left" Size="16" /> Poprzednia</button>
+                <button class="btn btn-outline-secondary btn-sm" disabled="@(data.Page * data.PageSize >= data.TotalCount)" @onclick="() => GoToPageAsync(data.Page + 1)">Następna <Icon Name="chevron-right" Size="16" /></button>
+            </div>
+        </nav>
+    }
+</section>
 
 @code {
     protected override async Task OnInitializedAsync() => await Ctx.EnsureLoadedAsync();
@@ -203,6 +217,23 @@ else
         PageNumber = number;
         UpdateUrl();
         return Task.CompletedTask;
+    }
+
+    private static readonly (string Value, string Label)[] StatusTabs =
+    [
+        ("", "Wszystkie"),
+        (nameof(InvoiceStatus.Draft), "Szkice"),
+        (nameof(InvoiceStatus.Pending), "Wysłane"),
+        (nameof(InvoiceStatus.Accepted), "W KSeF"),
+        (nameof(InvoiceStatus.Rejected), "Odrzucone")
+    ];
+
+    private bool HasFilters => !string.IsNullOrEmpty(Status) || !string.IsNullOrEmpty(Payment) || !string.IsNullOrWhiteSpace(Q) || From is not null || To is not null;
+
+    private Task SetStatusAsync(string value)
+    {
+        Status = value.Length == 0 ? null : value;
+        return ApplyFiltersAsync();
     }
 
     private void Open(int id) => Navigation.NavigateTo($"faktury/{id}");

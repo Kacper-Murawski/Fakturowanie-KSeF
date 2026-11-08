@@ -1,7 +1,7 @@
 @* Etykieta stanu rozliczenia faktury *@
 @if (Status is { } status)
 {
-    <span class="badge @Css(status)" data-testid="payment-badge">@Label(status)</span>
+    <span class="@Css(status)" data-testid="payment-badge">@Label(status)</span>
 }
 
 @code {
@@ -17,11 +17,11 @@
             _ => "Nieopłacona"
         };
 
-    private string Css(PaymentStatus s) => IsOverdue ? "bg-danger"
+    private string Css(PaymentStatus s) => IsOverdue ? "pill pill-danger"
         : s switch
         {
-            PaymentStatus.Paid => "bg-success",
-            PaymentStatus.PartiallyPaid => "bg-warning text-dark",
-            _ => "bg-secondary"
+            PaymentStatus.Paid => "pill pill-success",
+            PaymentStatus.PartiallyPaid => "pill pill-warning",
+            _ => "pill"
         };
 }
