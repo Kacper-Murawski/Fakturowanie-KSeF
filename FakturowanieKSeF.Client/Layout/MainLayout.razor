@@ -3,36 +3,89 @@
 @inject NavigationManager Navigation
 @inject CompanyContext Ctx
 
-<div class="page">
-    <AuthorizeView>
-        <Authorized>
-            <div class="sidebar">
-                <NavMenu />
-            </div>
-        </Authorized>
-    </AuthorizeView>
+<AuthorizeView>
+    <Authorized>
+        <div class="app-shell">
+            <NavMenu Open="menuOpen" OnNavigate="CloseMenu" />
+            <div class="app-backdrop @(menuOpen ? "open" : null)" @onclick="CloseMenu"></div>
 
-    <main>
-        <AuthorizeView>
-            <Authorized>
-                <div class="top-row px-4 justify-content-end gap-3">
-                    <CompanySwitcher />
-                    <a class="text-muted small text-decoration-none" href="konto" title="Bezpieczeństwo konta">@context.User.Identity?.Name</a>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="LogoutAsync">Wyloguj</button>
-                </div>
-            </Authorized>
-        </AuthorizeView>
+            <div class="app-main">
+                <header class="app-topbar top-row">
+                    <button type="button" class="navbar-toggler app-icon-btn" aria-label="Menu" aria-expanded="@(menuOpen ? "true" : "false")"
+                            @onclick="ToggleMenu">
+                        <Icon Name="menu" Size="20" />
+                    </button>
 
-        <article class="content px-4 py-3">
-            <div class="alert alert-warning py-1 px-2 small mb-3" role="note">
-                Wersja testowa: faktury są wysyłane wyłącznie do <strong>testowego</strong> środowiska KSeF i nie mają mocy prawnej.
+                    <form class="app-search" role="search" @onsubmit="SearchAsync" @onsubmit:preventDefault>
+                        <label for="global-search" class="visually-hidden">Szukaj faktur</label>
+                        <span class="app-search-icon"><Icon Name="search" Size="17" Stroke="2" /></span>
+                        <input id="global-search" type="search" class="form-control" placeholder="Szukaj faktur: numer, nabywca, NIP…"
+                               autocomplete="off" @bind="search" />
+                    </form>
+
+                    <div class="app-topbar-actions">
+                        <CompanySwitcher />
+                        <span class="pill pill-warning pill-dot d-none d-md-inline-flex" title="Faktury są wysyłane wyłącznie do testowego środowiska KSeF i nie mają mocy prawnej.">
+                            KSeF testowy
+                        </span>
+                        <ThemeToggle />
+                        <a class="app-user" href="konto" title="Konto i bezpieczeństwo">
+                            <span class="app-avatar app-avatar-solid">@Initials(context.User.Identity?.Name)</span>
+                            <span class="app-user-name" data-testid="user-email">@context.User.Identity?.Name</span>
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="LogoutAsync" title="Wyloguj" aria-label="Wyloguj">
+                            <Icon Name="logout" Size="17" /><span class="d-none d-lg-inline">Wyloguj</span>
+                        </button>
+                    </div>
+                </header>
+
+                <main class="app-content" id="content">
+                    <p class="visually-hidden" role="note">
+                        Wersja testowa: faktury są wysyłane wyłącznie do testowego środowiska KSeF i nie mają mocy prawnej.
+                    </p>
+                    @Body
+                </main>
             </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        @* Strony bez logowania (logowanie, rejestracja, zaproszenie): sam znak aplikacji i przełącznik motywu *@
+        <div class="d-flex align-items-center justify-content-between px-3 px-md-4 py-3">
+            <a class="app-brand" href="">
+                <AppLogo />
+                <span class="app-brand-name"><strong>Fakturowanie KSeF</strong><span>wersja testowa</span></span>
+            </a>
+            <ThemeToggle />
+        </div>
+        <main class="px-3">
             @Body
-        </article>
-    </main>
-</div>
+        </main>
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
+    private bool menuOpen;
+    private string? search;
+
+    private void ToggleMenu() => menuOpen = !menuOpen;
+
+    private void CloseMenu() => menuOpen = false;
+
+    private void SearchAsync()
+    {
+        var q = search?.Trim();
+        Navigation.NavigateTo(string.IsNullOrEmpty(q) ? "faktury" : $"faktury?q={Uri.EscapeDataString(q)}");
+    }
+
+    private static string Initials(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return "?";
+        var name = email.Split('@')[0];
+        var parts = name.Split(['.', '_', '-'], StringSplitOptions.RemoveEmptyEntries);
+        var initials = parts.Length >= 2 ? $"{parts[0][0]}{parts[1][0]}" : name[..Math.Min(2, name.Length)];
+        return initials.ToUpperInvariant();
+    }
+
     private async Task LogoutAsync()
     {
         await Auth.LogoutAsync();

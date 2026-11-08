@@ -126,7 +126,7 @@ sequenceDiagram
 |---|---|---|
 | Platforma | .NET 10 (LTS, wsparcie do 11.2028) | D2, D9 |
 | Backend | ASP.NET Core minimal API, walidacja wbudowana w .NET 10 | D14 |
-| Frontend | Blazor WebAssembly (C# w przeglądarce), Bootstrap 5 | D2, D13 |
+| Frontend | Blazor WebAssembly (C# w przeglądarce), Bootstrap 5.3 z własnym design systemem (zmienne CSS, tryb ciemny, czcionka Inter) | D2, D13, D50 |
 | Baza danych | PostgreSQL 16, EF Core 10 (Npgsql) | D2, D12 |
 | Uwierzytelnianie | ASP.NET Core Identity, ciasteczko sesji / tokeny Bearer | D3, D18 |
 | Szyfrowanie sekretów | ASP.NET Core Data Protection | D23 |

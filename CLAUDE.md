@@ -56,6 +56,8 @@
 - Testy E2E (Playwright): `FakturowanieKSeF.Tests/E2E`, uruchamiane z `E2E_TESTS=1` (CI zawsze); nowa funkcja UI = scenariusz E2E.
   Lokalnie w kontenerze: `E2E_CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
 - Dokumentacja do pracy: indeks `docs/README.md` - aktualizuj odpowiedni dokument przy każdej zmianie.
+- UI: design system w `wwwroot/css/app.css` (D50) - tokeny CSS dla trybu jasnego i ciemnego, Bootstrap 5.3; używaj klas
+  `page-header`, `surface`, `pill pill-*` (statusy), komponentu `Icon` (SVG); żadnych zewnętrznych czcionek/skryptów (CSP).
 - Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
 - Git: każda funkcja na osobnej gałęzi o nazwie tematycznej po polsku, np. `feature/faktury-korygujace`,
   `fix/walidacja-nip` (nie nazwy losowe); jeden PR do `main` na funkcję, scalanie przez merge commit.

@@ -1,72 +1,93 @@
+@* Menu boczne pogrupowane według zadań: Sprzedaż / Zakupy / Raporty / Ustawienia (D50).
+   Na telefonie wysuwane z lewej (przycisk menu w górnym pasku). *@
 @inject CompanyContext Ctx
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Fakturowanie KSeF</a>
-        <button title="Menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Pulpit
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="faktury">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Faktury
-            </NavLink>
-        </div>
-        @if (Ctx.CanIssue)
-        {
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="faktury/nowa" Match="NavLinkMatch.All">
-                    <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Nowa faktura
+<aside class="app-sidebar @(Open ? "open" : null)" aria-label="Menu boczne">
+    <a class="app-brand" href="" @onclick="OnNavigate">
+        <AppLogo />
+        <span class="app-brand-name"><strong>Fakturowanie KSeF</strong><span>wersja testowa</span></span>
+    </a>
+
+    <nav class="app-nav" aria-label="Menu główne" @onclick="OnNavigate">
+        <div class="app-nav-group">
+            @if (Ctx.CanIssue)
+            {
+                <NavLink class="nav-link app-nav-cta mb-2" href="faktury/nowa" Match="NavLinkMatch.All">
+                    <Icon Name="plus" Size="18" Stroke="2.2" /> Nowa faktura
                 </NavLink>
-            </div>
-        }
-        <div class="nav-item px-3">
+            }
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <Icon Name="home" /> Pulpit
+            </NavLink>
+        </div>
+
+        <div class="app-nav-group">
+            <span class="app-nav-label">Sprzedaż</span>
+            <NavLink class="nav-link" href="faktury" Match="NavLinkMatch.All">
+                <Icon Name="file" /> Faktury
+            </NavLink>
             <NavLink class="nav-link" href="cykliczne">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Faktury cykliczne
+                <Icon Name="repeat" /> Faktury cykliczne
             </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="faktury-otrzymane">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Faktury otrzymane
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="katalog">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Katalog
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="eksport">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Eksport dla księgowej
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
             <NavLink class="nav-link" href="kontrahenci">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Kontrahenci
+                <Icon Name="users" /> Kontrahenci
+            </NavLink>
+            <NavLink class="nav-link" href="katalog">
+                <Icon Name="box" /> Katalog
             </NavLink>
         </div>
-        <div class="nav-item px-3">
+
+        <div class="app-nav-group">
+            <span class="app-nav-label">Zakupy</span>
+            <NavLink class="nav-link" href="faktury-otrzymane">
+                <Icon Name="inbox" /> Faktury otrzymane
+            </NavLink>
+        </div>
+
+        <div class="app-nav-group">
+            <span class="app-nav-label">Raporty</span>
+            <NavLink class="nav-link" href="eksport">
+                <Icon Name="download" /> Eksport dla księgowej
+            </NavLink>
+        </div>
+
+        <div class="app-nav-group">
+            <span class="app-nav-label">Ustawienia</span>
             <NavLink class="nav-link" href="firma">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Moja firma
+                <Icon Name="building" /> Moja firma
+            </NavLink>
+            <NavLink class="nav-link" href="konto">
+                <Icon Name="shield" /> Konto i bezpieczeństwo
             </NavLink>
         </div>
     </nav>
-</div>
+
+    @if (Ctx.Active is { } active)
+    {
+        <div class="app-company" data-testid="active-company">
+            <span class="app-avatar">@CompanyInitials(active.Name)</span>
+            <span class="app-company-name">
+                <strong title="@active.Name">@active.Name</strong>
+                <span>NIP @FormatNip(active.Nip) · @CompanyContext.RoleName(active.Role)</span>
+            </span>
+        </div>
+    }
+</aside>
 
 @code {
-    private bool collapseNavMenu = true;
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback OnNavigate { get; set; }
 
     protected override async Task OnInitializedAsync() => await Ctx.EnsureLoadedAsync();
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private static string CompanyInitials(string name)
+    {
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => char.IsLetter(w[0])).Take(2).Select(w => char.ToUpperInvariant(w[0]));
+        var s = string.Concat(words);
+        return s.Length > 0 ? s : "F";
+    }
 
-    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+    private static string FormatNip(string nip) =>
+        nip.Length == 10 ? $"{nip[..3]}-{nip[3..6]}-{nip[6..8]}-{nip[8..]}" : nip;
 }

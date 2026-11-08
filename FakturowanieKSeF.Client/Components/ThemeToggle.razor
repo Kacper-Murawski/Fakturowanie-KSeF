@@ -1,0 +1,20 @@
+@* Przełącznik trybu jasny/ciemny (D50) - stan w atrybucie data-bs-theme i localStorage (js/theme.js) *@
+@inject IJSRuntime JS
+
+<button type="button" class="app-icon-btn" data-testid="theme-toggle" @onclick="ToggleAsync"
+        aria-label="@(dark ? "Włącz tryb jasny" : "Włącz tryb ciemny")" title="@(dark ? "Tryb jasny" : "Tryb ciemny")">
+    <Icon Name="@(dark ? "sun" : "moon")" Size="19" />
+</button>
+
+@code {
+    private bool dark;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        dark = await JS.InvokeAsync<string>("ksefTheme.get") == "dark";
+        StateHasChanged();
+    }
+
+    private async Task ToggleAsync() => dark = await JS.InvokeAsync<string>("ksefTheme.toggle") == "dark";
+}
