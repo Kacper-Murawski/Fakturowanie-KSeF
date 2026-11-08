@@ -18,63 +18,53 @@
 }
 else
 {
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div class="page-header">
         <div>
-            <h1 class="mb-1">@(invoice.Kind switch { InvoiceKind.Correction => "Faktura korygująca", InvoiceKind.Proforma => "Faktura proforma", _ => "Faktura VAT" }) @invoice.Number</h1>
-            @if (invoice.Kind == InvoiceKind.Proforma)
-            {
-                <span class="badge bg-info text-dark" data-testid="status-badge">Proforma - nie trafia do KSeF</span>
-            }
-            else
-            {
-                <StatusBadge Status="invoice.Status" />
-            }
-            @if (invoice.KsefNumber is not null)
-            {
-                <span class="ms-2 small">Numer KSeF: <strong>@invoice.KsefNumber</strong> (@Format.DateTime(invoice.KsefAcceptedAt))</span>
-            }
+            <a class="small fw-semibold d-inline-flex align-items-center gap-1 mb-1" href="faktury"><Icon Name="chevron-left" Size="15" /> Faktury</a>
+            <h1 class="mb-2">@(invoice.Kind switch { InvoiceKind.Correction => "Faktura korygująca", InvoiceKind.Proforma => "Faktura proforma", _ => "Faktura VAT" }) @invoice.Number</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if (invoice.Kind == InvoiceKind.Proforma)
+                {
+                    <span class="pill pill-info" data-testid="status-badge">Proforma - nie trafia do KSeF</span>
+                }
+                else
+                {
+                    <StatusBadge Status="invoice.Status" />
+                }
+                @if (invoice.Payment is { } pay)
+                {
+                    <PaymentBadge Status="pay.Status" IsOverdue="pay.IsOverdue" />
+                }
+                @if (invoice.KsefNumber is not null)
+                {
+                    <span class="small muted">Numer KSeF: <strong class="text-body" data-testid="ksef-number">@invoice.KsefNumber</strong> · @Format.DateTime(invoice.KsefAcceptedAt)</span>
+                }
+            </div>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-            @if (invoice.LastSubmission?.HasUpo == true)
-            {
-                <a class="btn btn-outline-success" href="api/invoices/@invoice.Id/upo" download>Pobierz UPO</a>
-            }
+        <div class="page-actions">
             @if (Ctx.CanIssue)
             {
                 @if (invoice.Kind == InvoiceKind.Proforma)
                 {
                     @if (invoice.IssuedFromProforma is null)
                     {
-                        <button class="btn btn-success" @onclick="ConvertAsync" disabled="@busy" title="Szkic faktury VAT z nabywcą i pozycjami proformy">Wystaw fakturę VAT</button>
+                        <button class="btn btn-primary" @onclick="ConvertAsync" disabled="@busy" title="Szkic faktury VAT z nabywcą i pozycjami proformy"><Icon Name="file" Size="17" /> Wystaw fakturę VAT</button>
                     }
-                    <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
-                    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+                    <a class="btn btn-outline-secondary" href="faktury/@invoice.Id/edycja"><Icon Name="edit" Size="16" /> Edytuj</a>
+                    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy" aria-label="Usuń"><Icon Name="trash" Size="16" /> Usuń</button>
                 }
                 else if (invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected)
                 {
-                    <button class="btn btn-success" @onclick="SendAsync" disabled="@busy">@(busy ? "Wysyłanie…" : "Wyślij do KSeF")</button>
-                    <a class="btn btn-primary" href="faktury/@invoice.Id/edycja">Edytuj</a>
-                    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
-                }
-                @if (invoice is { Kind: InvoiceKind.Vat, Status: InvoiceStatus.Accepted })
-                {
-                    <a class="btn btn-outline-warning" href="faktury/nowa?korekta=@invoice.Id" title="Faktura korygująca (KOR) do tej faktury">Wystaw korektę</a>
-                }
-                @if (invoice.Kind == InvoiceKind.Vat)
-                {
-                    <a class="btn btn-outline-primary" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami">Wystaw podobną</a>
-                    <a class="btn btn-outline-primary" href="cykliczne/nowa?wzor=@invoice.Id" title="Szkice tej faktury co miesiąc, kwartał lub rok">Ustaw jako cykliczną</a>
+                    <button class="btn btn-primary" @onclick="SendAsync" disabled="@busy"><Icon Name="send" Size="17" /> @(busy ? "Wysyłanie…" : "Wyślij do KSeF")</button>
+                    <a class="btn btn-outline-secondary" href="faktury/@invoice.Id/edycja"><Icon Name="edit" Size="16" /> Edytuj</a>
+                    <button class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@busy" aria-label="Usuń"><Icon Name="trash" Size="16" /> Usuń</button>
                 }
             }
-            <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/pdf" download>Pobierz PDF</a>
-            @if (invoice.Kind != InvoiceKind.Proforma)
-            {
-                <a class="btn btn-outline-secondary" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF">Pobierz XML (FA(3))</a>
-            }
-            <a class="btn btn-outline-secondary" href="faktury">Wróć do listy</a>
         </div>
     </div>
 
+    <div class="form-layout">
+    <div class="form-main">
     @if (invoice.Origin == InvoiceOrigin.KsefImport)
     {
         <div class="alert alert-light border small" data-testid="imported-info">
@@ -162,61 +152,43 @@ else
         </div>
     }
 
-    @if (invoice.Corrections is { Count: > 0 } corrections)
-    {
-        <div class="card mb-3" data-testid="corrections">
-            <div class="card-body">
-                <h2 class="h6">Faktury korygujące</h2>
-                <ul class="mb-0">
-                    @foreach (var c in corrections)
+    <div class="invoice-sheet surface">
+        <div class="sheet-body">
+            <div class="sheet-head">
+                <div>
+                    <div class="sheet-kind">@(invoice.Kind switch { InvoiceKind.Correction => "Faktura korygująca", InvoiceKind.Proforma => "Faktura proforma", _ => "Faktura VAT" })</div>
+                    <div class="sheet-number">@invoice.Number</div>
+                </div>
+                <dl class="sheet-dates">
+                    <dt>Data wystawienia</dt><dd>@Format.Date(invoice.IssueDate)@(invoice.IssuePlace is null ? "" : $", {invoice.IssuePlace}")</dd>
+                    <dt>Data sprzedaży</dt><dd>@Format.Date(invoice.SaleDate ?? invoice.IssueDate)</dd>
+                    @if (invoice.DueDate is not null)
                     {
-                        <li>
-                            <a href="faktury/@c.Id">@c.Number</a> z dnia @Format.Date(c.IssueDate):
-                            @Format.Money(c.TotalGross, invoice.Currency) <StatusBadge Status="c.Status" />
-                        </li>
+                        <dt>Termin płatności</dt><dd>@Format.Date(invoice.DueDate)</dd>
                     }
-                </ul>
-            </div>
-        </div>
-    }
-
-    @if (invoice.Payment is { } payment)
-    {
-        <PaymentPanel InvoiceUrl="@($"api/invoices/{invoice.Id}")" Info="payment" TotalGross="invoice.TotalGross"
-                      Currency="@invoice.Currency" DueDate="invoice.DueDate"
-                      InfoChanged="info => invoice = invoice with { Payment = info }" />
-    }
-
-    @if (Ctx.CanIssue && (invoice.Status == InvoiceStatus.Accepted || invoice.Kind == InvoiceKind.Proforma))
-    {
-        <InvoiceEmailPanel InvoiceId="invoice.Id" Remaining="invoice.Payment?.Remaining" />
-    }
-
-    <div class="invoice-sheet card">
-        <div class="card-body">
-            <div class="row mb-4">
-                <div class="col-sm-6 small">
-                    Data wystawienia: <strong>@Format.Date(invoice.IssueDate)</strong>@(invoice.IssuePlace is null ? "" : $", {invoice.IssuePlace}")<br />
-                    Data sprzedaży: <strong>@Format.Date(invoice.SaleDate ?? invoice.IssueDate)</strong>
-                </div>
+                </dl>
             </div>
 
-            <div class="row mb-4">
+            <div class="row g-3 mb-4">
                 <div class="col-sm-6">
-                    <h2 class="h6 text-muted text-uppercase">Sprzedawca</h2>
+                    <div class="sheet-party">
+                    <h2 class="sheet-label">Sprzedawca</h2>
                     <Party Data="invoice.Seller" />
+                    </div>
                 </div>
                 <div class="col-sm-6">
-                    <h2 class="h6 text-muted text-uppercase">Nabywca</h2>
+                    <div class="sheet-party">
+                    <h2 class="sheet-label">Nabywca</h2>
                     <Party Data="invoice.Buyer" />
+                    </div>
                 </div>
             </div>
 
             @if (invoice.Correction is { } k)
             {
-                <h2 class="h6 text-muted text-uppercase">Stan przed korektą</h2>
+                <h2 class="sheet-label">Stan przed korektą</h2>
                 <InvoiceItemsTable Items="k.ItemsBefore" TestId="items-before" />
-                <h2 class="h6 text-muted text-uppercase">Stan po korekcie</h2>
+                <h2 class="sheet-label mt-3">Stan po korekcie</h2>
                 <InvoiceItemsTable Items="invoice.Items" TestId="items-after" />
             }
             else
@@ -224,9 +196,9 @@ else
                 <InvoiceItemsTable Items="invoice.Items" />
             }
 
-            <div class="row justify-content-end">
-                <div class="col-md-6">
-                    <table class="table table-sm">
+            <div class="row justify-content-end mt-3">
+                <div class="col-md-7 col-xl-6">
+                    <table class="table table-sm summary-table">
                         <thead><tr><th>Stawka</th><th class="text-end">Netto</th><th class="text-end">VAT</th><th class="text-end">Brutto</th></tr></thead>
                         <tbody>
                             @foreach (var s in invoice.VatSummary)
@@ -249,7 +221,7 @@ else
                     }
                     else
                     {
-                        <p class="fs-5 text-end">Do zapłaty: <strong>@Format.Money(invoice.TotalGross, invoice.Currency)</strong></p>
+                        <p class="fs-5 text-end sheet-total">Do zapłaty: <strong>@Format.Money(invoice.TotalGross, invoice.Currency)</strong></p>
                     }
                     @if (invoice.ExchangeRate is { } rate)
                     {
@@ -262,7 +234,7 @@ else
                 </div>
             </div>
 
-            <div class="small">
+            <div class="small sheet-payment">
                 Forma płatności: <strong>@Format.Payment(invoice.PaymentMethod)</strong>
                 @if (invoice.PaidOn is not null)
                 {
@@ -282,6 +254,66 @@ else
                 }
             </div>
         </div>
+    </div>
+    </div>
+    <aside class="form-aside">
+    @if (invoice.Corrections is { Count: > 0 } corrections)
+    {
+        <section class="surface p-4" data-testid="corrections">
+            <div>
+                <h2 class="section-title mb-2">Faktury korygujące</h2>
+                <ul class="mb-0">
+                    @foreach (var c in corrections)
+                    {
+                        <li>
+                            <a href="faktury/@c.Id">@c.Number</a> z dnia @Format.Date(c.IssueDate):
+                            @Format.Money(c.TotalGross, invoice.Currency) <StatusBadge Status="c.Status" />
+                        </li>
+                    }
+                </ul>
+            </div>
+        </section>
+    }
+
+    @if (invoice.Payment is { } payment)
+    {
+        <PaymentPanel InvoiceUrl="@($"api/invoices/{invoice.Id}")" Info="payment" TotalGross="invoice.TotalGross"
+                      Currency="@invoice.Currency" DueDate="invoice.DueDate"
+                      InfoChanged="info => invoice = invoice with { Payment = info }" />
+    }
+
+    @if (Ctx.CanIssue && (invoice.Status == InvoiceStatus.Accepted || invoice.Kind == InvoiceKind.Proforma))
+    {
+        <InvoiceEmailPanel InvoiceId="invoice.Id" Remaining="invoice.Payment?.Remaining" />
+    }
+
+    <section class="surface p-4" aria-labelledby="docs-h">
+        <h2 id="docs-h" class="section-title mb-3">Dokumenty i dalsze kroki</h2>
+        <div class="d-grid gap-2">
+            <a class="btn btn-outline-secondary justify-content-start" href="api/invoices/@invoice.Id/pdf" download><Icon Name="printer" Size="16" /> Pobierz PDF</a>
+            @if (invoice.Kind != InvoiceKind.Proforma)
+            {
+                <a class="btn btn-outline-secondary justify-content-start" href="api/invoices/@invoice.Id/xml" download title="XML w strukturze FA(3), w postaci wysyłanej do KSeF"><Icon Name="file" Size="16" /> Pobierz XML (FA(3))</a>
+            }
+            @if (invoice.LastSubmission?.HasUpo == true)
+            {
+                <a class="btn btn-outline-success justify-content-start" href="api/invoices/@invoice.Id/upo" download><Icon Name="shield" Size="16" /> Pobierz UPO</a>
+            }
+            @if (Ctx.CanIssue)
+            {
+                @if (invoice is { Kind: InvoiceKind.Vat, Status: InvoiceStatus.Accepted })
+                {
+                    <a class="btn btn-outline-secondary justify-content-start" href="faktury/nowa?korekta=@invoice.Id" title="Faktura korygująca (KOR) do tej faktury"><Icon Name="edit" Size="16" /> Wystaw korektę</a>
+                }
+                @if (invoice.Kind == InvoiceKind.Vat)
+                {
+                    <a class="btn btn-outline-secondary justify-content-start" href="faktury/nowa?wzor=@invoice.Id" title="Nowy szkic z tym samym nabywcą i pozycjami"><Icon Name="copy" Size="16" /> Wystaw podobną</a>
+                    <a class="btn btn-outline-secondary justify-content-start" href="cykliczne/nowa?wzor=@invoice.Id" title="Szkice tej faktury co miesiąc, kwartał lub rok"><Icon Name="repeat" Size="16" /> Ustaw jako cykliczną</a>
+                }
+            }
+        </div>
+    </section>
+    </aside>
     </div>
 }
 

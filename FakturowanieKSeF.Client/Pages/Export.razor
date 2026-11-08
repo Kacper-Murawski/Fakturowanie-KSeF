@@ -4,14 +4,18 @@
 
 <PageTitle>Eksport dla księgowej - Fakturowanie KSeF</PageTitle>
 
-<h1>Eksport dla księgowej</h1>
-<p class="text-muted">
-    Zestawienia faktur za wybrany okres (CSV do Excela lub programu księgowego) oraz paczka ZIP z plikami XML
-    faktur w postaci z KSeF i UPO.
-</p>
+<div class="page-header">
+    <div>
+        <h1>Eksport dla księgowej</h1>
+        <p class="page-subtitle">
+            Zestawienia faktur za wybrany okres (CSV do Excela lub programu księgowego) oraz paczka ZIP z plikami XML
+            faktur w postaci z KSeF i UPO.
+        </p>
+    </div>
+</div>
 
-<section class="card mb-3">
-    <div class="card-body row g-3 align-items-end">
+<section class="surface form-card mb-4" aria-label="Okres">
+    <div class="row g-3 align-items-end">
         <div class="col-sm-4 col-lg-3">
             <label class="form-label" for="month">Miesiąc</label>
             <input id="month" type="month" class="form-control" value="@month" @onchange="OnMonthChanged" />
@@ -31,42 +35,40 @@
 
 @if (summary is { } s)
 {
-    <div class="row g-3 mb-3" data-testid="export-summary">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h6 text-muted">Sprzedaż (faktury przyjęte w KSeF, według daty wystawienia)</h2>
-                    <div class="fs-4 fw-semibold" data-testid="sales-count">@s.SalesCount @Faktur(s.SalesCount)</div>
-                    <div class="small">netto @Format.Money(s.SalesNet), VAT @Format.Money(s.SalesVat), brutto @Format.Money(s.SalesGross)</div>
-                    @if (s.SalesForeignCurrency > 0)
-                    {
-                        <div class="small text-muted">Kwoty bez @s.SalesForeignCurrency @Faktur(s.SalesForeignCurrency) w walutach obcych (są w zestawieniu z kursem i VAT w PLN).</div>
-                    }
-                    <a class="btn btn-sm btn-outline-secondary mt-2" href="@Url("sales.csv")" download>Zestawienie sprzedaży (CSV)</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h6 text-muted">Zakupy (faktury otrzymane, według daty otrzymania w KSeF)</h2>
-                    <div class="fs-4 fw-semibold" data-testid="purchases-count">@s.PurchasesCount @Faktur(s.PurchasesCount)</div>
-                    <div class="small">netto @Format.Money(s.PurchasesNet), VAT @Format.Money(s.PurchasesVat), brutto @Format.Money(s.PurchasesGross)</div>
-                    @if (s.PurchasesForeignCurrency > 0)
-                    {
-                        <div class="small text-muted">Kwoty bez @s.PurchasesForeignCurrency @Faktur(s.PurchasesForeignCurrency) w walutach obcych (są w zestawieniu).</div>
-                    }
-                    <a class="btn btn-sm btn-outline-secondary mt-2" href="@Url("purchases.csv")" download>Zestawienie zakupów (CSV)</a>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-grid" data-testid="export-summary">
+        <section class="surface kpi">
+            <span class="kpi-head"><span><Icon Name="upload" Size="16" /> Sprzedaż</span><span class="pill">wg daty wystawienia</span></span>
+            <span class="kpi-value" data-testid="sales-count">@s.SalesCount @Faktur(s.SalesCount)</span>
+            <span class="small">netto @Format.Money(s.SalesNet) · VAT @Format.Money(s.SalesVat) · brutto <strong>@Format.Money(s.SalesGross)</strong></span>
+            @if (s.SalesForeignCurrency > 0)
+            {
+                <span class="kpi-note">Kwoty bez @s.SalesForeignCurrency @Faktur(s.SalesForeignCurrency) w walutach obcych (są w zestawieniu z kursem i VAT w PLN).</span>
+            }
+            <span class="kpi-note">Faktury przyjęte w KSeF.</span>
+            <a class="btn btn-sm btn-outline-secondary align-self-start mt-1" href="@Url("sales.csv")" download><Icon Name="download" Size="15" /> Zestawienie sprzedaży (CSV)</a>
+        </section>
+        <section class="surface kpi">
+            <span class="kpi-head"><span><Icon Name="inbox" Size="16" /> Zakupy</span><span class="pill">wg daty otrzymania</span></span>
+            <span class="kpi-value" data-testid="purchases-count">@s.PurchasesCount @Faktur(s.PurchasesCount)</span>
+            <span class="small">netto @Format.Money(s.PurchasesNet) · VAT @Format.Money(s.PurchasesVat) · brutto <strong>@Format.Money(s.PurchasesGross)</strong></span>
+            @if (s.PurchasesForeignCurrency > 0)
+            {
+                <span class="kpi-note">Kwoty bez @s.PurchasesForeignCurrency @Faktur(s.PurchasesForeignCurrency) w walutach obcych (są w zestawieniu).</span>
+            }
+            <span class="kpi-note">Faktury otrzymane z KSeF.</span>
+            <a class="btn btn-sm btn-outline-secondary align-self-start mt-1" href="@Url("purchases.csv")" download><Icon Name="download" Size="15" /> Zestawienie zakupów (CSV)</a>
+        </section>
     </div>
 
-    <a class="btn btn-primary" href="@Url("package.zip")" download data-testid="download-package">Pobierz paczkę ZIP (CSV + XML + UPO)</a>
-    <p class="form-text mt-2">
-        Faktury otrzymane pochodzą z ostatniej synchronizacji z KSeF. Faktury w trakcie wysyłki pojawią się w zestawieniu
-        po nadaniu numeru KSeF.
-    </p>
+    <section class="todo d-flex flex-wrap align-items-center gap-3">
+        <span class="todo-icon icon-primary"><Icon Name="download" Size="20" /></span>
+        <div class="flex-grow-1">
+            <strong class="d-block">Wszystko w jednym pliku</strong>
+            <span class="small muted">Faktury otrzymane pochodzą z ostatniej synchronizacji z KSeF. Faktury w trakcie wysyłki pojawią się
+                w zestawieniu po nadaniu numeru KSeF.</span>
+        </div>
+        <a class="btn btn-primary" href="@Url("package.zip")" download data-testid="download-package"><Icon Name="download" Size="17" /> Pobierz paczkę ZIP (CSV + XML + UPO)</a>
+    </section>
 }
 
 @code {
