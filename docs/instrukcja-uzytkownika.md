@@ -4,6 +4,18 @@ Aplikacja Fakturowanie KSeF służy do wystawiania faktur VAT, wysyłania ich do
 i odbierania faktur od kontrahentów. **Wersja testowa** komunikuje się wyłącznie ze środowiskiem testowym KSeF:
 faktury nie mają mocy prawnej. Używaj wyłącznie danych fikcyjnych.
 
+## Jak poruszać się po aplikacji
+
+Menu po lewej stronie jest pogrupowane według zadań: **Sprzedaż** (faktury, faktury cykliczne, kontrahenci, katalog),
+**Zakupy** (faktury otrzymane), **Raporty** (eksport dla księgowej) i **Ustawienia** (firma, konto). Wyróżniony
+przycisk **Nowa faktura** na górze menu otwiera formularz wystawiania. Na dole menu widać aktywną firmę i Twoją rolę.
+
+W górnym pasku są: wyszukiwarka faktur (numer, nabywca, NIP), oznaczenie **KSeF testowy**, przełącznik **trybu
+ciemnego** (ikona księżyca/słońca - wybór jest zapamiętywany), Twoje konto i przycisk wylogowania. Na telefonie menu
+otwiera się przyciskiem ☰ w lewym górnym rogu.
+
+![Tryb ciemny](zrzuty/38-tryb-ciemny.png)
+
 ## 1. Konto
 
 **Rejestracja.** Wybierz „Zarejestruj się”, podaj e-mail i hasło. Hasło musi mieć co najmniej 8 znaków,
@@ -17,7 +29,7 @@ konto jest blokowane na 15 minut. Przycisk „Wyloguj” znajduje się w prawym 
 
 ### Logowanie dwuskładnikowe
 
-Kliknij swój adres e-mail w górnym pasku, aby otworzyć stronę **Bezpieczeństwo konta**. Wybierz **Włącz logowanie
+Kliknij swój adres e-mail w górnym pasku (albo **Konto i bezpieczeństwo** w menu), aby otworzyć stronę **Bezpieczeństwo konta**. Wybierz **Włącz logowanie
 dwuskładnikowe**, zeskanuj kod QR w aplikacji uwierzytelniającej (np. Google Authenticator, Microsoft Authenticator)
 i wpisz pokazany przez nią 6-cyfrowy kod. Zapisz 10 kodów odzyskiwania - każdy pozwala zalogować się raz, gdy nie masz
 dostępu do telefonu. Od tej pory po wpisaniu hasła aplikacja poprosi o kod z telefonu. Wyłączenie zabezpieczenia

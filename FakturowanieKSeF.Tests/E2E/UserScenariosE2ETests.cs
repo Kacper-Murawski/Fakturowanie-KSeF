@@ -727,7 +727,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
     {
         var page = await fx.NewPageAsync();
         await NewUserWithCompanyAsync(page);
-        var email = await page.Locator(".top-row a[href='konto']").InnerTextAsync();
+        var email = await page.Locator("[data-testid=user-email]").InnerTextAsync();
 
         await page.ClickAsync(".top-row a[href='konto']");
         var section = page.Locator("[data-testid=two-factor]");
@@ -870,7 +870,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
 
         var manifestHref = await page.Locator("link[rel=manifest]").GetAttributeAsync("href");
         Assert.Equal("manifest.webmanifest", manifestHref);
-        await Expect(page.Locator("meta[name=theme-color]")).ToHaveAttributeAsync("content", "#052767");
+        await Expect(page.Locator("meta[name=theme-color]")).ToHaveAttributeAsync("content", "#047857");
 
         // Service worker zarejestrowany (w wersji deweloperskiej bez pamięci podręcznej)
         var script = await page.EvaluateAsync<string>("async () => (await navigator.serviceWorker.ready).active.scriptURL");
@@ -966,6 +966,31 @@ public class UserScenariosE2ETests(E2EFixture fx)
         var csp = await page.EvaluateAsync<string?>("async () => (await fetch('/')).headers.get('content-security-policy')");
         Assert.NotNull(csp);
         Assert.Empty(violations);
+    }
+
+    [E2EFact]
+    public async Task Motyw_PrzelacznikTrybuCiemnego_ZapamietanyPoOdswiezeniu()
+    {
+        var page = await fx.NewPageAsync();
+        await RegisterAsync(page);
+        await CreateCompanyAsync(page, TestUsers.RandomNip());
+        await page.GotoAsync("/");
+        var html = page.Locator("html");
+        await Expect(html).ToHaveAttributeAsync("data-bs-theme", "light");
+
+        // Tryb ciemny: inne tło strony i zapamiętanie wyboru po odświeżeniu (localStorage)
+        await page.ClickAsync("[data-testid=theme-toggle]");
+        await Expect(html).ToHaveAttributeAsync("data-bs-theme", "dark");
+        await Expect(page.Locator("body")).ToHaveCSSAsync("background-color", "rgb(11, 17, 20)");
+        await Expect(page.Locator("meta[name=theme-color]")).ToHaveAttributeAsync("content", "#0b1114");
+        await E2EFixture.ScreenshotAsync(page, "38-tryb-ciemny");
+        await page.ReloadAsync();
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
+        await Expect(html).ToHaveAttributeAsync("data-bs-theme", "dark");
+
+        await page.ClickAsync("[data-testid=theme-toggle]");
+        await Expect(html).ToHaveAttributeAsync("data-bs-theme", "light");
+        await Expect(page.Locator("body")).ToHaveCSSAsync("background-color", "rgb(243, 245, 247)");
     }
 }
 

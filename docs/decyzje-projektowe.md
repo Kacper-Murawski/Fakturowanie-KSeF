@@ -1135,3 +1135,37 @@ wyczyszczeniu bazy zajmuje dużo czasu, a pusta aplikacja nie pokazuje pulpitu, 
 pokazać pełny obieg z prawdziwym (testowym) KSeF: wysyłkę, numer KSeF, UPO, kod QR i odbiór faktury przez nabywcę.
 Dane i konta nie mogą trafić na produkcję.
 
+---
+
+## D50. Nowy interfejs: własny design system na Bootstrap 5.3, kolor „Szmaragd”, tryb ciemny
+
+**Kontekst:** interfejs powstał na szablonie Blazora (fioletowy gradient, Bootstrap 5.1) - działał, ale wyglądał jak
+szkic. Cel autora: nowoczesny, a zarazem bardzo prosty w obsłudze program, z trybem ciemnym i pełnoprawną wersją na
+telefon. Kierunek wybrano na klikalnych makietach (pulpit, lista faktur, formularz, telefon) w trzech wariantach koloru
+(Szmaragd, Fiolet, Turkus) - wybrany Szmaragd, bo dobrze wygląda w obu trybach i kojarzy się z „w porządku / zapłacone”.
+
+**Decyzja:**
+- **design system jako zmienne CSS** (`wwwroot/css/app.css`): kolory, powierzchnie, cienie, promienie, kolory statusów
+  i serii wykresów - osobno dla trybu jasnego i ciemnego (ciemny ma własne, sprawdzone odcienie, a nie odwrócenie);
+  te same zmienne zasilają Bootstrapa 5.3 (`--bs-*`), więc wszystkie istniejące komponenty przyjmują nowy wygląd,
+- **Bootstrap 5.3** zamiast 5.1 - natywny tryb ciemny (`data-bs-theme`), bez JavaScriptu Bootstrapa,
+- **tryb ciemny**: wybór użytkownika w `localStorage`, bez wyboru - ustawienie systemu; motyw ustawia mały skrypt
+  `js/theme.js` w `<head>` przed narysowaniem strony (brak mignięcia jasnego tła), przełącznik w górnym pasku,
+- **czcionka Inter** serwowana lokalnie (licencja SIL OFL) - CSP nie dopuszcza zewnętrznych czcionek (D47),
+- **ikony** jako komponent `Icon` z liniowymi ścieżkami SVG w kodzie - bez biblioteki ikon i dodatkowych plików,
+- **układ**: menu boczne pogrupowane według zadań (Sprzedaż / Zakupy / Raporty / Ustawienia) z wyróżnionym przyciskiem
+  „Nowa faktura”, karta aktywnej firmy, górny pasek z wyszukiwarką faktur, oznaczeniem testowego KSeF, przełącznikiem
+  motywu i kontem; na telefonie menu wysuwane z boku,
+- **zasady**: jeden główny przycisk na ekranie, statusy zawsze tekstem i kolorem (plakietki `pill-*` o kontraście
+  ≥ 4,5:1), cele dotykowe ≥ 40 px, widoczny fokus klawiatury, kolory wykresów sprawdzone walidatorem palety (D40).
+
+**Alternatywy:**
+- biblioteki komponentów Blazora (MudBlazor, Fluent UI Blazor): gotowy wygląd, ale własne style w atrybutach i skrypty
+  wymagają poluzowania CSP, dużo kodu do pobrania przez przeglądarkę i trudniejsze dopasowanie do własnego stylu,
+- Tailwind CSS: wymaga etapu budowania (Node.js) w projekcie .NET i przepisania wszystkich szablonów naraz,
+- pozostanie przy wyglądzie szablonu: najmniej pracy, ale słabe wrażenie i brak trybu ciemnego.
+
+**Uzasadnienie:** nadpisanie zmiennych Bootstrapa daje spójny wygląd całej aplikacji od razu, a strony można
+przebudowywać etapami (listy i pulpit, formularze, podglądy, konto i telefon) bez okresu „pół na pół”. Rozwiązanie
+nie dodaje zależności uruchomieniowych ani wyjątków w polityce bezpieczeństwa treści.
+

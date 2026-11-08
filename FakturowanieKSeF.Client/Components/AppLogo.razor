@@ -1,0 +1,10 @@
+@* Znak aplikacji: kartka z haczykiem na zaokrąglonym kwadracie w kolorze przewodnim (D50) *@
+<svg class="app-logo" width="@Size" height="@Size" viewBox="0 0 34 34" aria-hidden="true" focusable="false">
+    <rect width="34" height="34" rx="10"></rect>
+    <path d="M11 9h8l5 5v11a1 1 0 0 1-1 1H11a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1z" fill="none" stroke-width="1.8" stroke-linejoin="round"></path>
+    <path d="m13.5 19 2.5 2.5 4.5-5" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+
+@code {
+    [Parameter] public int Size { get; set; } = 34;
+}
