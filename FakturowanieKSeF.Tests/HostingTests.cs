@@ -22,6 +22,22 @@ public class HostingTests : IClassFixture<ApiFactory>
     }
 
     [Theory]
+    [InlineData("/")]
+    [InlineData("/faktury/123")]
+    [InlineData("/index.html")]
+    [InlineData("/css/app.css")]
+    [InlineData("/js/theme.js")]
+    public async Task PlikiBezOdciskuWNazwie_SaSprawdzanePrzezPrzegladarkePrzedUzyciem(string url)
+    {
+        // Regresja (D50): po aktualizacji przeglądarka używała starego index.html i app.css z pamięci podręcznej
+        var response = await _client.GetAsync(url);
+
+        response.EnsureSuccessStatusCode();
+        Assert.True(response.Headers.CacheControl?.NoCache, $"{url}: brak Cache-Control: no-cache");
+        Assert.NotNull(response.Headers.ETag);
+    }
+
+    [Theory]
     [InlineData("/login")]
     [InlineData("/faktury/123")]
     public async Task AdresStronyKlienta_ZwracaIndexHtml(string url)

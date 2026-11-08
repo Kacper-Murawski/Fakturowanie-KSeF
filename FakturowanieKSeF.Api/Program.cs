@@ -209,9 +209,12 @@ if (!app.Environment.IsDevelopment())
 if (!behindProxy)
     app.UseHttpsRedirection();
 
-// 6. Serwowanie aplikacji klienckiej (Blazor WebAssembly) z tego samego serwera co API
+// 6. Serwowanie aplikacji klienckiej (Blazor WebAssembly) z tego samego serwera co API.
+// index.html, style i skrypty bez nazw z odciskiem: przeglądarka zawsze pyta o aktualną wersję (no-cache + ETag -> 304),
+// inaczej po aktualizacji mogłaby użyć starego index.html/app.css z pamięci podręcznej (D50).
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+var staticFiles = new StaticFileOptions { OnPrepareResponse = ctx => StaticFileCaching.Apply(ctx.Context, ctx.File.Name) };
+app.UseStaticFiles(staticFiles);
 
 // Wbudowany endpoint 2FA Identity pozwala wyłączyć 2FA bez kodu (wystarczy sesja) - zastępuje go /api/account/2fa (D41)
 app.Use(async (context, next) =>
@@ -261,7 +264,7 @@ api.MapRecurringInvoiceEndpoints();
 api.Map("/{**slug}", () => Results.NotFound());
 
 // 8. Każdy inny adres obsługuje routing po stronie klienta (Blazor)
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", staticFiles);
 
 app.Run();
 

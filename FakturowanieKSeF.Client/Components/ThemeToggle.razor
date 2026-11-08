@@ -12,9 +12,25 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        dark = await JS.InvokeAsync<string>("ksefTheme.get") == "dark";
-        StateHasChanged();
+        // Gdy js/theme.js się nie wczytał (np. stara wersja strony w pamięci podręcznej) - zostaje tryb jasny, bez błędu
+        try
+        {
+            dark = await JS.InvokeAsync<string>("ksefTheme.get") == "dark";
+            StateHasChanged();
+        }
+        catch (JSException)
+        {
+        }
     }
 
-    private async Task ToggleAsync() => dark = await JS.InvokeAsync<string>("ksefTheme.toggle") == "dark";
+    private async Task ToggleAsync()
+    {
+        try
+        {
+            dark = await JS.InvokeAsync<string>("ksefTheme.toggle") == "dark";
+        }
+        catch (JSException)
+        {
+        }
+    }
 }

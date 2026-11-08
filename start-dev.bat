@@ -13,7 +13,7 @@ cd /d "%~dp0"
 set "APP_URL=http://localhost:5085"
 set "PROJ=FakturowanieKSeF.Api"
 set "DB_CONTAINER=ksef_postgres_db"
-set "PSQL=docker exec -i %DB_CONTAINER% psql -U ksef_user -d ksef_database -tA -v ON_ERROR_STOP=1"
+set "PSQL=docker exec -i %DB_CONTAINER% psql -U ksef_user -d ksef_database -tA"
 
 if not exist "%PROJ%\%PROJ%.csproj" (
   echo [BLAD] Uruchom ten plik z glownego katalogu repozytorium Fakturowanie-KSeF.
