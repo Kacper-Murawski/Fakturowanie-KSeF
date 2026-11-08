@@ -4,8 +4,12 @@
 
 <PageTitle>Moja firma - Fakturowanie KSeF</PageTitle>
 
-<h1>Moja firma</h1>
-<p class="text-muted">Te dane pojawiają się jako sprzedawca na wystawianych fakturach.</p>
+<div class="page-header">
+    <div>
+        <h1>Moja firma</h1>
+        <p class="page-subtitle">Dane sprzedawcy na fakturach, połączenie z KSeF, powiadomienia i dostęp dla księgowej lub pracowników.</p>
+    </div>
+</div>
 
 @if (model is null)
 {
@@ -13,8 +17,8 @@
 }
 else if (companyExists && !Ctx.IsOwner)
 {
-    <div class="card form-narrow" data-testid="company-readonly">
-        <div class="card-body">
+    <div class="surface form-card form-narrow" data-testid="company-readonly">
+        <div>
             <p class="mb-1"><strong>@model.Name</strong>, NIP @Format.Nip(model.Nip)</p>
             <p class="mb-1">@model.Address.Street, @model.Address.PostalCode @model.Address.City</p>
             <p class="small text-muted mb-0">
@@ -26,7 +30,8 @@ else if (companyExists && !Ctx.IsOwner)
 }
 else
 {
-    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="company" class="form-narrow">
+    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="company" class="surface form-card form-narrow">
+        <div class="step-head"><span class="step-num"><Icon Name="building" Size="17" /></span><h2>Dane firmy</h2></div>
         <DeepValidator @ref="validator" />
         <ProblemAlert Problem="problem" />
         @if (saved)
@@ -48,7 +53,7 @@ else
         </div>
 
         <fieldset class="mb-3">
-            <legend class="h6">Adres</legend>
+            <legend class="form-label">Adres</legend>
             <AddressFields Address="model.Address" IdPrefix="company" />
         </fieldset>
 
@@ -70,7 +75,7 @@ else
             <ValidationMessage For="() => model.BankAccountNumber" />
         </div>
 
-        <button type="submit" class="btn btn-primary" disabled="@busy">Zapisz</button>
+        <button type="submit" class="btn btn-primary" disabled="@busy"><Icon Name="check" Size="17" Stroke="2.2" /> Zapisz</button>
     </EditForm>
 
     @if (companyExists)

@@ -77,14 +77,15 @@ wystawionych faktur.
 
 ## 4. Wystawianie faktury
 
-Wybierz **Nowa faktura**:
-1. **Numer**: zostaw puste pole, a aplikacja nada kolejny numer (np. `FV/1/11/2026`). Możesz też wpisać własny.
-2. **Daty**: data wystawienia oraz data sprzedaży, jeśli jest inna.
-3. **Nabywca**: wybierz kontrahenta z listy albo wpisz dane ręcznie.
-4. **Pozycje**: nazwa, jednostka, ilość, cena netto i stawka VAT. Wartości i podsumowanie według stawek liczą się
-   na bieżąco. Przy stawce „zw” podaj podstawę prawną zwolnienia.
-5. **Płatność**: forma, termin (przyciski 7, 14 lub 30 dni) i rachunek.
-6. **Zapisz fakturę**. Faktura zostaje zapisana jako **szkic**, który możesz jeszcze edytować lub usunąć.
+Wybierz **Nowa faktura** (wyróżniony przycisk na górze menu). Formularz ma trzy ponumerowane kroki, a po prawej
+stronie stale widać **podsumowanie** (netto, VAT i brutto według stawek) z przyciskiem zapisu:
+1. **Nabywca**: wybierz kontrahenta z listy albo wpisz dane ręcznie (NIP + „Pobierz z wykazu VAT” uzupełni resztę).
+2. **Numer, daty i płatność**: zostaw puste pole numeru, a aplikacja nada kolejny numer (np. `FV/1/11/2026`);
+   data wystawienia i sprzedaży (jeśli inna), waluta, forma płatności, termin (przyciski 7, 14 lub 30 dni) i rachunek.
+3. **Pozycje**: nazwa (podpowiedzi z katalogu), jednostka, ilość, cena netto i stawka VAT - każda pozycja ma nazwę
+   w pierwszej linii i liczby w drugiej. Wartości liczą się na bieżąco. Przy stawce „zw” podaj podstawę prawną zwolnienia.
+
+**Zapisz fakturę** zapisuje ją jako **szkic**, który możesz jeszcze edytować lub usunąć.
 
 ![Nowa faktura](zrzuty/06-nowa-faktura.png)
 

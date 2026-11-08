@@ -5,7 +5,13 @@
 
 <PageTitle>Faktura cykliczna - Fakturowanie KSeF</PageTitle>
 
-<h1>@(Id is null ? "Nowa faktura cykliczna" : "Faktura cykliczna")</h1>
+<div class="page-header">
+    <div>
+        <a class="small fw-semibold d-inline-flex align-items-center gap-1 mb-1" href="cykliczne"><Icon Name="chevron-left" Size="15" /> Faktury cykliczne</a>
+        <h1>@(Id is null ? "Nowa faktura cykliczna" : "Faktura cykliczna")</h1>
+        <p class="page-subtitle">W wybranym dniu powstanie szkic faktury na wzór wskazanej - sprawdzasz go i wysyłasz do KSeF sam.</p>
+    </div>
+</div>
 
 <ProblemAlert Problem="problem" />
 
@@ -17,7 +23,7 @@
         Każdy szkic dostanie nowy numer, datę wystawienia z harmonogramu i termin płatności z tym samym odstępem co we wzorze.
     </div>
 
-    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="recurring" class="form-narrow">
+    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="recurring" class="surface form-card form-narrow">
         <DeepValidator @ref="validator" />
         <div class="mb-3">
             <label class="form-label" for="recurring-name">Nazwa (opcjonalnie)</label>

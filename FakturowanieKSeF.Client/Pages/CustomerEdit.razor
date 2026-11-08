@@ -6,7 +6,13 @@
 
 <PageTitle>@(Id is null ? "Nowy kontrahent" : "Kontrahent") - Fakturowanie KSeF</PageTitle>
 
-<h1>@(Id is null ? "Nowy kontrahent" : "Edycja kontrahenta")</h1>
+<div class="page-header">
+    <div>
+        <a class="small fw-semibold d-inline-flex align-items-center gap-1 mb-1" href="kontrahenci"><Icon Name="chevron-left" Size="15" /> Kontrahenci</a>
+        <h1>@(Id is null ? "Nowy kontrahent" : "Edycja kontrahenta")</h1>
+        <p class="page-subtitle">Wpisz NIP i pobierz dane z wykazu podatników VAT - resztę uzupełnimy za Ciebie.</p>
+    </div>
+</div>
 
 @if (model is null)
 {
@@ -18,7 +24,7 @@
 }
 else
 {
-    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="customer" class="form-narrow">
+    <EditForm Model="model" OnValidSubmit="SaveAsync" FormName="customer" class="surface form-card form-narrow">
         <DeepValidator @ref="validator" />
         <ProblemAlert Problem="problem" />
 
@@ -61,11 +67,11 @@ else
         </div>
 
         <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary" disabled="@busy">Zapisz</button>
+            <button type="submit" class="btn btn-primary" disabled="@busy"><Icon Name="check" Size="17" Stroke="2.2" /> Zapisz</button>
             <a class="btn btn-outline-secondary" href="kontrahenci">Anuluj</a>
             @if (Id is not null)
             {
-                <button type="button" class="btn btn-outline-danger ms-auto" @onclick="DeleteAsync" disabled="@busy">Usuń</button>
+                <button type="button" class="btn btn-outline-danger ms-auto" @onclick="DeleteAsync" disabled="@busy"><Icon Name="trash" Size="16" /> Usuń</button>
             }
         </div>
         @if (Id is not null)
