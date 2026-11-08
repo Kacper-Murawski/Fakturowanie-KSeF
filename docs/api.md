@@ -21,7 +21,7 @@ po polsku.
 | Metoda | Adres | Opis |
 |---|---|---|
 | GET | `/api/company` | Dane firmy zalogowanego użytkownika (404, jeśli nie utworzono) |
-| PUT | `/api/company` | Utworzenie (201) lub aktualizacja (200) danych firmy |
+| PUT | `/api/company` | Utworzenie (201) lub aktualizacja (200) danych firmy. Zmiana NIP usuwa token KSeF i punkty kontrolne synchronizacji; 409, gdy firma ma już faktury wysłane do KSeF lub pobrane z KSeF (D51) |
 | GET | `/api/products?q=` | Katalog towarów i usług firmy, wyszukiwanie po nazwie (D35) |
 | GET | `/api/products/{id}` | Pozycja katalogu |
 | POST | `/api/products` | Dodanie pozycji (`name`, `unit`, `unitNetPrice`, `vatRate`); 409 - nazwa już jest w katalogu |

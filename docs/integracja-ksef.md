@@ -73,6 +73,7 @@ Użytkownik            API                         Usługa w tle                
 |---|---|
 | Błąd sieci lub niedostępność KSeF **przed** przyjęciem faktury do KSeF | ponawianie; po 10 próbach wysyłka przerwana, faktura `Rejected` z opisem; użytkownik może wysłać ponownie |
 | Nieprawidłowy lub cofnięty token | wysyłka przerwana od razu, komunikat dla użytkownika |
+| KSeF odrzuca token przy uwierzytelnianiu (status 4xx, np. 450 - token wydany dla innego NIP) | bez ponawiania: wysyłka przerwana od razu, faktura `Rejected` z opisem „Nie wysłano: KSeF odrzucił token…” (faktura nie trafiła do KSeF, D51) |
 | Błąd sieci **po** przyjęciu faktury do przetwarzania | **tylko ponawianie** odpytania o status, nigdy `Rejected` |
 | KSeF odrzucił fakturę (np. błąd semantyki) | `Rejected` + kod i szczegóły błędów z KSeF; po poprawie ponowna wysyłka tworzy nową próbę, historia zostaje |
 | Podwójne kliknięcie „Wyślij” lub dwie karty | kontrola wersji rekordu: tylko jedna wysyłka, druga kończy się 409 |

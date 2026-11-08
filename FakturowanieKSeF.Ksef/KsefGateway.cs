@@ -280,6 +280,12 @@ public sealed class KsefGateway(
         {
             throw new KsefAuthenticationException("KSeF odrzucił token (sprawdź, czy token jest aktywny i wystawiony dla tego NIP).", ex);
         }
+        catch (TimeoutException ex) when (AuthRejection(ex.Message) is { } reason)
+        {
+            // Klient MF zgłasza ostateczne odrzucenie (status 4xx, np. 450 - token wystawiony dla innego NIP) jako przekroczenie
+            // czasu oczekiwania. To nie jest błąd sieci - ponawianie nic nie da, a faktura nie trafiła jeszcze do KSeF.
+            throw new KsefAuthenticationException($"KSeF odrzucił token: {reason} Wygeneruj lub wklej token dla NIP {nip} w ustawieniach firmy.", ex);
+        }
 
         if (result.AccessToken?.Token is not { Length: > 0 } accessToken)
             throw new KsefAuthenticationException("KSeF nie wydał tokenu dostępu dla podanego tokenu KSeF.");
@@ -287,6 +293,15 @@ public sealed class KsefGateway(
         var lifetime = result.AccessToken.ValidUntil - DateTimeOffset.UtcNow - TimeSpan.FromMinutes(1);
         if (lifetime > TimeSpan.Zero) cache.Set(key, accessToken, lifetime);
         return accessToken;
+    }
+
+    /// <summary>Opis odrzucenia z komunikatu klienta MF („Ostatni status: 450, Opis: …”), gdy status to 4xx; inaczej null.</summary>
+    public static string? AuthRejection(string message)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(message, @"Ostatni status: (?<code>4\d\d), Opis: (?<text>[^,]+)(, Szczegóły: (?<details>.+))?");
+        if (!match.Success) return null;
+        var details = match.Groups["details"].Success ? " " + match.Groups["details"].Value.Trim() : "";
+        return $"{match.Groups["text"].Value.Trim()} (kod {match.Groups["code"].Value}).{details}";
     }
 
     private async Task<string> AuthenticateWithCertificateAsync(string nip, X509Certificate2 certificate, CancellationToken ct)

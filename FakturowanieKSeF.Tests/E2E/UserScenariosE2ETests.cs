@@ -718,8 +718,15 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator("[data-testid=top-customers] .viz-barlist-row").First).ToContainTextAsync("7\u00a0300,00");
         await E2EFixture.ScreenshotAsync(page, "30-pulpit-wykresy");
 
-        // Tabela danych (dostępność): wartości osiągalne bez najeżdżania myszą
-        await chart.Locator("summary").ClickAsync();
+        // Tabela danych wykresu: polskie nazwy miesi\u0119cy (regresja: \u201eLLLL 2026\u201d) i czytelny tekst w trybie ciemnym
+        await page.ClickAsync("[data-testid=theme-toggle]");
+        await chart.Locator("[data-testid=chart-table-toggle]").ClickAsync();
+        var firstMonth = chart.Locator(".viz-table tbody td").First;
+        await Expect(firstMonth).ToHaveTextAsync(new Regex(@"^[a-z\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c]+ \d{4}$"));
+        await Expect(firstMonth).ToHaveCSSAsync("color", "rgb(230, 237, 240)");
+        await page.ClickAsync("[data-testid=theme-toggle]");
+
+        // Tabela danych (dostępność): wartości osiągalne bez najeżdżania myszą (tabela jest już rozwinięta wyżej)
         await Expect(chart.Locator("table")).ToContainTextAsync("6\u00a0000,00");
     }
 
