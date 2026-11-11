@@ -58,6 +58,7 @@
 - Dokumentacja do pracy: indeks `docs/README.md` - aktualizuj odpowiedni dokument przy każdej zmianie.
 - UI: design system w `wwwroot/css/app.css` (D50) - tokeny CSS dla trybu jasnego i ciemnego, Bootstrap 5.3; używaj klas
   `page-header`, `surface`, `pill pill-*` (statusy), komponentu `Icon` (SVG); żadnych zewnętrznych czcionek/skryptów (CSP).
+  Po zmianie `app.css`/`js/theme.js` podbij parametr `?v=` w `wwwroot/index.html` (wymusza pobranie nowej wersji).
 - Pola tekstowe formularzy: `InputTextLive` (oninput), nie `InputText` - zob. D22.
 - Git: każda funkcja na osobnej gałęzi o nazwie tematycznej po polsku, np. `feature/faktury-korygujace`,
   `fix/walidacja-nip` (nie nazwy losowe); jeden PR do `main` na funkcję, scalanie przez merge commit.

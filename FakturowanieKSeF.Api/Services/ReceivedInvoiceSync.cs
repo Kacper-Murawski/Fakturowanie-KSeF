@@ -56,6 +56,8 @@ public sealed class ReceivedInvoiceSync(
             for (var pageNo = 0; pageNo < MaxPagesPerSync; pageNo++)
             {
                 var page = await gateway.QueryReceivedInvoicesAsync(company.Nip, token, from, pageNo, PageSize, ct);
+                logger.LogInformation("KSeF: faktury otrzymane firmy {CompanyId} od {From:o}, strona {Page}: {Count} faktur, HWM {Hwm:o}, kolejne strony: {HasMore}",
+                    company.Id, from, pageNo, page.Invoices.Count, page.PermanentStorageHwmDate, page.HasMore);
                 var budgetExhausted = false;
 
                 foreach (var meta in page.Invoices)

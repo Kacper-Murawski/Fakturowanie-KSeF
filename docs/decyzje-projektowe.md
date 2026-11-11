@@ -1182,3 +1182,34 @@ a przełącznik motywu nie przerywa działania aplikacji, gdy skrypt motywu jest
 przebudowywać etapami (listy i pulpit, formularze, podglądy, konto i telefon) bez okresu „pół na pół”. Rozwiązanie
 nie dodaje zależności uruchomieniowych ani wyjątków w polityce bezpieczeństwa treści.
 
+---
+
+## D51. NIP firmy a token KSeF: zmiana NIP tylko przed pierwszą wymianą z KSeF, odrzucenie tokenu bez ponawiania
+
+**Kontekst:** w testach u autora wysyłka kończyła się ponawianiem z komunikatem klienta MF „Token nie może być użyty
+w kontekście nip-…” (status 450). Token KSeF jest wydawany dla konkretnego NIP (kontekstu), a aplikacja pozwalała
+zmienić NIP firmy (np. przez „Pobierz z wykazu VAT”) bez żadnych konsekwencji dla zapisanego tokenu. Klient MF zgłasza
+ostateczne odrzucenie tokenu jako przekroczenie czasu oczekiwania, więc usługa w tle traktowała je jak błąd sieci
+i ponawiała wysyłkę do 10 razy.
+
+**Decyzja:**
+- zmiana NIP firmy **usuwa zapisany token KSeF** oraz punkty kontrolne pobierania faktur (otrzymanych i wystawionych
+  poza aplikacją) - użytkownik generuje lub wkleja token dla nowego NIP,
+- zmiana NIP jest **niedozwolona (409)**, gdy firma ma już faktury wysłane do KSeF lub pobrane z KSeF - NIP jest
+  tożsamością firmy w KSeF (sprzedawca na wysłanych fakturach, nabywca faktur otrzymanych); dla innego NIP zakłada się
+  nową firmę (aplikacja obsługuje wiele firm na jednym koncie, D46),
+- odrzucenie tokenu przez KSeF (status 4xx w komunikacie klienta MF) jest zamieniane na błąd uwierzytelnienia:
+  wysyłka jest przerywana od razu z czytelnym opisem - bezpiecznie, bo faktura nie została jeszcze przyjęta przez KSeF
+  (zasada z D25 dotyczy błędów po przyjęciu).
+
+**Alternatywy:**
+- automatyczne generowanie nowego tokenu testowego po zmianie NIP: wygodne, ale ukrywa ważne zdarzenie i nie działa
+  dla tokenów wklejonych z Aplikacji Podatnika,
+- dowolna zmiana NIP z zachowaniem historii: dane dwóch podmiotów w jednej firmie (faktury z innym sprzedawcą,
+  synchronizacja z punktem kontrolnym innego NIP),
+- pozostawienie ponawiania: dziesięć bezcelowych prób uwierzytelnienia i niezrozumiały komunikat dla użytkownika.
+
+**Uzasadnienie:** token i dane w KSeF są związane z NIP, więc spójność wymaga, aby zmiana NIP unieważniała token,
+a po pierwszej wymianie dokumentów była niemożliwa. Ostateczny błąd KSeF powinien od razu dawać użytkownikowi
+wskazówkę, co zrobić.
+

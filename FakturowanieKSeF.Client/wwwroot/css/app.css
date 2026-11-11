@@ -851,3 +851,16 @@ a.pill:hover { filter: brightness(.95); }
     .app-bottom-nav > .app-bottom-cta.active { color: var(--app-on-primary); }
     .app-content { padding-bottom: 6.5rem; }
 }
+
+/* Podsumowanie formularza faktury: stawki w wierszach, suma do zapłaty wyróżniona */
+.summary-rates { list-style: none; padding: 0; margin: 0 0 .75rem; display: flex; flex-direction: column; gap: .5rem; }
+.summary-rates li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem .5rem; font-size: .8125rem; }
+.summary-rate-values { color: var(--bs-secondary-color); font-variant-numeric: tabular-nums; }
+.summary-totals { display: grid; grid-template-columns: 1fr auto; gap: .375rem .75rem; margin: 0; padding: .75rem 0; border-top: 1px dashed var(--bs-border-color); }
+.summary-totals dt { font-weight: 400; color: var(--bs-secondary-color); }
+.summary-totals dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.summary-gross { display: flex; flex-direction: column; gap: .125rem; padding-top: .75rem; border-top: 1px dashed var(--bs-border-color); }
+.summary-gross span { font-size: .8125rem; color: var(--bs-secondary-color); }
+.summary-gross strong { font-size: 1.75rem; font-weight: 750; letter-spacing: -.02em; color: var(--app-primary-text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.summary-correction { display: flex; flex-direction: column; gap: .125rem; margin-top: .75rem; padding: .75rem .875rem; border-radius: .75rem; background: var(--app-warning-bg); color: var(--app-warning-fg); }
+.summary-correction strong { font-size: 1.125rem; }
