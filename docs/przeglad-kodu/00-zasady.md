@@ -41,6 +41,35 @@ wskazane w pliku Twojego obszaru. Poniższe rzeczy są **świadomymi decyzjami**
   w sekcji „Poza obszarem”.
 - **Nie duplikuj** - jeden problem występujący w wielu miejscach to jedno znalezisko z listą miejsc.
 
+## Zapis postępu i wznawianie (obowiązkowe)
+
+Praca może zostać przerwana w dowolnym momencie (np. wyczerpanie limitu użycia modelu). Dlatego raport jest
+jednocześnie **punktem kontrolnym**:
+
+1. **Na starcie** sprawdź, czy plik raportu Twojego obszaru już istnieje.
+   - Jeśli ma nagłówek `Status: ZAKOŃCZONY` - nic nie rób, zakończ.
+   - Jeśli ma nagłówek `Status: W TOKU` - **wznów**: przeczytaj sekcję „Postęp”, nie powtarzaj sprawdzonych
+     elementów, kontynuuj od pierwszego niesprawdzonego. Zachowaj istniejące znaleziska i numerację (nowe ID od
+     kolejnego numeru).
+   - Jeśli nie istnieje - utwórz go od razu (zanim zaczniesz analizę) z nagłówkiem jak niżej.
+2. **W trakcie** dopisuj do pliku po każdym sprawdzonym elemencie (pliku, endpoincie, pytaniu kontrolnym):
+   nowe znaleziska oraz aktualizację sekcji „Postęp”. Nie zbieraj wyników w pamięci do końca pracy - to,
+   czego nie ma w pliku, przepada przy przerwaniu.
+3. **Na końcu** uzupełnij podsumowanie i sekcje końcowe, zmień status na `ZAKOŃCZONY`.
+
+Nagłówek pliku raportu:
+
+```markdown
+# Raport: <nazwa obszaru>
+Status: W TOKU | ZAKOŃCZONY
+Ostatnia aktualizacja: <data i godzina>
+
+## Postęp
+- [x] <element sprawdzony>
+- [ ] <element do sprawdzenia>   ← plan na start: lista z pliku obszaru, rozbita na konkretne pliki/pytania
+Następny krok: <co dokładnie robić po wznowieniu>
+```
+
 ## Skala wag
 
 | Waga | Znaczenie |

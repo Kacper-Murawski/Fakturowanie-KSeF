@@ -44,6 +44,21 @@ i zapisz raport we wskazanym pliku w docs/przeglad-kodu/wyniki/. Niczego w kodzi
 
 Na końcu w jednej sesji: `Wykonaj docs/przeglad-kodu/99-weryfikacja-i-raport.md.`
 
+## Przerwanie i wznowienie (np. po wyczerpaniu limitu modelu)
+
+Każdy wykonawca zapisuje postęp w swoim raporcie na bieżąco (zasady w `00-zasady.md`, sekcja „Zapis postępu
+i wznawianie”), a [`STAN.md`](STAN.md) pokazuje, które obszary są zakończone, w toku lub nierozpoczęte.
+Gdy praca się przerwie (limit, błąd, zamknięta sesja):
+
+1. Koordynator zapisuje stan: aktualizuje `STAN.md`, commituje i pushuje raporty cząstkowe
+   (gałąź `docs/przeglad-kodu`), żeby nic nie przepadło przy zamknięciu kontenera.
+2. Po odnowieniu limitu wystarczy polecenie:
+
+```text
+Wznów przegląd kodu z docs/przeglad-kodu (STAN.md). Uruchom na modelu fable tylko obszary, które nie mają
+statusu ZAKOŃCZONY - każdy wykonawca kontynuuje od sekcji „Postęp” w swoim raporcie.
+```
+
 ## Przygotowanie środowiska
 
 - Aktualny `main` (wszystkie PR scalone), `git submodule update --init`.
