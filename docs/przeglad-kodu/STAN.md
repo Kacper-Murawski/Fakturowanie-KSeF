@@ -5,9 +5,9 @@ w plikach `wyniki/NN-*.md` - ta tabela to jego skrót.
 
 | Obszar | Raport | Status | Uwagi |
 |---|---|---|---|
-| 01 Bezpieczeństwo | `wyniki/01-bezpieczenstwo.md` | nie rozpoczęty | |
+| 01 Bezpieczeństwo | `wyniki/01-bezpieczenstwo.md` | w toku | |
 | 02 Izolacja danych i role | `wyniki/02-izolacja-danych-i-role.md` | zakończony | 7 znalezisk (1 krytyczne, 2 wysokie) |
-| 03 KSeF i usługi w tle | `wyniki/03-ksef-i-uslugi-w-tle.md` | w toku | |
+| 03 KSeF i usługi w tle | `wyniki/03-ksef-i-uslugi-w-tle.md` | zakończony | 19 znalezisk (1 krytyczne, 5 wysokich) |
 | 04 Poprawność faktur | `wyniki/04-poprawnosc-faktur.md` | w toku | |
 | 05 Backend - wydajność i baza | `wyniki/05-backend-wydajnosc-i-baza.md` | nie rozpoczęty | |
 | 06 Frontend | `wyniki/06-frontend.md` | nie rozpoczęty | |
