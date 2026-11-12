@@ -1,24 +1,47 @@
 # Raport: Obszar 06 - frontend (Blazor WebAssembly)
 Status: W TOKU
-Ostatnia aktualizacja: 2026-11-11 (start)
+Ostatnia aktualizacja: 2026-11-12 (po wznowieniu; przeczytane strony i komponenty, kandydaci zapisani)
 
 ## Postęp
-- [ ] Kontekst: decyzje D13, D18-D22, D40, D45, D50, instrukcja użytkownika
-- [ ] Services: ApiClient, AuthService, CompanyContext, Format; Program.cs
-- [ ] Components: DeepValidator, InputTextLive, ProblemAlert, RedirectToLogin, CompanySwitcher, ThemeToggle
-- [ ] Components: PaymentPanel, InvoiceEmailPanel, CompanyMembers, VatRegistryLookup, MonthlyChart, BarList, Sparkline, pozostałe
-- [ ] Layout: MainLayout, NavMenu, App.razor
-- [ ] Pages: Login, Register, Account, Invitation
-- [ ] Pages: InvoiceEdit
-- [ ] Pages: InvoiceDetails, Invoices
-- [ ] Pages: ReceivedInvoices, ReceivedInvoiceDetails
-- [ ] Pages: Home, Export, Company, KsefSettings, NotificationSettings
-- [ ] Pages: Customers, CustomerEdit, Products, RecurringInvoices, RecurringInvoiceEdit
-- [ ] wwwroot: index.html, js/*, service-worker*, manifest, csproj (rozmiar/trimming)
-- [ ] app.css: martwe reguły, kontrast
-- [ ] Testy E2E: pokrycie
-- [ ] Weryfikacja w przeglądarce wybranych znalezisk
-Następny krok: przeczytać Services/* i Components/DeepValidator.cs.
+- [x] Services: ApiClient, AuthService, CompanyContext, Format; Program.cs
+- [x] Components: DeepValidator, InputTextLive, ProblemAlert, RedirectToLogin, CompanySwitcher, ThemeToggle
+- [x] Components: PaymentPanel, InvoiceEmailPanel, CompanyMembers, VatRegistryLookup
+- [x] Layout: MainLayout, NavMenu, App.razor
+- [x] Pages: Login, Register, Account, Invitation
+- [x] Pages: InvoiceEdit
+- [x] Pages: InvoiceDetails, Invoices
+- [x] Pages: ReceivedInvoices, ReceivedInvoiceDetails (kod)
+- [x] Pages: Home (kod), Export (kod), Company, KsefSettings (kod), NotificationSettings (kod)
+- [x] Pages: Customers, CustomerEdit, Products, RecurringInvoices, RecurringInvoiceEdit
+- [x] Components: MonthlyChart, BarList, Sparkline, AddressFields, Icon, pozostałe drobne
+- [x] wwwroot: index.html, js/*, service-worker*, manifest, csproj (rozmiar/trimming)
+- [x] app.css: martwe reguły (kontrast - do pomiaru w przeglądarce)
+- [x] Testy E2E: pokrycie
+- [ ] Weryfikacja w przeglądarce kandydatów A, B, C, D, F, L (port 5196, baza ksef_review06)
+- [ ] Redakcja końcowa: kandydaci → znaleziska UI-n w pełnym formacie, podsumowanie, sekcje końcowe
+Następny krok: weryfikacja w przeglądarce (skrypt Playwright w katalogu scratchpad, aplikacja na 5196, baza ksef_review06 - po pracy `fuser -k 5196/tcp` i DROP DATABASE), potem redakcja końcowa.
 
 ## Znaleziska
-(dopisywane na bieżąco)
+(wersja robocza - kandydaci zapisani, żeby nie przepadli przy przerwaniu; pełny format po weryfikacji)
+
+- KANDYDAT A (wysokie?, do potwierdzenia w przeglądarce): `Services/ApiClient.cs:62-67` - po 401 każde kolejne żądanie tej samej strony ponownie woła `NavigateTo("login?returnUrl=" + bieżący adres)`; drugie wywołanie widzi już adres `login?returnUrl=X`, więc returnUrl zagnieżdża się (`login?returnUrl=login%3FreturnUrl%3D...`) i po zalogowaniu użytkownik ląduje znów na stronie logowania. Dodatkowo `AuthService._cached` zostaje „zalogowany” - formularz logowania renderuje się wewnątrz powłoki aplikacji (menu, wyszukiwarka). Strony z kilkoma żądaniami: Home (8), InvoiceEdit (3-6), ReceivedInvoices (2).
+- KANDYDAT B (wysokie, do potwierdzenia): `Pages/InvoiceEdit.razor:269,680-688` - `FillFromCatalog` po każdym znaku (`oninput`): gdy wpisany tekst po `Trim()` równa się nazwie z katalogu, nazwa jest nadpisywana nazwą katalogową (zjada spację: „Konsultacja IT” → „KonsultacjaIT”), a jednostka/cena/VAT nadpisywane ceną katalogową (utrata ręcznie wpisanej ceny przy edycji nazwy).
+- KANDYDAT C (średnie, do potwierdzenia): `InvoiceEdit.razor:283` i `Products.razor:77` - `step="0.01"` na cenie netto; serwer i baza dopuszczają więcej miejsc (numeric 22,8; faktury importowane/„wystaw podobną” z ceną 4 miejsc) → natywna walidacja przeglądarki blokuje zapis dymkiem po angielsku/bez komunikatu aplikacji.
+- KANDYDAT D (średnie): `Services/AuthService.cs:52,87,97` - `LoginAsync`/`RegisterAsync`/`LogoutAsync` bez obsługi `HttpRequestException`; brak sieci → nieobsłużony wyjątek (żółty pasek błędu), przycisk „Logowanie…” zablokowany na zawsze (`Login.razor:84-87`, `Register.razor:60`). `ApiClient.SendAsync` łapie tylko `HttpRequestException` (nie `TaskCanceledException`/`JsonException`/`NotSupportedException` przy odpowiedzi nie-JSON, np. HTML z proxy 502) → `busy` zostaje true.
+- KANDYDAT E (średnie): `Pages/InvoiceDetails.razor:335-351` i `Components/InvoiceEmailPanel.razor:250-258` - (1) wyścig z `Dispose`: gdy żądanie odświeżające jest w locie podczas opuszczenia strony, `LoadAsync` po powrocie tworzy NOWY timer na usuniętym komponencie → odpytywanie co 3 s (2 s) trwa w tle bez końca; (2) pojedynczy błąd sieci w trakcie odpytywania ustawia `invoice = null` → cała faktura znika, zostaje „Brak połączenia”, odpytywanie się kończy; (3) dla `Accepted` bez UPO odpytywanie co 3 s bez limitu i bez wydłużania odstępu (pełny DTO faktury, por. PERF-4, KSEF-5).
+- KANDYDAT F (średnie): `Pages/Login.razor:63` + `Register.razor:67` - zaproszona osoba bez konta: link → logowanie (returnUrl=zaproszenie?token=…) → „Zarejestruj się” gubi returnUrl → po rejestracji trafia na `/firma` (formularz zakładania własnej firmy), zaproszenie przepada do ponownego otwarcia linku; por. ISO-3.
+- KANDYDAT G (średnie/niskie): `Components/InvoiceEmailPanel.razor:24` - `Format.Money(Remaining ?? 0)` bez waluty → dla faktury w EUR „pozostało 100,00 PLN”. Sprawdzić inne wywołania `Format.Money` bez waluty.
+- KANDYDAT H (średnie): odpowiedzi w złej kolejności - `Invoices.razor:169,186-198`, `ReceivedInvoices.razor:159-176` (każda zmiana adresu = nowe `LoadAsync`, wynik starszego zapytania może nadpisać nowszy), `InvoiceEdit.razor:589-595,631-640` (numer, kurs NBP). Debounce `CancellationTokenSource` nieanulowany przy opuszczeniu strony → po 300 ms `UpdateUrl` dokleja `?q=` do adresu INNEJ strony. Każda fraza = nowy wpis historii (brak `replace: true`).
+- KANDYDAT I (średnie): „brak danych” = „błąd”: `InvoiceEdit.razor:431-436` (`companyMissing` przy każdym błędzie GET /company), `Company.razor:98-106` (błąd sieci → pusty formularz „nowej firmy”), `Home` (jak brak firmy), listy (`data = pusty wynik` → „Brak faktur”), `CompanyContext.LoadAsync` (błąd → pusta lista firm zapamiętana na stałe, rola = właściciel).
+- KANDYDAT J (niskie/średnie, wydajność): zapytania sekwencyjne/zbędne - `InvoiceEdit.OnParametersSetAsync` (company → customers → products → wzór → next-number → kurs: 5-6 kolejnych), `ReceivedInvoices.razor:161` (sync-status przed każdą zmianą filtra/znakiem), `Home` (4 zapytania listy `pageSize=1` tylko po liczniki + company sekwencyjnie), pełne listy kontrahentów i katalogu przy każdym otwarciu formularza faktury.
+- KANDYDAT K (niskie, wydajność renderu): `InvoiceEdit.razor:272,305-310` - `FindProduct` (liniowo po katalogu, porównanie kulturowe) dla każdej pozycji przy każdym renderze = przy każdym znaku w dowolnym polu; `<datalist>` i `<select>` kontrahentów (do 1000/500 opcji) różnicowane przy każdym znaku.
+- KANDYDAT L (niskie/średnie, a11y + błąd): `Invoices.razor:97`, `ReceivedInvoices.razor:107` - `<tr role="button" @onclick>`: psuje semantykę tabeli; klik w link numeru wykonuje dwie nawigacje (link + `Open`) - sprawdzić historię (podwójny wpis „wstecz”).
+- KANDYDAT M (niskie): stan podrzędnych komponentów przy zmianie faktury w tym samym komponencie strony (`PaymentPanel.OnParametersSet:109-112` - kwota/uwagi/`problem` z poprzedniej faktury; `InvoiceEmailPanel` - otwarty formularz i adresat poprzedniej faktury).
+- KANDYDAT N (niskie): `CompanyMembers.razor:129-133` „Odbierz dostęp” bez potwierdzenia (pozostałe operacje usuwające mają `confirm`); `InviteAsync` i `AddToCatalogAsync` (`InvoiceEdit.razor:690`) bez blokady podwójnego kliknięcia; `CompanySwitcher.SwitchAsync` ignoruje błąd POST i przeładowuje.
+- KANDYDAT O (średnie): utrata wypełnionego formularza faktury - brak `NavigationLock`/ostrzeżenia; wygaśnięcie sesji (8 h, przesuwana) podczas edycji → „Zapisz” (albo podgląd kursu/numeru) → 401 → przejście do logowania, dane formularza przepadają.
+- KANDYDAT P (uproszczenie): powtórzenia - pasek filtrów + stronicowanie + debounce + `UpdateUrl` (Invoices/ReceivedInvoices), `Faktur(n)` w Home i Export, `FormatNip` w NavMenu vs `Format.Nip`, kopiowanie adresu/pozycji w InvoiceEdit (3x), nagłówek „kind switch” faktury (2x w InvoiceDetails), wzorzec `busy/problem/saved`.
+- KANDYDAT Q (średnie/niskie, do weryfikacji na buildzie publikacyjnym): `wwwroot/service-worker.published.js:36-46` + `index.html:11-13` - `cache.match(request)` bez `ignoreSearch`, a index.html odwołuje się do `css/app.css?v=51`, `js/theme.js?v=51`, `bootstrap.min.css?v=5.3.3` → te trzy pliki nigdy nie są brane z pamięci SW (zawsze sieć); po wdrożeniu nowej wersji stary SW podaje stary index.html i stare DLL, ale NOWY app.css (mieszanie wersji odwrotne do problemu z D50). Brak mechanizmu „dostępna nowa wersja” - zainstalowana PWA działa na starym kliencie z nowym API do zamknięcia wszystkich okien.
+- KANDYDAT R (niskie): brak potwierdzenia przy usuwaniu: `Products.razor:148` (pozycja katalogu), `RecurringInvoices.razor` `DeleteAsync` (harmonogram), `CompanyMembers` (dostęp, zaproszenie) - inne usunięcia mają `confirm`.
+- KANDYDAT S (niskie): `RecurringInvoiceEdit` pod `/cykliczne/nowa` bez `?wzor=` → pusta strona bez komunikatu. `MonthlyChart.Column` - miesiąc z ujemną sprzedażą netto (korekty) nie rysuje kolumny.
+- KANDYDAT T (niskie, CSS): reguły w `app.css` dla klas nieużywanych w żadnym `.razor`: `.card`, `.card-header`, `.card-title` (268-279, 315-318), `.list-group` (281-288), `.badge` (320), `.nav-pills`, `.nav-tabs` (346-347), `.pagination` (350), `.app-nav-count` (415), `.cell-mono` (656), `.icon-info` (691), `.summary-table tr.fw-bold` (738), `.form-actions` (748), `.form-switch` (259), `.form-control-sm` (252), `.tabular` (161), `.btn-light`, `.btn-secondary` (208). (`.valid/.invalid/.modified/.validation-message` - używane przez Blazora, nie martwe.)
+- E2E - luki pokrycia: wygaśnięcie sesji w trakcie pracy (401 z ApiClient), błąd sieci/odpowiedź nie-JSON, przełącznik firm (`company-switcher` - 0 wystąpień), stronicowanie i filtry w adresie (`page=`), faktura odrzucona przez KSeF (widok `Rejected`), usuwanie (kontrahent, pozycja katalogu, harmonogram, członek firmy), rejestracja z zaproszenia, logowanie kodem odzyskiwania, edycja nazwy pozycji zgodnej z katalogiem.
