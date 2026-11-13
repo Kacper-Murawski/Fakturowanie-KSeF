@@ -34,6 +34,23 @@ builder.Services.AddIdentityApiEndpoints<ApplicationUser>(options =>
     .AddErrorDescriber<PolishIdentityErrorDescriber>();
 builder.Services.AddAuthorization();
 
+// Zmiana hasła, włączenie/wyłączenie 2FA i zmiana adresu e-mail zmieniają znacznik bezpieczeństwa konta (security stamp).
+// Sesje (ciasteczka) są z nim porównywane co minutę, a tokeny odświeżania przy każdym odświeżeniu - po takiej zmianie
+// wszystkie inne sesje i tokeny konta przestają działać (D52). Token dostępu Bearer żyje krótko (15 min), bo nie jest
+// sprawdzany ze znacznikiem przy każdym żądaniu.
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(1));
+builder.Services.Configure<Microsoft.AspNetCore.Authentication.BearerToken.BearerTokenOptions>(IdentityConstants.BearerScheme,
+    options => options.BearerTokenExpiration = TimeSpan.FromMinutes(15));
+
+// HSTS: przeglądarka przez rok łączy się z domeną aplikacji wyłącznie przez HTTPS (bez subdomen - ich HTTPS nie zależy
+// od aplikacji). Domyślne 30 dni zostawiało okno na przechwycenie pierwszego żądania HTTP po dłuższej przerwie (SEC-11).
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+    options.IncludeSubDomains = false;
+    options.Preload = false;
+});
+
 // Przeglądarka loguje się ciasteczkiem (/api/auth/login?useCookies=true): HttpOnly - niedostępne dla JavaScriptu
 // (ochrona sesji przed XSS), SameSite=Strict - niewysyłane z innych witryn (ochrona przed CSRF).
 // Tokeny Bearer pozostają dostępne dla innych klientów (testy, ewentualna aplikacja mobilna).
@@ -138,7 +155,8 @@ builder.Services.AddValidation();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiErrors.ExceptionHandler>();
 
-// Limity liczby żądań: logowanie/rejestracja na adres IP, całe API na użytkownika (D47)
+// Limity liczby żądań: wrażliwe operacje logowania na adres IP i parę IP + e-mail, kody 2FA na użytkownika,
+// całe API na użytkownika (D47, D52)
 builder.Services.AddApiRateLimits();
 
 // 5. Kontrola stanu aplikacji (m.in. dostępność bazy danych) - używana przy wdrożeniu
@@ -228,6 +246,7 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthentication();
+app.UseLoginRateLimit(); // logowanie: limit na parę „adres IP + e-mail” (D52)
 app.UseRateLimiter();
 app.UseAuthorization();
 

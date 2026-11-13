@@ -91,9 +91,8 @@
         if (result.Succeeded)
         {
             Ctx.Reset();
-            // Tylko adresy względne - ochrona przed przekierowaniem na obcą stronę (open redirect)
-            var target = string.IsNullOrEmpty(ReturnUrl) || ReturnUrl.Contains("://") || ReturnUrl.StartsWith("//") ? "" : ReturnUrl;
-            Navigation.NavigateTo(target);
+            // Tylko ścieżki wewnątrz aplikacji - ochrona przed przekierowaniem na obcą stronę (open redirect, SEC-2)
+            Navigation.NavigateTo(FakturowanieKSeF.Contracts.Validation.ReturnUrl.Sanitize(ReturnUrl));
         }
     }
 

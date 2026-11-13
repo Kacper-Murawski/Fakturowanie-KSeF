@@ -33,7 +33,9 @@ Kliknij swój adres e-mail w górnym pasku (albo **Konto i bezpieczeństwo** w m
 dwuskładnikowe**, zeskanuj kod QR w aplikacji uwierzytelniającej (np. Google Authenticator, Microsoft Authenticator)
 i wpisz pokazany przez nią 6-cyfrowy kod. Zapisz 10 kodów odzyskiwania - każdy pozwala zalogować się raz, gdy nie masz
 dostępu do telefonu. Od tej pory po wpisaniu hasła aplikacja poprosi o kod z telefonu. Wyłączenie zabezpieczenia
-i wygenerowanie nowych kodów odzyskiwania wymagają podania kodu.
+i wygenerowanie nowych kodów odzyskiwania wymagają podania hasła i kodu. Pięć pomyłek (w haśle lub kodzie) blokuje
+konto na 15 minut - tak samo jak przy logowaniu. Po włączeniu lub wyłączeniu 2FA i po zmianie hasła pozostałe sesje
+(np. na innym komputerze) wygasają i trzeba zalogować się ponownie.
 
 ![Włączanie logowania dwuskładnikowego](zrzuty/31-logowanie-dwuskladnikowe.png)
 

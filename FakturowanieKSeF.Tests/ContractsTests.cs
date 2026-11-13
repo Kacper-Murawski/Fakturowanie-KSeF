@@ -127,3 +127,26 @@ public class ValidationCultureTests
         }
     }
 }
+
+/// <summary>Adres powrotu po zalogowaniu - tylko ścieżki aplikacji (open redirect, SEC-2).</summary>
+public class ReturnUrlTests
+{
+    [Theory]
+    [InlineData("faktury", "faktury")]
+    [InlineData("faktury/5?status=Draft&page=2", "faktury/5?status=Draft&page=2")]
+    [InlineData("zaproszenie?token=abc-DEF_123", "zaproszenie?token=abc-DEF_123")]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("https://evil.example", "")]
+    [InlineData("//evil.example", "")]
+    [InlineData("/faktury", "")]
+    [InlineData("\\\\evil.example", "")]
+    [InlineData("/\\evil.example", "")]
+    [InlineData("http:evil.example", "")]
+    [InlineData("javascript:alert(1)", "")]
+    [InlineData("/\t/evil.example", "")]
+    [InlineData("faktury\nLocation: x", "")]
+    [InlineData(" faktury", "")]
+    public void Sanitize(string? value, string expected) =>
+        Assert.Equal(expected, FakturowanieKSeF.Contracts.Validation.ReturnUrl.Sanitize(value));
+}

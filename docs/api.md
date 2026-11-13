@@ -64,8 +64,12 @@ po polsku.
 | GET | `/api/account/2fa` | Stan logowania dwuskładnikowego: włączone, liczba pozostałych kodów odzyskiwania (D41) |
 | POST | `/api/account/2fa/setup` | Nowy klucz aplikacji uwierzytelniającej: klucz, URI `otpauth://`, kod QR (PNG, Base64); 409 - 2FA już włączone |
 | POST | `/api/account/2fa/enable` | Włączenie po potwierdzeniu kodem (`code`); zwraca 10 kodów odzyskiwania; 400 - zły kod |
-| POST | `/api/account/2fa/disable` | Wyłączenie - wymaga kodu z aplikacji lub kodu odzyskiwania |
-| POST | `/api/account/2fa/recovery-codes` | Nowe kody odzyskiwania - wymaga kodu z aplikacji |
+| POST | `/api/account/2fa/disable` | Wyłączenie - wymaga hasła (`password`) oraz kodu z aplikacji lub kodu odzyskiwania (`code`) |
+| POST | `/api/account/2fa/recovery-codes` | Nowe kody odzyskiwania - wymaga hasła (`password`) i kodu z aplikacji (`code`) |
+
+Operacje `enable`, `disable` i `recovery-codes`: błędny kod lub hasło zwiększa licznik blokady konta (ten sam co przy
+logowaniu); po 5 błędach konto jest zablokowane na 15 minut - odpowiedź **429** z `Retry-After`, także dla poprawnego
+kodu. Dodatkowo limit 5 żądań na minutę na użytkownika (D52).
 | GET | `/api/exchange-rates/{currency}?date=` | Kurs średni NBP z ostatniego dnia roboczego przed datą (dniem sprzedaży) - podgląd w formularzu; 502 - API NBP niedostępne (D43) |
 | GET | `/api/account/companies` | Firmy dostępne dla użytkownika (własna i z zaproszeń) z rolą i znacznikiem bieżącej (D46) |
 | POST | `/api/account/active-company` | Wybór bieżącej firmy (`companyId`) - tylko spośród dostępnych (404); ustawia ciasteczko HttpOnly `ksef.company`. Inni klienci API mogą wysyłać nagłówek `X-Company-Id` |

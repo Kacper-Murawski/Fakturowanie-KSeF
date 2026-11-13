@@ -18,3 +18,18 @@ public sealed class TwoFactorCodeRequest
     [MaxLength(20)]
     public string Code { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Operacja zdejmująca lub osłabiająca zabezpieczenie konta (wyłączenie 2FA, nowe kody odzyskiwania): wymaga hasła
+/// i kodu - sama przejęta sesja nie wystarczy (D41, D52).
+/// </summary>
+public sealed class TwoFactorConfirmRequest
+{
+    [Required(ErrorMessage = "Podaj hasło.")]
+    [MaxLength(200)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Podaj kod.")]
+    [MaxLength(20)]
+    public string Code { get; set; } = string.Empty;
+}
