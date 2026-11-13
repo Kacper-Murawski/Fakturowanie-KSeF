@@ -35,7 +35,8 @@ else if (problem is null)
 }
 
 @code {
-    [SupplyParameterFromQuery(Name = "token")] public string? Token { get; set; }
+    // Token we fragmencie adresu (#token=…) - nie trafia do logów serwera (SEC-9); starsze linki: ?token=…
+    private string? Token;
 
     private InvitationPreviewDto? preview;
     private ApiProblem? problem;
@@ -43,12 +44,13 @@ else if (problem is null)
 
     protected override async Task OnInitializedAsync()
     {
+        Token = UrlFragment.Get(Navigation.Uri, "token");
         if (string.IsNullOrWhiteSpace(Token))
         {
             problem = new ApiProblem { Status = 404, Title = "Brak tokenu zaproszenia w adresie." };
             return;
         }
-        var result = await Api.GetAsync<InvitationPreviewDto>($"api/account/invitations/{Uri.EscapeDataString(Token)}");
+        var result = await Api.PostAsync<InvitationPreviewDto>("api/account/invitations/preview", new AcceptInvitationRequest { Token = Token });
         preview = result.Value;
         problem = result.Problem;
     }

@@ -44,7 +44,8 @@ wyłącznie w wewnętrznej sieci kontenerów.
 
 - serwer z Linuksem (np. 2 vCPU, 2-4 GB RAM), Docker z wtyczką Compose,
 - domena z rekordem DNS (A/AAAA) wskazującym na serwer; otwarte porty 80 i 443 (Let's Encrypt),
-- opcjonalnie: konto u dostawcy poczty transakcyjnej (SMTP) - bez niego funkcje e-mail są wyłączone.
+- konto u dostawcy poczty transakcyjnej (SMTP) - **wymagane**: rejestracja wymaga potwierdzenia adresu e-mail,
+  a reset hasła działa przez e-mail (D53). Bez SMTP nowe konta nie mogą się zalogować.
 
 ## Krok po kroku
 
@@ -52,7 +53,7 @@ wyłącznie w wewnętrznej sieci kontenerów.
 git clone --recursive <adres-repozytorium> /opt/fakturowanie
 cd /opt/fakturowanie/deploy
 cp .env.example .env
-# uzupełnij .env: DOMAIN, DB_PASSWORD (np. openssl rand -base64 32), opcjonalnie SMTP_*
+# uzupełnij .env: DOMAIN, DB_PASSWORD (np. openssl rand -base64 32), SMTP_*, EMAIL_FROM
 
 # certyfikat chroniący klucze szyfrowania tokenów KSeF (zalecane)
 openssl req -x509 -newkey rsa:3072 -days 3650 -nodes -subj "/CN=fakturowanie-dataprotection" \
@@ -72,15 +73,15 @@ Przy pierwszym starcie aplikacja wykonuje migracje bazy (`Database__MigrateOnSta
 
 | Ustawienie (zmienna środowiskowa) | Znaczenie |
 |---|---|
-| `ASPNETCORE_ENVIRONMENT=Production` | Brak Swaggera i szczegółów błędów; ciasteczka tylko przez HTTPS (`Secure`); nagłówek HSTS |
+| `ASPNETCORE_ENVIRONMENT=Production` | Brak Swaggera i szczegółów błędów; ciasteczka tylko przez HTTPS (`Secure`); nagłówek HSTS (365 dni, bez subdomen) |
 | `ConnectionStrings__DefaultConnection` | Połączenie z bazą - **aplikacja odmawia startu z hasłem deweloperskim z repozytorium** |
 | `Database__MigrateOnStartup=true` | Migracje przy starcie (z ponawianiem, gdy baza jeszcze startuje) |
 | `ReverseProxy__Enabled=true` | Adres klienta i schemat HTTPS z nagłówków `X-Forwarded-*` (limity żądań, ciasteczka `Secure`); przekierowanie na HTTPS robi proxy |
-| `AllowedHosts` | Tylko domena aplikacji (filtrowanie nagłówka `Host`) |
+| `AllowedHosts` | Domena aplikacji i `localhost` (filtrowanie nagłówka `Host`; `localhost` - kontrola stanu kontenera `HEALTHCHECK`, z zewnątrz aplikacja jest dostępna tylko przez proxy) |
 | `App__PublicUrl` | Adres aplikacji w wiadomościach e-mail (zaproszenia, powiadomienia) |
-| `Email__*` | Serwer SMTP; hasło tylko w `.env` |
+| `Email__*` | Serwer SMTP; hasło tylko w `.env`. Limity: `DailyLimitPerCompany` (100 wiadomości do kontrahentów na firmę na dobę), `GlobalDailyLimit` (1000 na całą aplikację), `SystemPerAddressPerHour` (5 wiadomości systemowych konta na adres) - D53 |
 | `DataProtection__CertificatePath`, `…Password` | Certyfikat szyfrujący klucze Data Protection w bazie - kopia bazy bez certyfikatu nie pozwala odszyfrować tokenów KSeF |
-| `RateLimiting__*` | Limity żądań (domyślnie: logowanie 10/min z adresu, API 600/min na użytkownika - D47) |
+| `RateLimiting__*` | Limity żądań (domyślnie: logowanie, rejestracja, reset hasła 30/min z adresu, logowanie 10/min na parę adres + e-mail, operacje z kodem 2FA 5/min na użytkownika, API 600/min na użytkownika - D47, D52) |
 
 ## Kopie zapasowe i odtwarzanie
 

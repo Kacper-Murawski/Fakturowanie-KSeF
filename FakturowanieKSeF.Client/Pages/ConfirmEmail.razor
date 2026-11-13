@@ -1,0 +1,51 @@
+@page "/potwierdz-email"
+@attribute [AllowAnonymous]
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Potwierdzenie adresu - Fakturowanie KSeF</PageTitle>
+
+<div class="auth-card">
+    <h1 class="h3 mb-3">Potwierdzenie adresu e-mail</h1>
+
+    @if (result is null)
+    {
+        <p class="text-muted">Potwierdzanie…</p>
+    }
+    else if (result == true)
+    {
+        <div class="alert alert-success" role="status" data-testid="email-confirmed">
+            @if (changedEmail is not null)
+            {
+                <span>Adres e-mail konta został zmieniony na <strong class="text-break">@changedEmail</strong>. Od teraz logujesz się tym adresem.</span>
+            }
+            else
+            {
+                <span>Adres e-mail został potwierdzony - konto jest aktywne.</span>
+            }
+        </div>
+        <p class="small text-muted">Jeśli zakładałeś konto z zaproszenia do firmy, po zalogowaniu otwórz ponownie link z zaproszenia.</p>
+        <a class="btn btn-primary w-100" href="login">Zaloguj się</a>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert">
+            Link jest nieprawidłowy, wygasł (ważny 24 godziny) albo adres został już potwierdzony.
+        </div>
+        <p class="mb-0 text-center"><a href="login">Przejdź do logowania</a> - przy logowaniu możesz wysłać nowy link.</p>
+    }
+</div>
+
+@code {
+    private bool? result;
+    private string? changedEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Kod we fragmencie adresu (#…) - nie trafia do logów serwera
+        var userId = UrlFragment.Get(Navigation.Uri, "userId");
+        var code = UrlFragment.Get(Navigation.Uri, "code");
+        changedEmail = UrlFragment.Get(Navigation.Uri, "changedEmail");
+        result = userId is not null && code is not null && await Auth.ConfirmEmailAsync(userId, code, changedEmail);
+    }
+}

@@ -18,7 +18,7 @@ public class CompanyRoleTests(ApiFactory factory) : IClassFixture<ApiFactory>
     private async Task<HttpClient> UserAsync(string email)
     {
         var client = factory.CreateClient();
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, password = "Haslo123!" })).EnsureSuccessStatusCode();
+        await factory.RegisterConfirmedAsync(client, email);
         var login = await (await client.PostAsJsonAsync("/api/auth/login", new { email, password = "Haslo123!" })).Content.ReadFromJsonAsync<LoginResponse>();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login!.AccessToken);
         return client;
@@ -102,7 +102,11 @@ public class CompanyRoleTests(ApiFactory factory) : IClassFixture<ApiFactory>
             new AcceptInvitationRequest { Token = "zgadywany-token" })).StatusCode);
 
         var accountant = await UserAsync(email);
-        var preview = (await accountant.GetFromJsonAsync<InvitationPreviewDto>($"/api/account/invitations/{Token(invitation)}"))!;
+        // Token we fragmencie linku i w treści żądania - nie w adresie (logi proxy, SEC-9)
+        Assert.Contains("/zaproszenie#token=", invitation.Link);
+        Assert.Equal(HttpStatusCode.NotFound, (await accountant.GetAsync($"/api/account/invitations/{Token(invitation)}")).StatusCode);
+        var preview = (await (await accountant.PostAsJsonAsync("/api/account/invitations/preview",
+            new AcceptInvitationRequest { Token = Token(invitation) })).Content.ReadFromJsonAsync<InvitationPreviewDto>())!;
         Assert.Equal(("Moja Firma sp. z o.o.", CompanyRole.Accountant), (preview.CompanyName, preview.Role));
         (await accountant.PostAsJsonAsync("/api/account/invitations/accept", new AcceptInvitationRequest { Token = Token(invitation) })).EnsureSuccessStatusCode();
         // Jednorazowe

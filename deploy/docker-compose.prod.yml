@@ -32,7 +32,8 @@ services:
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=ksef;Username=ksef;Password=${DB_PASSWORD};Gss Encryption Mode=Disable"
       Database__MigrateOnStartup: "true"
       ReverseProxy__Enabled: "true"
-      AllowedHosts: ${DOMAIN:?Ustaw DOMAIN w pliku .env}
+      # Domena aplikacji + localhost dla kontroli stanu kontenera (HEALTHCHECK w Dockerfile pyta z Host: localhost)
+      AllowedHosts: "${DOMAIN:?Ustaw DOMAIN w pliku .env};localhost"
       App__PublicUrl: https://${DOMAIN}
       Email__SmtpHost: ${SMTP_HOST:-}
       Email__SmtpPort: ${SMTP_PORT:-587}

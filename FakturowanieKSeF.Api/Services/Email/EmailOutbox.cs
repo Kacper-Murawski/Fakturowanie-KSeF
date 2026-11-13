@@ -46,21 +46,34 @@ public sealed class EmailOutbox(
 
     public bool IsConfigured => options.Value.IsConfigured;
 
+    /// <summary>Wiadomości na adresy podane przez użytkownika - podlegają limitom firmy i całej aplikacji (SEC-4).</summary>
+    public static bool IsUserAddressed(EmailKind kind) => kind is EmailKind.Invoice or EmailKind.PaymentReminder or EmailKind.Invitation;
+
+    /// <summary>Wiadomości systemowe konta (bez firmy) - osobny limit na adres (D53).</summary>
+    public static bool IsSystem(EmailKind kind) =>
+        kind is EmailKind.AccountConfirmation or EmailKind.PasswordReset or EmailKind.EmailChange or EmailKind.EmailChangeNotice;
+
     /// <summary>
     /// Dodaje wiadomość do kolejki (zapis razem z innymi zmianami w <see cref="AppDbContext"/> przy SaveChanges).
-    /// Wiadomości do osób trzecich (faktura, przypomnienie) podlegają dziennemu limitowi firmy.
+    /// Wiadomości do osób trzecich (faktura, przypomnienie, zaproszenie) podlegają dziennemu limitowi firmy i całej
+    /// aplikacji. Liczniki są zwiększane atomowo w bazie od razu (także gdy zapis wiadomości się nie powiedzie - limit
+    /// liczony „ostrożnie”), więc równoległe żądania nie przekroczą limitu (D53, SEC-4).
     /// </summary>
     public async Task<EmailMessage> EnqueueAsync(int companyId, EmailKind kind, string to, string subject, string body,
         int? invoiceId = null, CancellationToken ct = default)
     {
+        if (IsSystem(kind)) throw new ArgumentException("Wiadomości systemowe - EnqueueSystemAsync.", nameof(kind));
+
         var now = time.GetUtcNow().UtcDateTime;
-        if (kind is EmailKind.Invoice or EmailKind.PaymentReminder or EmailKind.Invitation)
+        if (IsUserAddressed(kind))
         {
-            var sentToday = await db.EmailMessages.CountAsync(m => m.CompanyId == companyId
-                && (m.Kind == EmailKind.Invoice || m.Kind == EmailKind.PaymentReminder || m.Kind == EmailKind.Invitation)
-                && m.CreatedAt > now.AddDays(-1), ct);
-            if (sentToday >= options.Value.DailyLimitPerCompany)
+            if (!await TryTakeQuotaAsync($"company:{companyId}", options.Value.DailyLimitPerCompany, ct))
                 throw new EmailLimitException($"Osiągnięto limit {options.Value.DailyLimitPerCompany} wiadomości na dobę. Spróbuj później.");
+            if (!await TryTakeQuotaAsync("global", options.Value.GlobalDailyLimit, ct))
+            {
+                logger.LogWarning("Wyczerpany dzienny limit wiadomości całej aplikacji ({Limit})", options.Value.GlobalDailyLimit);
+                throw new EmailLimitException("Aplikacja osiągnęła dzienny limit wysyłanych wiadomości. Spróbuj jutro.");
+            }
         }
 
         var message = new EmailMessage
@@ -70,6 +83,49 @@ public sealed class EmailOutbox(
         };
         db.EmailMessages.Add(message);
         return message;
+    }
+
+    /// <summary>
+    /// Wiadomość systemowa konta (bez firmy): zapisywana od razu i wysyłana przez usługę w tle. Limit na adres na godzinę -
+    /// po jego przekroczeniu wiadomość jest pomijana bez błędu (odpowiedzi endpointów konta pozostają neutralne).
+    /// Zwraca, czy wiadomość dodano.
+    /// </summary>
+    public async Task<bool> EnqueueSystemAsync(EmailKind kind, string to, string subject, string body, CancellationToken ct = default)
+    {
+        if (!IsSystem(kind)) throw new ArgumentException("Tylko wiadomości systemowe konta.", nameof(kind));
+
+        var now = time.GetUtcNow().UtcDateTime;
+        var address = to.Trim();
+        var lastHour = await db.EmailMessages.CountAsync(m => m.CompanyId == null && m.To == address && m.CreatedAt > now.AddHours(-1), ct);
+        if (lastHour >= options.Value.SystemPerAddressPerHour)
+        {
+            logger.LogWarning("Pominięto wiadomość systemową {Kind} - limit {Limit}/godz. na adres", kind, options.Value.SystemPerAddressPerHour);
+            return false;
+        }
+
+        db.EmailMessages.Add(new EmailMessage
+        {
+            CompanyId = null, Kind = kind, To = address, Subject = subject, Body = body, CreatedAt = now, NextAttemptAt = now
+        });
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>
+    /// Atomowo zwiększa licznik dnia (czasu polskiego) dla klucza, jeśli nie osiągnął limitu. Jedno polecenie SQL
+    /// (INSERT … ON CONFLICT DO UPDATE … WHERE) - bez wyścigu „sprawdź, potem zapisz”.
+    /// </summary>
+    private async Task<bool> TryTakeQuotaAsync(string key, int limit, CancellationToken ct)
+    {
+        if (limit <= 0) return false;
+        var day = PolishDate.Today(time);
+        var taken = await db.Database.SqlQuery<int>($"""
+            INSERT INTO "EmailQuotas" ("Key", "Day", "Count") VALUES ({key}, {day}, 1)
+            ON CONFLICT ("Key", "Day") DO UPDATE SET "Count" = "EmailQuotas"."Count" + 1
+            WHERE "EmailQuotas"."Count" < {limit}
+            RETURNING "Count" AS "Value"
+            """).ToListAsync(ct);
+        return taken.Count == 1;
     }
 
     /// <summary>Jeden przebieg kolejki: wysyła wiadomości, których czas próby nadszedł. Zwraca liczbę przetworzonych.</summary>
@@ -123,8 +179,8 @@ public sealed class EmailOutbox(
         // Wiadomości do kontrahentów: nadawca widoczny jako firma, odpowiedzi trafiają na jej adres
         var toThirdParty = message.Kind is EmailKind.Invoice or EmailKind.PaymentReminder;
         return new OutgoingEmail(message.To, message.Subject, message.Body,
-            toThirdParty ? message.Company.Name : null,
-            toThirdParty ? message.Company.Email : null,
+            toThirdParty ? message.Company?.Name : null,
+            toThirdParty ? message.Company?.Email : null,
             attachments);
     }
 

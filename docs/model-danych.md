@@ -195,9 +195,9 @@ erDiagram
 
     EmailMessages {
         int Id PK
-        int CompanyId FK
+        int CompanyId FK "brak - wiadomości systemowe konta"
         int InvoiceId FK "opcjonalnie - załączniki"
-        string Kind "Invoice, PaymentReminder, ..."
+        string Kind "Invoice, PaymentReminder, ..., AccountConfirmation, PasswordReset, EmailChange"
         string To
         string Subject
         text Body "zwykły tekst"
@@ -267,7 +267,8 @@ erDiagram
 | `Companies` | Firma użytkownika: sprzedawca na fakturach sprzedażowych, nabywca na fakturach z KSeF. Zawiera zaszyfrowany token KSeF. |
 | `Customers` | Książka adresowa kontrahentów firmy (B2B z NIP lub B2C bez NIP). |
 | `Products` | Katalog towarów i usług firmy - podpowiedzi nazwy, ceny i stawki na fakturze (D35). Faktura nie odwołuje się do katalogu; dane są kopiowane do `InvoiceItems`. |
-| `EmailMessages` | Kolejka i historia wiadomości e-mail (outbox, D36): wysyła je usługa w tle z ponawianiem; załączniki powstają przy wysyłce z faktury `InvoiceId`. |
+| `EmailMessages` | Kolejka i historia wiadomości e-mail (outbox, D36): wysyła je usługa w tle z ponawianiem; załączniki powstają przy wysyłce z faktury `InvoiceId`. Wiadomości systemowe konta (potwierdzenie adresu, reset hasła, zmiana adresu) nie mają firmy (`CompanyId` puste - D53). |
+| `EmailQuotas` | Dzienne liczniki limitów poczty (klucz `company:{id}` lub `global`, dzień czasu polskiego, liczba) - zwiększane atomowo jednym poleceniem SQL, więc równoległe żądania nie przekroczą limitu (D53). |
 | `RecurringInvoices` | Harmonogramy faktur cyklicznych (D39): usługa w tle tworzy w terminie szkic na wzór faktury `TemplateInvoiceId`. |
 | `CompanyMembers` | Dostęp pracowników i księgowych do firmy z rolą (D46); właściciel - `Companies.OwnerId`. |
 | `CompanyInvitations` | Zaproszenia do firmy: adres, rola, skrót tokenu z linku, ważność, przyjęcie lub odwołanie. |

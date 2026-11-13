@@ -149,7 +149,7 @@ public class RecurringInvoiceApiTests(ApiFactory factory) : IClassFixture<ApiFac
         await RunAsync();
         await factory.ProcessEmailsAsync();
 
-        var mail = Assert.Single(factory.Email.To(account));
+        var mail = Assert.Single(factory.Email.To(account), m => !m.Subject.Contains("Potwierdź adres")); // bez wiadomości z rejestracji
         Assert.StartsWith("Faktury cykliczne do wysłania: 1", mail.Subject);
         Assert.Contains("(Abonament)", mail.Body);
     }
