@@ -66,18 +66,36 @@ public sealed class NbpClient(HttpClient http) : INbpClient
 /// </summary>
 public sealed class ExchangeRateLookup(INbpClient client, IMemoryCache cache)
 {
+    /// <summary>Pierwszy dzień notowań tabeli A w API NBP - wcześniejszych kursów API nie udostępnia (SEC-6).</summary>
+    public static readonly DateOnly FirstTableDate = new(2002, 1, 2);
+
+    /// <summary>Limit wpisów pamięci podręcznej kursów (osobna pamięć podręczna - nie rośnie bez końca, SEC-6).</summary>
+    public const int CacheSizeLimit = 10_000;
+
+    /// <summary>Brak kursu (np. data, dla której tabela nie jest jeszcze opublikowana) - zapamiętywany krótko (SEC-6).</summary>
+    private sealed record Missing(string Message);
+
     public async Task<NbpRate> ForTaxPointAsync(string currency, DateOnly taxPoint, CancellationToken ct = default)
     {
         var code = currency.ToUpperInvariant();
+        if (taxPoint <= FirstTableDate)
+            throw new NbpException($"Brak kursu średniego NBP waluty {code} przed dniem {taxPoint:dd.MM.yyyy} - kursy są dostępne od {FirstTableDate:dd.MM.yyyy}.");
+
         var key = $"nbp:{code}:{taxPoint:yyyy-MM-dd}";
-        if (cache.TryGetValue(key, out NbpRate? cached)) return cached!;
+        if (cache.TryGetValue(key, out object? cached))
+            return cached is Missing missing ? throw new NbpException(missing.Message) : (NbpRate)cached!;
 
         // Ostatni dzień roboczy przed datą: przedział 14 dni wystarcza na święta i długie weekendy
         var rates = await client.GetRatesAsync(code, taxPoint.AddDays(-14), taxPoint.AddDays(-1), ct);
-        var rate = rates.Where(r => r.EffectiveDate < taxPoint).MaxBy(r => r.EffectiveDate)
-                   ?? throw new NbpException($"Brak kursu średniego NBP waluty {code} przed dniem {taxPoint:dd.MM.yyyy}.");
+        var rate = rates.Where(r => r.EffectiveDate < taxPoint).MaxBy(r => r.EffectiveDate);
+        if (rate is null)
+        {
+            var message = $"Brak kursu średniego NBP waluty {code} przed dniem {taxPoint:dd.MM.yyyy}.";
+            cache.Set(key, new Missing(message), new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15), Size = 1 });
+            throw new NbpException(message);
+        }
 
-        cache.Set(key, rate, TimeSpan.FromHours(12));
+        cache.Set(key, rate, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12), Size = 1 });
         return rate;
     }
 

@@ -41,6 +41,7 @@ public static class RateLimits
     public static IServiceCollection AddApiRateLimits(this IServiceCollection services)
     {
         services.AddSingleton<LoginLimiter>();
+        services.AddSingleton<KsefTokenLimiter>();
         return services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -146,5 +147,48 @@ public sealed class LoginLimiter(IConfiguration configuration) : IDisposable
     public void Dispose()
     {
         foreach (var limiter in _limiters.Values) limiter.Dispose();
+    }
+}
+
+/// <summary>
+/// Limit prób zapisu i wygenerowania tokenu KSeF na firmę (domyślnie 5 na 10 minut, <c>RateLimiting:KsefTokenPer10Minutes</c>).
+/// Każda próba to pełne uwierzytelnienie w KSeF (kilka zapytań z adresu serwera) - bez limitu jedna firma mogłaby
+/// wyczerpać limity API KSeF całej aplikacji (SEC-7, D54).
+/// </summary>
+public sealed class KsefTokenLimiter(IConfiguration configuration) : IDisposable
+{
+    private readonly ConcurrentDictionary<int, PartitionedRateLimiter<int>> _limiters = new();
+
+    /// <summary>Zwraca <c>null</c>, gdy próba jest dozwolona, albo odpowiedź 429 z czasem do kolejnej próby.</summary>
+    public IResult? TryAcquire(int companyId)
+    {
+        if (!configuration.GetValue("RateLimiting:Enabled", true)) return null;
+
+        var permits = configuration.GetValue("RateLimiting:KsefTokenPer10Minutes", 5);
+        var limiter = _limiters.GetOrAdd(permits, p => PartitionedRateLimiter.Create<int, int>(id =>
+            RateLimitPartition.GetSlidingWindowLimiter(id, _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = p, Window = TimeSpan.FromMinutes(10), SegmentsPerWindow = 10, QueueLimit = 0, AutoReplenishment = true
+            })));
+        using var lease = limiter.AttemptAcquire(companyId);
+        if (lease.IsAcquired) return null;
+
+        var retryAfter = lease.TryGetMetadata(MetadataName.RetryAfter, out var r) ? (int)r.TotalSeconds : 60;
+        return new RetryAfterProblem(retryAfter,
+            "Zbyt wiele prób weryfikacji tokenu KSeF. Odczekaj kilka minut i spróbuj ponownie.");
+    }
+
+    public void Dispose()
+    {
+        foreach (var limiter in _limiters.Values) limiter.Dispose();
+    }
+
+    private sealed class RetryAfterProblem(int seconds, string title) : IResult
+    {
+        public Task ExecuteAsync(HttpContext http)
+        {
+            http.Response.Headers.RetryAfter = Math.Max(1, seconds).ToString();
+            return Results.Problem(title: title, statusCode: StatusCodes.Status429TooManyRequests).ExecuteAsync(http);
+        }
     }
 }

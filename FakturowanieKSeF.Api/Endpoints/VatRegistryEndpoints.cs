@@ -15,13 +15,13 @@ public static class VatRegistryEndpoints
     {
         var group = api.MapGroup("/vat-registry").WithTags("Wykaz podatników VAT").RequireAuthorization();
 
-        group.MapGet("/{nip}", async (string nip, CurrentCompany current, VatRegistryLookup lookup, CancellationToken ct) =>
+        group.MapGet("/{nip}", async (string nip, CurrentCompany current, VatRegistryLookup lookup, HttpContext http, CancellationToken ct) =>
             {
                 if (!NipValidator.IsValid(nip)) return ApiErrors.Validation("Nip", "Nieprawidłowy numer NIP.");
 
                 try
                 {
-                    var entry = await lookup.FindAsync(NipValidator.Normalize(nip), current.UserId, ct);
+                    var entry = await lookup.FindAsync(NipValidator.Normalize(nip), current.UserId, RateLimits.ClientIp(http), ct);
                     return entry is null
                         ? Results.Problem(
                             title: "Podmiotu o tym numerze NIP nie ma w wykazie podatników VAT.",

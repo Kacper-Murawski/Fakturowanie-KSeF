@@ -15,9 +15,16 @@ public static class ExchangeRateEndpoints
                 var code = currency.ToUpperInvariant();
                 if (!Currencies.Supported.Contains(code) || !Currencies.IsForeign(code))
                     return ApiErrors.Validation(nameof(currency), "Nieobsługiwana waluta.");
+
+                // Zakres dat: od pierwszej tabeli NBP w API do jutra - inne daty to zbędne zapytania do NBP (SEC-6)
+                var today = PolishDate.Today(time);
+                var day = date ?? today;
+                if (day < ExchangeRateLookup.FirstTableDate || day > today.AddDays(1))
+                    return ApiErrors.Validation(nameof(date),
+                        $"Kurs NBP można sprawdzić dla dat od {ExchangeRateLookup.FirstTableDate:dd.MM.yyyy} do {today.AddDays(1):dd.MM.yyyy}.");
                 try
                 {
-                    return Results.Ok(ExchangeRateLookup.ToDto(await rates.ForTaxPointAsync(code, date ?? PolishDate.Today(time), ct)));
+                    return Results.Ok(ExchangeRateLookup.ToDto(await rates.ForTaxPointAsync(code, day, ct)));
                 }
                 catch (NbpException ex)
                 {

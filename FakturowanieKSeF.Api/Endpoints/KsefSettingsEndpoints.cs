@@ -24,9 +24,10 @@ public static class KsefSettingsEndpoints
             .WithSummary("Stan integracji z KSeF (czy token jest skonfigurowany)");
 
         group.MapPut("/token", async (SaveKsefTokenRequest request, CurrentCompany current, AppDbContext db,
-                IKsefGateway gateway, KsefTokenProtector protector, TimeProvider time, CancellationToken ct) =>
+                IKsefGateway gateway, KsefTokenProtector protector, KsefTokenLimiter limiter, TimeProvider time, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+                if (limiter.TryAcquire(company.Id) is { } tooMany) return tooMany;
 
                 var token = request.Token.Trim();
                 try
@@ -46,9 +47,10 @@ public static class KsefSettingsEndpoints
             .WithSummary("Zapis tokenu KSeF (np. wygenerowanego w Aplikacji Podatnika) po weryfikacji w KSeF");
 
         group.MapPost("/test-token", async (CurrentCompany current, AppDbContext db, IKsefGateway gateway,
-                KsefTokenProtector protector, TimeProvider time, CancellationToken ct) =>
+                KsefTokenProtector protector, KsefTokenLimiter limiter, ILoggerFactory loggers, TimeProvider time, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
+                if (limiter.TryAcquire(company.Id) is { } tooMany) return tooMany;
 
                 string token;
                 try
@@ -58,7 +60,12 @@ public static class KsefSettingsEndpoints
                 }
                 catch (Exception ex) when (ex is KsefAuthenticationException or HttpRequestException)
                 {
-                    return Results.Problem(title: "Nie udało się wygenerować tokenu w testowym KSeF.", detail: ex.Message,
+                    // Szczegóły (adresy, komunikaty sieci) tylko w logu serwera - użytkownik dostaje ogólny opis (SEC-8)
+                    loggers.CreateLogger("KsefSettings").LogWarning(ex, "Nie udało się wygenerować tokenu testowego KSeF dla firmy {CompanyId}", company.Id);
+                    return Results.Problem(title: "Nie udało się wygenerować tokenu w testowym KSeF.",
+                        detail: ex is HttpRequestException
+                            ? "Brak połączenia z testowym KSeF. Spróbuj ponownie za chwilę."
+                            : "Testowy KSeF odrzucił prośbę o token. Spróbuj ponownie za chwilę.",
                         statusCode: StatusCodes.Status502BadGateway);
                 }
 

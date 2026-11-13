@@ -636,7 +636,8 @@ else
         var taxPoint = model.SaleDate ?? model.IssueDate;
         var result = await Api.GetAsync<ExchangeRateDto>($"api/exchange-rates/{model.Currency}?date={taxPoint:yyyy-MM-dd}");
         rate = result.Value;
-        rateError = result.Problem?.Title;
+        // Błąd walidacji (np. data spoza zakresu kursów NBP) - konkretny komunikat zamiast ogólnego tytułu
+        rateError = result.Problem?.Errors.Values.SelectMany(e => e).FirstOrDefault() ?? result.Problem?.Title;
     }
 
     private void Recalculate()

@@ -146,7 +146,7 @@ public class EmailApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
             var afterFirst = (await client.GetFromJsonAsync<List<EmailMessageDto>>($"/api/invoices/{invoice.Id}/emails"))!.Single();
             Assert.Equal(EmailStatus.Pending, afterFirst.Status);
             Assert.Equal(1, afterFirst.Attempts);
-            Assert.Contains("SMTP", afterFirst.LastError);
+            Assert.Equal("Brak połączenia z serwerem poczty. Wysyłka zostanie ponowiona.", afterFirst.LastError);
 
             // Kolejna próba dopiero po odstępie - natychmiastowy przebieg nie wysyła ponownie
             using (var scope = factory.Services.CreateScope())
@@ -175,6 +175,29 @@ public class EmailApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(EmailStatus.Failed, final.Status);
         Assert.Equal(EmailOutbox.RetryDelays.Length + 1, final.Attempts);
         Assert.Empty(factory.Email.To(to));
+    }
+
+    [Fact]
+    public async Task BladWysylki_NieUjawniaSzczegolowSerweraPoczty()
+    {
+        var client = await factory.CreateClientWithKsefAsync();
+        var invoice = await factory.AcceptedInvoiceAsync(client);
+        (await client.PostAsJsonAsync($"/api/invoices/{invoice.Id}/email", new SendInvoiceEmailRequest { To = NewAddress() })).EnsureSuccessStatusCode();
+
+        // Typowe komunikaty serwera: odrzucone logowanie z nazwą konta i adres wewnętrzny serwera (SEC-8)
+        factory.Email.Failure = new MailKit.Security.AuthenticationException("535 5.7.8 Authentication failed for user faktury@smtp.wewn.local:587");
+        try
+        {
+            await factory.ProcessEmailsAsync();
+            var json = await client.GetStringAsync($"/api/invoices/{invoice.Id}/emails");
+            Assert.DoesNotContain("smtp.wewn.local", json);
+            Assert.DoesNotContain("535", json);
+            Assert.Contains("Serwer poczty odrzucił logowanie aplikacji", json);
+        }
+        finally
+        {
+            factory.Email.Failure = null;
+        }
     }
 
     [Fact]

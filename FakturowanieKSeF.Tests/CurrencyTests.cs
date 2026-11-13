@@ -46,6 +46,22 @@ public class ExchangeRateLookupTests
         await Assert.ThrowsAsync<NbpException>(() => lookup.ForTaxPointAsync("XXX", new DateOnly(2026, 11, 6)));
     }
 
+    [Fact]
+    public async Task BrakKursu_ZapamietanyKrotko_IDataSprzedPierwszejTabeli_BezZapytaniaDoNbp()
+    {
+        var (lookup, client) = Create();
+
+        // Brak kursu też trafia do pamięci podręcznej - ponowne pytanie nie idzie do NBP (SEC-6)
+        await Assert.ThrowsAsync<NbpException>(() => lookup.ForTaxPointAsync("XXX", new DateOnly(2026, 11, 6)));
+        await Assert.ThrowsAsync<NbpException>(() => lookup.ForTaxPointAsync("XXX", new DateOnly(2026, 11, 6)));
+        Assert.Equal(1, client.Calls);
+
+        // Data sprzed tabel NBP (wcześniej: wyjątek przy odejmowaniu 14 dni od 0001-01-05 → błąd 500)
+        var early = await Assert.ThrowsAsync<NbpException>(() => lookup.ForTaxPointAsync("EUR", new DateOnly(1, 1, 5)));
+        Assert.Contains("02.01.2002", early.Message);
+        Assert.Equal(1, client.Calls);
+    }
+
     private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
         public Uri? Requested { get; private set; }
@@ -237,3 +253,24 @@ public class CurrencyApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(0m, export.SalesGross);
     }
 }
+
+/// <summary>Zakres dat podglądu kursu NBP (SEC-6).</summary>
+public class ExchangeRateRangeTests(ApiFactory factory) : IClassFixture<ApiFactory>
+{
+    [Theory]
+    [InlineData("0001-01-05")]
+    [InlineData("2001-12-31")]
+    [InlineData("2099-01-01")]
+    public async Task DataSpozaZakresu_400_BezZapytaniaDoNbp(string date)
+    {
+        var client = await factory.CreateClientWithCompanyAsync(TestUsers.RandomNip());
+        var calls = factory.Nbp.Calls;
+
+        var response = await client.GetAsync($"/api/exchange-rates/EUR?date={date}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("02.01.2002", await response.Content.ReadAsStringAsync());
+        Assert.Equal(calls, factory.Nbp.Calls);
+    }
+}
+

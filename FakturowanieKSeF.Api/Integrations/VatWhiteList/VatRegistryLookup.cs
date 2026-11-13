@@ -19,13 +19,13 @@ public sealed class VatRegistryLookup(
     IMemoryCache cache,
     TimeProvider time)
 {
-    public async Task<VatRegistryEntryDto?> FindAsync(string nip, string userId, CancellationToken ct = default)
+    public async Task<VatRegistryEntryDto?> FindAsync(string nip, string userId, string clientIp, CancellationToken ct = default)
     {
         var today = PolishDate.Today(time);
         var key = $"vat-registry:{nip}:{today:yyyy-MM-dd}";
         if (cache.TryGetValue(key, out VatRegistryEntryDto? cached)) return cached;
 
-        limiter.Acquire(VatRegistryLimiter.Search, userId, today);
+        limiter.Acquire(VatRegistryLimiter.Search, userId, clientIp, today);
         var subject = await client.FindByNipAsync(nip, today, ct);
         var entry = subject is null ? null : ToDto(subject, today);
 
@@ -38,7 +38,7 @@ public sealed class VatRegistryLookup(
     /// Sprawdzenie rachunku w wykazie na dziś. Rachunek musi być polskim numerem NRB (26 cyfr, opcjonalnie z „PL”);
     /// dla innych zwraca <c>null</c> - wykaz obejmuje wyłącznie rachunki prowadzone w Polsce.
     /// </summary>
-    public async Task<BankAccountCheckDto?> CheckAccountAsync(string nip, string account, string userId, CancellationToken ct = default)
+    public async Task<BankAccountCheckDto?> CheckAccountAsync(string nip, string account, string userId, string clientIp, CancellationToken ct = default)
     {
         if (ToNrb(account) is not { } nrb) return null;
 
@@ -46,7 +46,7 @@ public sealed class VatRegistryLookup(
         var key = $"vat-registry-check:{nip}:{nrb}:{today:yyyy-MM-dd}";
         if (cache.TryGetValue(key, out BankAccountCheckDto? cached)) return cached;
 
-        limiter.Acquire(VatRegistryLimiter.Check, userId, today);
+        limiter.Acquire(VatRegistryLimiter.Check, userId, clientIp, today);
         var check = await client.CheckBankAccountAsync(nip, nrb, today, ct);
         var result = new BankAccountCheckDto(nrb, check.Assigned, today, check.RequestId);
         cache.Set(key, result, TimeSpan.FromHours(12));
@@ -85,6 +85,8 @@ public sealed class VatRegistryLimiter(IConfiguration config)
 
     private readonly Lock _lock = new();
     private readonly Dictionary<(string Kind, string UserId), int> _perUser = [];
+    // Ten sam limit co na użytkownika także na adres IP - kilka kont założonych z jednego komputera dzieli jedną pulę (SEC-5, D54)
+    private readonly Dictionary<(string Kind, string Ip), int> _perIp = [];
     private readonly Dictionary<string, int> _total = [];
     private DateOnly _day;
 
@@ -92,7 +94,7 @@ public sealed class VatRegistryLimiter(IConfiguration config)
         ? (config.GetValue("VatWhiteList:DailyLimit", 90), config.GetValue("VatWhiteList:DailyLimitPerUser", 20))
         : (config.GetValue("VatWhiteList:DailyCheckLimit", 2000), config.GetValue("VatWhiteList:DailyCheckLimitPerUser", 200));
 
-    public void Acquire(string kind, string userId, DateOnly today)
+    public void Acquire(string kind, string userId, string clientIp, DateOnly today)
     {
         var (totalLimit, userLimit) = Limits(kind);
         lock (_lock)
@@ -102,10 +104,12 @@ public sealed class VatRegistryLimiter(IConfiguration config)
                 _day = today;
                 _total.Clear();
                 _perUser.Clear();
+                _perIp.Clear();
             }
 
             var used = _perUser.GetValueOrDefault((kind, userId));
-            if (used >= userLimit)
+            var usedFromIp = _perIp.GetValueOrDefault((kind, clientIp));
+            if (used >= userLimit || usedFromIp >= userLimit)
                 throw new VatRegistryLimitException(
                     "Wykorzystano dzienny limit sprawdzeń w wykazie podatników VAT. Uzupełnij dane ręcznie lub spróbuj jutro.");
             if (_total.GetValueOrDefault(kind) >= totalLimit)
@@ -113,6 +117,7 @@ public sealed class VatRegistryLimiter(IConfiguration config)
                     "Dzienny limit zapytań aplikacji do wykazu podatników VAT został wyczerpany. Spróbuj jutro.");
 
             _perUser[(kind, userId)] = used + 1;
+            _perIp[(kind, clientIp)] = usedFromIp + 1;
             _total[kind] = _total.GetValueOrDefault(kind) + 1;
         }
     }

@@ -58,7 +58,9 @@ po polsku.
 | GET | `/api/invoices/{id}/upo` | UPO faktury przyjętej przez KSeF (404, jeśli jeszcze niedostępne) |
 | GET | `/api/company/ksef` | Stan integracji z KSeF (czy token jest skonfigurowany; sam token nigdy nie jest zwracany) |
 | PUT | `/api/company/ksef/token` | Zapis tokenu KSeF po weryfikacji w KSeF (400, jeśli KSeF go odrzuci) |
-| POST | `/api/company/ksef/test-token` | Wygenerowanie tokenu w testowym KSeF dla NIP firmy (502 przy błędzie KSeF) |
+| POST | `/api/company/ksef/test-token` | Wygenerowanie tokenu w testowym KSeF dla NIP firmy (502 przy błędzie KSeF - ogólny opis, szczegóły tylko w logu serwera) |
+
+Zapis i wygenerowanie tokenu: łącznie najwyżej 5 prób na firmę w ciągu 10 minut - potem **429** z `Retry-After` (D54).
 | DELETE | `/api/company/ksef/token` | Usunięcie tokenu |
 | GET | `/api/received-invoices?q=&payment=&from=&to=&page=&pageSize=` | Lista faktur otrzymanych (z lokalnej bazy), filtr rozliczenia jak wyżej |
 | GET | `/api/received-invoices/{id}` | Faktura otrzymana z treścią odczytaną z XML |
@@ -82,7 +84,7 @@ po polsku.
 Operacje `enable`, `disable` i `recovery-codes`: błędny kod lub hasło zwiększa licznik blokady konta (ten sam co przy
 logowaniu); po 5 błędach konto jest zablokowane na 15 minut - odpowiedź **429** z `Retry-After`, także dla poprawnego
 kodu. Dodatkowo limit 5 żądań na minutę na użytkownika (D52).
-| GET | `/api/exchange-rates/{currency}?date=` | Kurs średni NBP z ostatniego dnia roboczego przed datą (dniem sprzedaży) - podgląd w formularzu; 502 - API NBP niedostępne (D43) |
+| GET | `/api/exchange-rates/{currency}?date=` | Kurs średni NBP z ostatniego dnia roboczego przed datą (dniem sprzedaży) - podgląd w formularzu; 400 - data spoza zakresu 02.01.2002 … jutro (D54); 502 - API NBP niedostępne (D43) |
 | GET | `/api/account/companies` | Firmy dostępne dla użytkownika (własna i z zaproszeń) z rolą i znacznikiem bieżącej (D46) |
 | POST | `/api/account/active-company` | Wybór bieżącej firmy (`companyId`) - tylko spośród dostępnych (404); ustawia ciasteczko HttpOnly `ksef.company`. Inni klienci API mogą wysyłać nagłówek `X-Company-Id` |
 | POST | `/api/account/email` | Zmiana adresu e-mail konta (`newEmail`, `password`, `code` - kod 2FA, gdy włączone): link potwierdzający na nowy adres (24 h), powiadomienie na dotychczasowy; zmiana po kliknięciu linku. Zawsze **202** (także gdy adres jest zajęty - wtedy nic nie wysyła); 400 - złe hasło lub kod (liczone do blokady konta), 429 - konto zablokowane lub limit 5/min (D53) |

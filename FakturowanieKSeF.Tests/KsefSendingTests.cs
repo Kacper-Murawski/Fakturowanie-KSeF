@@ -267,3 +267,38 @@ public class KsefSendingTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, (await userB.GetAsync($"/api/invoices/{draftA.Id}/upo")).StatusCode);
     }
 }
+
+/// <summary>Limit prób weryfikacji i generowania tokenu KSeF na firmę (SEC-7).</summary>
+public class KsefTokenLimitTests(KsefTokenLimitTests.LimitFactory factory) : IClassFixture<KsefTokenLimitTests.LimitFactory>
+{
+    public sealed class LimitFactory : ApiFactory
+    {
+        protected override IEnumerable<KeyValuePair<string, string?>> AdditionalSettings() =>
+        [
+            new("RateLimiting:Enabled", "true"),
+            new("RateLimiting:AuthPerMinute", "1000"),
+            new("RateLimiting:LoginPerMinute", "1000"),
+            new("RateLimiting:KsefTokenPer10Minutes", "3")
+        ];
+    }
+
+    [Fact]
+    public async Task ZapisITestTokenu_PoLimicieProbFirmy_429ZRetryAfter_InnaFirmaBezZmian()
+    {
+        var client = await factory.CreateClientWithCompanyAsync(TestUsers.RandomNip());
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/company/ksef/test-token", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PutAsJsonAsync("/api/company/ksef/token", new SaveKsefTokenRequest { Token = "zly-token" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/company/ksef/test-token", null)).StatusCode);
+
+        // Czwarta próba w ciągu 10 minut - odmowa bez zapytania do KSeF
+        var blocked = await client.PutAsJsonAsync("/api/company/ksef/token", new SaveKsefTokenRequest { Token = "kolejny-token" });
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+        Assert.True(blocked.Headers.Contains("Retry-After"));
+        Assert.Contains("Zbyt wiele prób", await blocked.Content.ReadAsStringAsync());
+
+        var other = await factory.CreateClientWithCompanyAsync(TestUsers.RandomNip());
+        Assert.Equal(HttpStatusCode.OK, (await other.PostAsync("/api/company/ksef/test-token", null)).StatusCode);
+    }
+}
+

@@ -151,7 +151,7 @@ public sealed class EmailOutbox(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogWarning(ex, "Nieudana wysyłka wiadomości {Id} (próba {Attempt})", message.Id, message.Attempts + 1);
-                message.LastError = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
+                message.LastError = PublicError(ex); // szczegóły tylko w logu serwera (SEC-8)
                 if (message.Attempts < RetryDelays.Length)
                     message.NextAttemptAt = time.GetUtcNow().UtcDateTime + RetryDelays[message.Attempts];
                 else
@@ -183,6 +183,19 @@ public sealed class EmailOutbox(
             toThirdParty ? message.Company?.Email : null,
             attachments);
     }
+
+    /// <summary>
+    /// Ogólny opis błędu wysyłki widoczny dla użytkownika (historia wiadomości). Surowy komunikat MailKit/sieci zawiera
+    /// nazwę i port serwera poczty, odpowiedzi na uwierzytelnienie czy adresy wewnętrzne - trafia tylko do logu (SEC-8, D54).
+    /// </summary>
+    public static string PublicError(Exception ex) => ex switch
+    {
+        MailKit.Security.AuthenticationException => "Serwer poczty odrzucił logowanie aplikacji. Administrator musi sprawdzić konfigurację.",
+        MailKit.Net.Smtp.SmtpCommandException => "Serwer poczty odrzucił wiadomość.",
+        MailKit.Net.Smtp.SmtpProtocolException or System.Net.Sockets.SocketException or IOException or TimeoutException
+            or MailKit.Security.SslHandshakeException => "Brak połączenia z serwerem poczty. Wysyłka zostanie ponowiona.",
+        _ => "Nie udało się wysłać wiadomości."
+    };
 
     public static EmailMessageDto ToDto(EmailMessage m) =>
         new(m.Id, m.Kind, m.To, m.Subject, m.Status, m.CreatedAt, m.SentAt, m.Attempts, m.LastError);

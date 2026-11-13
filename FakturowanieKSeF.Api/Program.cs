@@ -132,7 +132,13 @@ builder.Services.AddHttpClient<FakturowanieKSeF.Api.Integrations.Nbp.INbpClient,
     http.BaseAddress = new Uri(FakturowanieKSeF.Api.Integrations.Nbp.NbpClient.BaseAddress);
     http.Timeout = TimeSpan.FromSeconds(15);
 });
-builder.Services.AddSingleton<FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup>();
+// Kursy w osobnej pamięci podręcznej z limitem liczby wpisów - nie rośnie bez końca (SEC-6, D54)
+builder.Services.AddSingleton(services => new FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup(
+    services.GetRequiredService<FakturowanieKSeF.Api.Integrations.Nbp.INbpClient>(),
+    new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions
+    {
+        SizeLimit = FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup.CacheSizeLimit
+    })));
 builder.Services.AddScoped<VatRegistryLookup>();
 
 // Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji

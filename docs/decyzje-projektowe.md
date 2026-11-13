@@ -1278,3 +1278,28 @@ limitów wykazu VAT) i jest warunkiem bezpiecznego resetu hasła. Atomowy liczni
 całych transakcji. Neutralne odpowiedzi i fragment adresu nie pogarszają wygody, a nie ujawniają kont ani kodów.
 Ograniczenie: osoba rejestrująca się z zaproszenia musi po potwierdzeniu adresu otworzyć link zaproszenia ponownie.
 
+## D54. Limity zapytań do usług zewnętrznych i ogólne komunikaty błędów (obszar 01 przeglądu)
+
+**Kontekst:** przegląd kodu wykazał, że: kilka świeżych kont mogło wyczerpać wspólny dzienny limit wykazu VAT (SEC-5);
+podgląd kursu NBP przyjmował dowolną datę - nieograniczone zapytania do NBP, rosnąca pamięć podręczna i błąd 500 dla
+skrajnych dat (SEC-6); zapis i wygenerowanie tokenu KSeF nie miały limitu, a każda próba to kilka zapytań do KSeF
+z adresu serwera (SEC-7); użytkownik widział surowe komunikaty serwera poczty i sieci (SEC-8).
+
+**Decyzja (wybór autora spośród przedstawionych wariantów):**
+- **Wykaz VAT:** dzienny limit na użytkownika obowiązuje także na adres IP klienta (te same wartości: 20 wyszukiwań,
+  200 sprawdzeń rachunków) - kilka kont z jednego komputera dzieli pulę. Razem z potwierdzaniem adresu e-mail (D53).
+- **Kurs NBP:** podgląd tylko dla dat od 02.01.2002 (pierwsza tabela A w API NBP) do jutra, inaczej 400. Brak kursu
+  zapamiętywany na 15 minut; kursy w osobnej pamięci podręcznej z limitem 10 000 wpisów; data sprzed tabel nie
+  powoduje zapytania do NBP.
+- **Token KSeF:** zapis i wygenerowanie tokenu - łącznie 5 prób na firmę w oknie 10 minut (okno przesuwne), potem 429
+  z `Retry-After`.
+- **Komunikaty błędów:** historia wiadomości e-mail i błąd generowania tokenu pokazują ogólny opis zależny od rodzaju
+  błędu (odrzucone logowanie, odrzucona wiadomość, brak połączenia); pełny wyjątek tylko w logu serwera.
+
+**Alternatywy:** limit wykazu na firmę lub rezerwa puli dla kont starszych niż doba; zakres dat kursu „ostatnie 5 lat”
+albo decyzja razem z poprawką FAK-3; limit tokenu 1/min lub 10/godz.; komunikat ogólny z kodem SMTP.
+
+**Uzasadnienie:** limity chronią wspólne zasoby (limity MF i KSeF liczone dla adresu serwera, pamięć aplikacji) przed
+jednym użytkownikiem, nie utrudniając normalnej pracy. Szczegóły infrastruktury są potrzebne administratorowi (log),
+a nie użytkownikowi - ich ujawnienie ułatwia rozpoznanie środowiska.
+
