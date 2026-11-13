@@ -14,6 +14,7 @@ Materiały źródłowe do pracy inżynierskiej. Proponowane przyporządkowanie d
 | Integracja z KSeF (wysyłka, odbiór, PDF i QR) | [`integracja-ksef.md`](integracja-ksef.md) |
 | Bezpieczeństwo | [`bezpieczenstwo.md`](bezpieczenstwo.md) |
 | Testowanie | [`testy.md`](testy.md) |
+| Przegląd kodu (poprawność, bezpieczeństwo, wydajność) | [`przeglad-kodu/`](przeglad-kodu/README.md) - zlecenia i wyniki |
 | Instrukcja użytkownika | [`instrukcja-uzytkownika.md`](instrukcja-uzytkownika.md) (zrzuty w [`zrzuty/`](zrzuty/)) |
 | Uruchomienie środowiska deweloperskiego | [`../README.md`](../README.md) |
 | Rozwój po MVP (funkcje dodatkowe) | [`funkcje-dodatkowe.md`](funkcje-dodatkowe.md) |
