@@ -764,6 +764,38 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await page.FillAsync("#two-factor-code", Totp.Code(key, DateTimeOffset.UtcNow.AddSeconds(30)));
         await page.ClickAsync("button[type=submit]");
         await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
+
+        // Wyłączenie 2FA wymaga hasła i kodu - sama sesja nie wystarczy (D52)
+        await page.ClickAsync(".top-row a[href='konto']");
+        await page.FillAsync("#confirm-password", "ZleHaslo1!");
+        await page.FillAsync("#confirm-code", Totp.Code(key));
+        await section.Locator("button:has-text('Wyłącz')").ClickAsync();
+        await Expect(page.Locator("#confirm-password + .invalid-feedback")).ToHaveTextAsync("Nieprawidłowe hasło.");
+        await Expect(section).ToContainTextAsync("włączone");
+
+        await page.FillAsync("#confirm-password", "Haslo123!");
+        await page.FillAsync("#confirm-code", Totp.Code(key, DateTimeOffset.UtcNow.AddSeconds(30)));
+        await section.Locator("button:has-text('Wyłącz')").ClickAsync();
+        await Expect(section).ToContainTextAsync("wyłączone");
+    }
+
+    [E2EFact]
+    public async Task Logowanie_ZAdresemPowrotuNaObcaStrone_ZostajeWAplikacji()
+    {
+        var page = await fx.NewPageAsync();
+        await NewUserWithCompanyAsync(page);
+        var email = await page.Locator("[data-testid=user-email]").InnerTextAsync();
+        await page.ClickAsync("text=Wyloguj");
+        await page.WaitForURLAsync(new Regex("/login"));
+
+        // \\example.com przeglądarka rozwiązałaby jako https://example.com (open redirect, SEC-2)
+        await page.GotoAsync("/login?returnUrl=%5C%5Cexample.com%2Flogin");
+        await page.FillAsync("#email", email);
+        await page.FillAsync("#password", "Haslo123!");
+        await page.ClickAsync("button[type=submit]");
+
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
+        Assert.StartsWith(fx.BaseUrl, page.Url);
     }
 
     [E2EFact]

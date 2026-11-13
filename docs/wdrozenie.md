@@ -72,15 +72,15 @@ Przy pierwszym starcie aplikacja wykonuje migracje bazy (`Database__MigrateOnSta
 
 | Ustawienie (zmienna środowiskowa) | Znaczenie |
 |---|---|
-| `ASPNETCORE_ENVIRONMENT=Production` | Brak Swaggera i szczegółów błędów; ciasteczka tylko przez HTTPS (`Secure`); nagłówek HSTS |
+| `ASPNETCORE_ENVIRONMENT=Production` | Brak Swaggera i szczegółów błędów; ciasteczka tylko przez HTTPS (`Secure`); nagłówek HSTS (365 dni, bez subdomen) |
 | `ConnectionStrings__DefaultConnection` | Połączenie z bazą - **aplikacja odmawia startu z hasłem deweloperskim z repozytorium** |
 | `Database__MigrateOnStartup=true` | Migracje przy starcie (z ponawianiem, gdy baza jeszcze startuje) |
 | `ReverseProxy__Enabled=true` | Adres klienta i schemat HTTPS z nagłówków `X-Forwarded-*` (limity żądań, ciasteczka `Secure`); przekierowanie na HTTPS robi proxy |
-| `AllowedHosts` | Tylko domena aplikacji (filtrowanie nagłówka `Host`) |
+| `AllowedHosts` | Domena aplikacji i `localhost` (filtrowanie nagłówka `Host`; `localhost` - kontrola stanu kontenera `HEALTHCHECK`, z zewnątrz aplikacja jest dostępna tylko przez proxy) |
 | `App__PublicUrl` | Adres aplikacji w wiadomościach e-mail (zaproszenia, powiadomienia) |
 | `Email__*` | Serwer SMTP; hasło tylko w `.env` |
 | `DataProtection__CertificatePath`, `…Password` | Certyfikat szyfrujący klucze Data Protection w bazie - kopia bazy bez certyfikatu nie pozwala odszyfrować tokenów KSeF |
-| `RateLimiting__*` | Limity żądań (domyślnie: logowanie 10/min z adresu, API 600/min na użytkownika - D47) |
+| `RateLimiting__*` | Limity żądań (domyślnie: logowanie, rejestracja, reset hasła 30/min z adresu, logowanie 10/min na parę adres + e-mail, operacje z kodem 2FA 5/min na użytkownika, API 600/min na użytkownika - D47, D52) |
 
 ## Kopie zapasowe i odtwarzanie
 

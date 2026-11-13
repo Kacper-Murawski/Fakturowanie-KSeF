@@ -46,9 +46,18 @@
             {
                 <div class="alert alert-warning small">Kończą się kody odzyskiwania - wygeneruj nowe.</div>
             }
+            <p class="small text-muted mb-2">Wyłączenie i nowe kody odzyskiwania wymagają hasła i kodu - sama sesja w przeglądarce nie wystarczy.</p>
+            <div class="mb-2" style="max-width: 16rem">
+                <label class="form-label small" for="confirm-password">Hasło</label>
+                <input id="confirm-password" type="password" class="form-control @Invalid("Password")" autocomplete="current-password"
+                       maxlength="200" @bind="password" @bind:event="oninput" />
+                <div class="invalid-feedback">@FieldError("Password")</div>
+            </div>
             <div class="mb-2" style="max-width: 16rem">
                 <label class="form-label small" for="confirm-code">Kod z aplikacji (lub kod odzyskiwania przy wyłączaniu)</label>
-                <input id="confirm-code" class="form-control" autocomplete="one-time-code" maxlength="20" @bind="code" @bind:event="oninput" />
+                <input id="confirm-code" class="form-control @Invalid("Code")" autocomplete="one-time-code" maxlength="20"
+                       @bind="code" @bind:event="oninput" />
+                <div class="invalid-feedback">@FieldError("Code")</div>
             </div>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="NewRecoveryCodesAsync">Nowe kody odzyskiwania</button>
@@ -72,8 +81,9 @@
             <div class="d-flex gap-2 align-items-end">
                 <div style="max-width: 10rem">
                     <label class="form-label small" for="setup-code">Kod z aplikacji</label>
-                    <input id="setup-code" class="form-control" inputmode="numeric" autocomplete="one-time-code" maxlength="7"
-                           @bind="code" @bind:event="oninput" />
+                    <input id="setup-code" class="form-control @Invalid("Code")" inputmode="numeric" autocomplete="one-time-code"
+                           maxlength="7" @bind="code" @bind:event="oninput" />
+                    <div class="invalid-feedback">@FieldError("Code")</div>
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" disabled="@busy" @onclick="EnableAsync">Potwierdź i włącz</button>
                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => setup = null">Anuluj</button>
@@ -88,6 +98,7 @@
     private TwoFactorSetupDto? setup;
     private IReadOnlyList<string>? recoveryCodes;
     private string? code;
+    private string? password;
     private ApiProblem? problem;
     private bool busy;
 
@@ -96,6 +107,12 @@
         email = (await AuthState.GetAuthenticationStateAsync()).User.Identity?.Name;
         await LoadAsync();
     }
+
+    /// <summary>Błąd pola zwrócony przez API (np. „Nieprawidłowe hasło.”) - wyświetlany pod polem.</summary>
+    private string? FieldError(string field) =>
+        problem?.Errors.FirstOrDefault(e => string.Equals(e.Key, field, StringComparison.OrdinalIgnoreCase)).Value?.FirstOrDefault();
+
+    private string Invalid(string field) => FieldError(field) is null ? "" : "is-invalid";
 
     private async Task LoadAsync()
     {
@@ -125,7 +142,8 @@
 
     private async Task NewRecoveryCodesAsync() => await RunAsync(async () =>
     {
-        var result = await Api.PostAsync<RecoveryCodesDto>("api/account/2fa/recovery-codes", new TwoFactorCodeRequest { Code = code ?? "" });
+        var result = await Api.PostAsync<RecoveryCodesDto>("api/account/2fa/recovery-codes",
+            new TwoFactorConfirmRequest { Password = password ?? "", Code = code ?? "" });
         if (result.Value is { } codes)
         {
             recoveryCodes = codes.RecoveryCodes;
@@ -136,7 +154,8 @@
 
     private async Task DisableAsync() => await RunAsync(async () =>
     {
-        var result = await Api.PostAsync<bool>("api/account/2fa/disable", new TwoFactorCodeRequest { Code = code ?? "" });
+        var result = await Api.PostAsync<bool>("api/account/2fa/disable",
+            new TwoFactorConfirmRequest { Password = password ?? "", Code = code ?? "" });
         if (result.Problem is null) await LoadAsync();
         return result.Problem;
     });
@@ -147,5 +166,6 @@
         problem = await action();
         busy = false;
         code = null;
+        password = null;
     }
 }

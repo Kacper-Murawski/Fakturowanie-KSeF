@@ -1213,3 +1213,34 @@ i ponawiała wysyłkę do 10 razy.
 a po pierwszej wymianie dokumentów była niemożliwa. Ostateczny błąd KSeF powinien od razu dawać użytkownikowi
 wskazówkę, co zrobić.
 
+## D52. Poprawki bezpieczeństwa logowania po przeglądzie kodu (obszar 01): 2FA, przekierowanie, limity, sesje, HSTS
+
+**Kontekst:** przegląd kodu (`docs/przeglad-kodu/wyniki/01-bezpieczenstwo.md`) wykazał, że przy operacjach 2FA
+kod można zgadywać bez limitu (SEC-1, potwierdzone testem), `returnUrl` przepuszcza adresy obcych stron (SEC-2),
+limit logowań na adres IP zużywa samo odświeżanie strony (SEC-3), a HSTS ma domyślne 30 dni (SEC-11).
+
+**Decyzja (wybór autora spośród przedstawionych wariantów):**
+- **2FA:** każdy błędny kod lub hasło przy włączaniu, wyłączaniu 2FA i generowaniu kodów odzyskiwania zwiększa
+  licznik blokady konta - tej samej co przy logowaniu (5 prób → 15 minut, potem 429 także dla poprawnego kodu);
+  dodatkowo limit 5 żądań/min na użytkownika. Wyłączenie 2FA i nowe kody odzyskiwania wymagają **hasła i kodu**.
+- **returnUrl:** tylko ścieżka wewnątrz aplikacji (względna wobec adresu bazowego, biała lista znaków: bez ukośnika
+  na początku, dwukropka, odwrotnego ukośnika, spacji i znaków sterujących); inaczej strona główna. Funkcja
+  `ReturnUrl.Sanitize` w `Contracts` - testowalna jednostkowo.
+- **Limity logowania:** limit „auth” (30/min na adres IP) tylko dla operacji wrażliwych: logowanie, rejestracja,
+  odświeżanie tokenu, reset hasła, zmiana hasła (`POST manage/info`), zaproszenia. Sprawdzenie sesji (`GET manage/info`)
+  i wylogowanie - tylko limit ogólny API na użytkownika. Logowanie dodatkowo 10/min na parę „adres IP + e-mail”.
+- **Sesje i tokeny (D18 bez zmian):** logowanie tokenem Bearer zostaje. Zmiana hasła i włączenie/wyłączenie 2FA
+  zmieniają znacznik bezpieczeństwa konta: ciasteczka są z nim porównywane co minutę (zamiast domyślnych 30),
+  tokeny odświeżania przy każdym odświeżeniu, a token dostępu Bearer żyje 15 minut (zamiast godziny).
+- **HSTS:** 365 dni, bez subdomen i bez listy preload (subdomeny domeny nie muszą mieć HTTPS; preload trudno wycofać).
+- **Kontrola stanu kontenera:** `AllowedHosts` produkcyjnie = domena i `localhost` (HEALTHCHECK pyta z `Host: localhost`).
+
+**Alternatywy:** sam limit żądań bez blokady konta (wolniejsze, ale nieograniczone zgadywanie); blokada bez wymogu hasła;
+biała lista stron dla `returnUrl` lub jego usunięcie (utrata powrotu do linku zaproszenia); podniesienie limitu
+całej grupy `/api/auth` zamiast jego zawężenia; wyłączenie tokenów Bearer; HSTS z subdomenami lub preload.
+
+**Uzasadnienie:** blokada konta i wymóg hasła razem sprawiają, że sama przejęta sesja nie wystarczy do zdjęcia 2FA
+(zgodnie z założeniem D41). Biała lista znaków `returnUrl` jest prostsza i pewniejsza niż wykrywanie wszystkich form
+adresu bezwzględnego, które przeglądarka akceptuje. Zawężenie limitu usuwa blokowanie się użytkowników za wspólnym
+adresem (biuro, NAT) bez osłabienia ochrony logowania, a para „adres + e-mail” ogranicza zgadywanie hasła jednego konta.
+
