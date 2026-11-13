@@ -12,6 +12,6 @@ w plikach `wyniki/NN-*.md` - ta tabela to jego skrót.
 | 05 Backend - wydajność i baza | `wyniki/05-backend-wydajnosc-i-baza.md` | zakończony | 17 znalezisk (0 krytycznych, 2 wysokie) |
 | 06 Frontend | `wyniki/06-frontend.md` | zakończony | 20 znalezisk |
 | 07 Testy i jakość | `wyniki/07-testy-i-jakosc.md` | zakończony | 12 znalezisk |
-| 99 Weryfikacja i raport | `wyniki/RAPORT.md` | w toku | |
+| 99 Weryfikacja i raport | `wyniki/RAPORT.md` | zakończony | 53 potwierdzone, 1 odrzucone, 3 niepewne, 44 bez ponownej weryfikacji |
 
 Kolejność: najpierw 02, 03, 04; potem 01, 05, 06, 07; na końcu 99.
