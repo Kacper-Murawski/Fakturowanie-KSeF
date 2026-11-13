@@ -1,5 +1,8 @@
 using System.Text.Encodings.Web;
+using System.Text;
 using FakturowanieKSeF.Api.Infrastructure;
+using FakturowanieKSeF.Api.Services.Email;
+using Microsoft.AspNetCore.WebUtilities;
 using FakturowanieKSeF.Contracts.Dtos;
 using FakturowanieKSeF.Ksef;
 using FakturowanieKSeF.Models;
@@ -51,9 +54,9 @@ public static class AccountEndpoints
                 if (await users.GetUserAsync(http.User) is not { } user) return Results.Unauthorized();
                 if (await users.GetTwoFactorEnabledAsync(user))
                     return ApiErrors.Conflict("Logowanie dwuskładnikowe jest już włączone.");
-                if (await LockedOutAsync(users, user) is { } locked) return locked;
+                if (await AccountLockout.LockedOutAsync(users, user) is { } locked) return locked;
                 if (!await VerifyTotpAsync(users, user, request.Code))
-                    return await FailedAttemptAsync(users, user, nameof(request.Code),
+                    return await AccountLockout.FailedAttemptAsync(users, user, nameof(request.Code),
                         "Nieprawidłowy kod - sprawdź czas w telefonie i wpisz aktualny kod.");
                 await users.ResetAccessFailedCountAsync(user);
 
@@ -68,12 +71,12 @@ public static class AccountEndpoints
             {
                 if (await users.GetUserAsync(http.User) is not { } user) return Results.Unauthorized();
                 if (!await users.GetTwoFactorEnabledAsync(user)) return ApiErrors.Conflict("Logowanie dwuskładnikowe nie jest włączone.");
-                if (await LockedOutAsync(users, user) is { } locked) return locked;
+                if (await AccountLockout.LockedOutAsync(users, user) is { } locked) return locked;
                 if (!await users.CheckPasswordAsync(user, request.Password))
-                    return await FailedAttemptAsync(users, user, nameof(request.Password), "Nieprawidłowe hasło.");
+                    return await AccountLockout.FailedAttemptAsync(users, user, nameof(request.Password), "Nieprawidłowe hasło.");
                 if (!await VerifyTotpAsync(users, user, request.Code)
                     && !(await users.RedeemTwoFactorRecoveryCodeAsync(user, request.Code.Replace(" ", "").Trim())).Succeeded)
-                    return await FailedAttemptAsync(users, user, nameof(request.Code), "Nieprawidłowy kod.");
+                    return await AccountLockout.FailedAttemptAsync(users, user, nameof(request.Code), "Nieprawidłowy kod.");
                 await users.ResetAccessFailedCountAsync(user);
 
                 await users.SetTwoFactorEnabledAsync(user, false);
@@ -87,11 +90,11 @@ public static class AccountEndpoints
             {
                 if (await users.GetUserAsync(http.User) is not { } user) return Results.Unauthorized();
                 if (!await users.GetTwoFactorEnabledAsync(user)) return ApiErrors.Conflict("Logowanie dwuskładnikowe nie jest włączone.");
-                if (await LockedOutAsync(users, user) is { } locked) return locked;
+                if (await AccountLockout.LockedOutAsync(users, user) is { } locked) return locked;
                 if (!await users.CheckPasswordAsync(user, request.Password))
-                    return await FailedAttemptAsync(users, user, nameof(request.Password), "Nieprawidłowe hasło.");
+                    return await AccountLockout.FailedAttemptAsync(users, user, nameof(request.Password), "Nieprawidłowe hasło.");
                 if (!await VerifyTotpAsync(users, user, request.Code))
-                    return await FailedAttemptAsync(users, user, nameof(request.Code), "Nieprawidłowy kod.");
+                    return await AccountLockout.FailedAttemptAsync(users, user, nameof(request.Code), "Nieprawidłowy kod.");
                 await users.ResetAccessFailedCountAsync(user);
 
                 var codes = await users.GenerateNewTwoFactorRecoveryCodesAsync(user, RecoveryCodes);
@@ -101,32 +104,46 @@ public static class AccountEndpoints
             .WithSummary("Nowe kody odzyskiwania (poprzednie przestają działać) - wymaga hasła i kodu z aplikacji");
     }
 
-    /// <summary>Konto zablokowane po zbyt wielu błędnych próbach (logowania lub kodu) - 429 z czasem odblokowania.</summary>
-    private static async Task<IResult?> LockedOutAsync(UserManager<ApplicationUser> users, ApplicationUser user)
-    {
-        if (!await users.IsLockedOutAsync(user)) return null;
-        var end = await users.GetLockoutEndDateAsync(user);
-        var seconds = end is { } e ? Math.Max(1, (int)Math.Ceiling((e - DateTimeOffset.UtcNow).TotalSeconds)) : 900;
-        return new LockedOutResult(seconds);
-    }
+    /// <summary>
+    /// Zmiana adresu e-mail konta (D53). Wbudowana zmiana przez <c>POST /api/auth/manage/info</c> jest zablokowana
+    /// (Program.cs), bo nie wymaga hasła - przejęta sesja pozwoliłaby przejąć konto (zmiana adresu → reset hasła).
+    /// Odpowiedź jest zawsze taka sama (202), także gdy adres należy do innego konta - nie da się sprawdzić, kto ma konto.
+    /// </summary>
+    public static void MapEmailChangeEndpoint(this RouteGroupBuilder api) =>
+        api.MapPost("/account/email", async (ChangeEmailRequest request, HttpContext http, UserManager<ApplicationUser> users,
+                IEmailSender<ApplicationUser> emails) =>
+            {
+                if (await users.GetUserAsync(http.User) is not { } user) return Results.Unauthorized();
+                if (await AccountLockout.LockedOutAsync(users, user) is { } locked) return locked;
+                if (!await users.CheckPasswordAsync(user, request.Password))
+                    return await AccountLockout.FailedAttemptAsync(users, user, nameof(request.Password), "Nieprawidłowe hasło.");
+                if (await users.GetTwoFactorEnabledAsync(user)
+                    && (string.IsNullOrWhiteSpace(request.Code) || !await VerifyTotpAsync(users, user, request.Code)))
+                    return await AccountLockout.FailedAttemptAsync(users, user, nameof(request.Code), "Podaj aktualny kod z aplikacji uwierzytelniającej.");
+                await users.ResetAccessFailedCountAsync(user);
 
-    /// <summary>Błędne hasło lub kod: zwiększa licznik blokady konta (ten sam co przy logowaniu) i zwraca błąd pola.</summary>
-    private static async Task<IResult> FailedAttemptAsync(UserManager<ApplicationUser> users, ApplicationUser user, string field, string message)
-    {
-        await users.AccessFailedAsync(user);
-        return await LockedOutAsync(users, user) ?? ApiErrors.Validation(field, message);
-    }
+                var newEmail = request.NewEmail.Trim();
+                if (users.NormalizeEmail(newEmail) == user.NormalizedEmail)
+                    return ApiErrors.Validation(nameof(request.NewEmail), "To Twój obecny adres e-mail.");
 
-    private sealed class LockedOutResult(int retryAfterSeconds) : IResult
-    {
-        public Task ExecuteAsync(HttpContext http)
-        {
-            http.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
-            return Results.Problem(
-                title: "Zbyt wiele nieudanych prób. Konto jest tymczasowo zablokowane - spróbuj ponownie za kilkanaście minut.",
-                statusCode: StatusCodes.Status429TooManyRequests).ExecuteAsync(http);
-        }
-    }
+                if (await users.FindByEmailAsync(newEmail) is null)
+                {
+                    var token = await users.GenerateChangeEmailTokenAsync(user, newEmail);
+                    var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+                    // Ten sam format linku, który buduje Identity - AccountEmails zamienia go na stronę klienta
+                    var link = $"{http.Request.Scheme}://{http.Request.Host}/api/auth/confirmEmail?userId={Uri.EscapeDataString(user.Id)}"
+                               + $"&code={Uri.EscapeDataString(code)}&changedEmail={Uri.EscapeDataString(newEmail)}";
+                    await emails.SendConfirmationLinkAsync(user, newEmail, link);
+                    if (emails is AccountEmails account && user.Email is { } oldEmail)
+                        await account.SendEmailChangeNoticeAsync(oldEmail, newEmail);
+                }
+
+                return Results.Accepted();
+            })
+            .RequireAuthorization()
+            .RequireRateLimiting(RateLimits.TwoFactor)
+            .WithTags("Konto")
+            .WithSummary("Zmiana adresu e-mail: wymaga hasła (i kodu 2FA); link potwierdzający na nowy adres, powiadomienie na stary");
 
     private static Task<bool> VerifyTotpAsync(UserManager<ApplicationUser> users, ApplicationUser user, string code) =>
         users.VerifyTwoFactorTokenAsync(user, users.Options.Tokens.AuthenticatorTokenProvider, Normalize(code));

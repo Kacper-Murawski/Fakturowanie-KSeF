@@ -11,8 +11,13 @@ namespace FakturowanieKSeF.Tests;
 public class AuthTests : IClassFixture<ApiFactory>
 {
     private readonly HttpClient _client;
+    private readonly ApiFactory _factory;
 
-    public AuthTests(ApiFactory factory) => _client = factory.CreateClient();
+    public AuthTests(ApiFactory factory)
+    {
+        _factory = factory;
+        _client = factory.CreateClient();
+    }
 
     private static string UnikalnyEmail() => $"user_{Guid.NewGuid():N}@example.com";
 
@@ -25,6 +30,7 @@ public class AuthTests : IClassFixture<ApiFactory>
 
         var rejestracja = await _client.PostAsJsonAsync("/api/auth/register", dane);
         Assert.Equal(HttpStatusCode.OK, rejestracja.StatusCode);
+        await _factory.ConfirmEmailAsync(dane.email);
 
         var logowanie = await _client.PostAsJsonAsync("/api/auth/login", dane);
         Assert.Equal(HttpStatusCode.OK, logowanie.StatusCode);
@@ -45,7 +51,7 @@ public class AuthTests : IClassFixture<ApiFactory>
     public async Task Logowanie_ZlymHaslem_Zwraca401()
     {
         var email = UnikalnyEmail();
-        await _client.PostAsJsonAsync("/api/auth/register", new { email, password = "Haslo123!" });
+        await _factory.RegisterConfirmedAsync(_client, email);
 
         var logowanie = await _client.PostAsJsonAsync("/api/auth/login", new { email, password = "ZleHaslo1!" });
 
@@ -78,7 +84,7 @@ public class CookieAuthTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var client = factory.CreateClient(); // klient testowy przechowuje ciasteczka jak przeglądarka
         var dane = new { email = $"cookie_{Guid.NewGuid():N}@example.com", password = "Haslo123!" };
-        await client.PostAsJsonAsync("/api/auth/register", dane);
+        await factory.RegisterConfirmedAsync(client, dane.email, dane.password);
 
         var logowanie = await client.PostAsJsonAsync("/api/auth/login?useCookies=true", dane);
         Assert.Equal(HttpStatusCode.OK, logowanie.StatusCode);

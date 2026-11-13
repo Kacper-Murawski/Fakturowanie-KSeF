@@ -7,8 +7,27 @@
 <PageTitle>Rejestracja - Fakturowanie KSeF</PageTitle>
 
 <div class="auth-card">
+    @if (registeredEmail is not null)
+    {
+        <h1 class="h3 mb-1">Sprawdź skrzynkę</h1>
+        <div data-testid="check-mailbox">
+            <p class="muted">
+                Wysłaliśmy link potwierdzający na adres <strong class="text-break">@registeredEmail</strong>. Kliknij go, aby aktywować konto -
+                link jest ważny 24 godziny. Potem zalogujesz się i uzupełnisz dane firmy.
+            </p>
+            <p class="small text-muted">Nie widzisz wiadomości? Sprawdź folder ze spamem albo wyślij link ponownie.</p>
+            @if (resent)
+            {
+                <div class="alert alert-success small" role="status">Jeśli konto wymaga potwierdzenia, wysłaliśmy nowy link.</div>
+            }
+            <button type="button" class="btn btn-outline-secondary w-100" disabled="@busy" @onclick="ResendAsync">Wyślij link ponownie</button>
+            <p class="mt-3 mb-0 text-center"><a href="login">Przejdź do logowania</a></p>
+        </div>
+    }
+    else
+    {
     <h1 class="h3 mb-1">Załóż konto</h1>
-    <p class="muted mb-4">Konto jest bezpłatne. Po rejestracji uzupełnisz dane firmy i połączysz ją z testowym KSeF.</p>
+    <p class="muted mb-4">Konto jest bezpłatne. Po rejestracji potwierdzisz adres e-mail, uzupełnisz dane firmy i połączysz ją z testowym KSeF.</p>
 
     <EditForm Model="model" OnValidSubmit="RegisterAsync" FormName="register">
         <DataAnnotationsValidator />
@@ -48,25 +67,29 @@
     </EditForm>
 
     <p class="mt-3 mb-0 text-center">Masz już konto? <a href="login">Zaloguj się</a></p>
+    }
 </div>
 
 @code {
     private readonly RegisterModel model = new();
     private List<string> errors = [];
     private bool busy;
+    private string? registeredEmail;
+    private bool resent;
 
     private async Task RegisterAsync()
     {
         busy = true;
         errors = (await Auth.RegisterAsync(model.Email, model.Password)).ToList();
+        // Logowanie dopiero po potwierdzeniu adresu linkiem z wiadomości (D53)
+        if (errors.Count == 0) registeredEmail = model.Email.Trim();
+        busy = false;
+    }
 
-        if (errors.Count == 0)
-        {
-            // Po rejestracji od razu logujemy i prowadzimy do uzupełnienia danych firmy
-            var login = await Auth.LoginAsync(model.Email, model.Password);
-            if (login.Succeeded) Navigation.NavigateTo("firma");
-            else errors.Add(login.Error ?? "Nie udało się zalogować.");
-        }
+    private async Task ResendAsync()
+    {
+        busy = true;
+        resent = await Auth.ResendConfirmationAsync(registeredEmail!);
         busy = false;
     }
 

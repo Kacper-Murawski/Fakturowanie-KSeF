@@ -33,3 +33,23 @@ public sealed class TwoFactorConfirmRequest
     [MaxLength(20)]
     public string Code { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Zmiana adresu e-mail konta (D53): wymaga hasła i - przy włączonym 2FA - kodu z aplikacji. Nowy adres zaczyna
+/// obowiązywać dopiero po kliknięciu linku wysłanego na niego; dotychczasowy adres dostaje powiadomienie.
+/// </summary>
+public sealed class ChangeEmailRequest
+{
+    [Required(ErrorMessage = "Podaj nowy adres e-mail.")]
+    [EmailAddress(ErrorMessage = "Nieprawidłowy adres e-mail.")]
+    [MaxLength(254)]
+    public string NewEmail { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Podaj hasło.")]
+    [MaxLength(200)]
+    public string Password { get; set; } = string.Empty;
+
+    /// <summary>Kod z aplikacji uwierzytelniającej - wymagany, gdy konto ma włączone 2FA.</summary>
+    [MaxLength(20)]
+    public string? Code { get; set; }
+}

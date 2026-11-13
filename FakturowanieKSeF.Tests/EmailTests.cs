@@ -187,11 +187,11 @@ public class EmailApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var companyId = (await db.Invoices.SingleAsync(i => i.Id == invoice.Id)).CompanyId;
-            db.EmailMessages.AddRange(Enumerable.Range(0, 100).Select(_ => new EmailMessage
+            // Licznik dnia firmy wyczerpany (100 wiadomości dziś)
+            db.EmailQuotas.Add(new EmailQuota
             {
-                CompanyId = companyId, Kind = EmailKind.Invoice, To = "x@example.com", Subject = "s", Body = "b",
-                Status = EmailStatus.Sent, CreatedAt = DateTime.UtcNow.AddHours(-1), NextAttemptAt = DateTime.UtcNow
-            }));
+                Key = $"company:{companyId}", Day = FakturowanieKSeF.Api.Infrastructure.PolishDate.Today(TimeProvider.System), Count = 100
+            });
             await db.SaveChangesAsync();
         }
 

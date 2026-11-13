@@ -1,6 +1,9 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FakturowanieKSeF.Contracts.Dtos;
+using FakturowanieKSeF.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FakturowanieKSeF.Tests.Infrastructure;
 
@@ -9,13 +12,33 @@ public static class TestUsers
 {
     private record LoginResponse(string AccessToken);
 
+    /// <summary>
+    /// Rejestracja przez API i potwierdzenie adresu bezpośrednio w bazie (logowanie wymaga potwierdzonego adresu - D53).
+    /// Pełny przepływ z linkiem z wiadomości sprawdza <c>EmailConfirmationTests</c>.
+    /// </summary>
+    public static async Task RegisterConfirmedAsync(this ApiFactory factory, HttpClient client, string email, string password = "Haslo123!")
+    {
+        (await client.PostAsJsonAsync("/api/auth/register", new { email, password })).EnsureSuccessStatusCode();
+        await factory.ConfirmEmailAsync(email);
+    }
+
+    /// <summary>Oznacza adres konta jako potwierdzony (z pominięciem linku z wiadomości).</summary>
+    public static async Task ConfirmEmailAsync(this ApiFactory factory, string email)
+    {
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException($"Brak konta {email}");
+        var result = await users.ConfirmEmailAsync(user, await users.GenerateEmailConfirmationTokenAsync(user));
+        if (!result.Succeeded) throw new InvalidOperationException("Nie udało się potwierdzić adresu.");
+    }
+
     /// <summary>Rejestruje nowego użytkownika i zwraca klienta HTTP z jego tokenem.</summary>
     public static async Task<HttpClient> CreateLoggedInClientAsync(this ApiFactory factory)
     {
         var client = factory.CreateClient();
         var credentials = new { email = $"user_{Guid.NewGuid():N}@example.com", password = "Haslo123!" };
 
-        (await client.PostAsJsonAsync("/api/auth/register", credentials)).EnsureSuccessStatusCode();
+        await factory.RegisterConfirmedAsync(client, credentials.email, credentials.password);
         var login = await client.PostAsJsonAsync("/api/auth/login", credentials);
         login.EnsureSuccessStatusCode();
         var token = (await login.Content.ReadFromJsonAsync<LoginResponse>())!.AccessToken;

@@ -21,7 +21,7 @@ public class TwoFactorTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var client = factory.CreateClient();
         var email = $"user_{Guid.NewGuid():N}@example.com";
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, password = "Haslo123!" })).EnsureSuccessStatusCode();
+        await factory.RegisterConfirmedAsync(client, email);
         var token = (await (await client.PostAsJsonAsync("/api/auth/login", Credentials(email))).Content.ReadFromJsonAsync<LoginResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
         return (client, email);
@@ -158,7 +158,7 @@ public class TwoFactorTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var client = factory.CreateClient();
         var email = $"user_{Guid.NewGuid():N}@example.com";
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, password = "Haslo123!" })).EnsureSuccessStatusCode();
+        await factory.RegisterConfirmedAsync(client, email);
         var tokens = (await (await client.PostAsJsonAsync("/api/auth/login", Credentials(email))).Content.ReadFromJsonAsync<Tokens>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
 

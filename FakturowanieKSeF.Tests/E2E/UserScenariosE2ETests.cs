@@ -16,14 +16,48 @@ public class UserScenariosE2ETests(E2EFixture fx)
 {
     // ------------------------------------------------------------------ kroki wielokrotnego użytku
 
-    private static async Task RegisterAsync(IPage page)
+    /// <summary>
+    /// Rejestracja z potwierdzeniem adresu (D53): formularz → „sprawdź skrzynkę” → link z wiadomości → logowanie →
+    /// strona danych firmy.
+    /// </summary>
+    private async Task RegisterAsync(IPage page, string? email = null)
     {
+        email ??= $"e2e_{Guid.NewGuid():N}@example.com";
         await page.GotoAsync("/register");
-        await page.FillAsync("#email", $"e2e_{Guid.NewGuid():N}@example.com");
+        await page.FillAsync("#email", email);
         await page.FillAsync("#password", "Haslo123!");
         await page.FillAsync("#password2", "Haslo123!");
         await page.ClickAsync("button[type=submit]");
-        await page.WaitForURLAsync(new Regex("/firma$"));
+        await Expect(page.Locator("[data-testid=check-mailbox]")).ToContainTextAsync(email);
+
+        await page.GotoAsync(await MailLinkAsync(email, "Potwierdź adres e-mail", "/potwierdz-email#"));
+        await Expect(page.Locator("[data-testid=email-confirmed]")).ToBeVisibleAsync();
+
+        await LoginAsync(page, email);
+        await page.GotoAsync("/firma");
+        await Expect(page.Locator("h1")).ToBeVisibleAsync();
+    }
+
+    private static async Task LoginAsync(IPage page, string email, string password = "Haslo123!")
+    {
+        await page.GotoAsync("/login");
+        await page.FillAsync("#email", email);
+        await page.FillAsync("#password", password);
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Pulpit");
+    }
+
+    /// <summary>Link (ścieżka z fragmentem) z wiadomości o danym temacie - czeka na usługę wysyłki w tle.</summary>
+    private async Task<string> MailLinkAsync(string to, string subject, string marker)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        FakturowanieKSeF.Api.Services.Email.OutgoingEmail? mail = null;
+        while ((mail = fx.App.Email.To(to).LastOrDefault(m => m.Subject.Contains(subject))) is null && DateTime.UtcNow < deadline)
+            await Task.Delay(250);
+        Assert.NotNull(mail);
+        var start = mail.Body.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, mail.Body);
+        return mail.Body[start..].Split('\n')[0].Trim();
     }
 
     private static async Task CreateCompanyAsync(IPage page, string nip)
@@ -38,7 +72,7 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(page.Locator(".alert-success")).ToContainTextAsync("Zapisano dane firmy");
     }
 
-    private static async Task<string> NewUserWithCompanyAsync(IPage page)
+    private async Task<string> NewUserWithCompanyAsync(IPage page)
     {
         var nip = TestUsers.RandomNip();
         await RegisterAsync(page);
@@ -780,6 +814,60 @@ public class UserScenariosE2ETests(E2EFixture fx)
     }
 
     [E2EFact]
+    public async Task Konto_NiepotwierdzonyAdres_ResetHasla_IZmianaAdresuEmail()
+    {
+        // Logowanie przed potwierdzeniem adresu - komunikat i ponowna wysyłka linku
+        var page = await fx.NewPageAsync();
+        var email = $"e2e_{Guid.NewGuid():N}@example.com";
+        await page.GotoAsync("/register");
+        await page.FillAsync("#email", email);
+        await page.FillAsync("#password", "Haslo123!");
+        await page.FillAsync("#password2", "Haslo123!");
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator("[data-testid=check-mailbox]")).ToBeVisibleAsync();
+        await E2EFixture.ScreenshotAsync(page, "38-potwierdz-adres");
+        await page.GotoAsync("/login");
+        await page.FillAsync("#email", email);
+        await page.FillAsync("#password", "Haslo123!");
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator(".alert-danger")).ToContainTextAsync("potwierdź adres e-mail");
+        await page.ClickAsync("button:has-text('Wyślij link ponownie')");
+        await Expect(page.Locator(".alert-success")).ToBeVisibleAsync();
+        await page.GotoAsync(await MailLinkAsync(email, "Potwierdź adres e-mail", "/potwierdz-email#"));
+        await Expect(page.Locator("[data-testid=email-confirmed]")).ToBeVisibleAsync();
+
+        // Nie pamiętam hasła → link z wiadomości → nowe hasło
+        await page.GotoAsync("/login");
+        await page.ClickAsync("text=Nie pamiętasz hasła?");
+        await page.FillAsync("#email", email);
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator("[data-testid=reset-sent]")).ToBeVisibleAsync();
+        await page.GotoAsync(await MailLinkAsync(email, "Ustaw nowe hasło", "/reset-hasla#"));
+        await page.FillAsync("#password", "NoweHaslo1!");
+        await page.FillAsync("#password2", "NoweHaslo1!");
+        await page.ClickAsync("button[type=submit]");
+        await Expect(page.Locator("[data-testid=password-changed]")).ToBeVisibleAsync();
+        await LoginAsync(page, email, "NoweHaslo1!");
+
+        // Zmiana adresu: wymaga hasła, link na nowy adres, logowanie nowym adresem
+        var newEmail = $"e2e_nowy_{Guid.NewGuid():N}@example.com";
+        await page.GotoAsync("/konto");
+        var section = page.Locator("[data-testid=change-email]");
+        await page.FillAsync("#new-email", newEmail);
+        await page.FillAsync("#email-password", "ZleHaslo1!");
+        await section.Locator("button:has-text('Zmień adres')").ClickAsync();
+        await Expect(page.Locator("#email-password + .invalid-feedback")).ToHaveTextAsync("Nieprawidłowe hasło.");
+        await page.FillAsync("#email-password", "NoweHaslo1!");
+        await section.Locator("button:has-text('Zmień adres')").ClickAsync();
+        await Expect(page.Locator("[data-testid=email-change-sent]")).ToBeVisibleAsync();
+        await page.GotoAsync(await MailLinkAsync(newEmail, "Potwierdź nowy adres", "/potwierdz-email#"));
+        await Expect(page.Locator("[data-testid=email-confirmed]")).ToContainTextAsync(newEmail);
+
+        var fresh = await fx.NewPageAsync();
+        await LoginAsync(fresh, newEmail, "NoweHaslo1!");
+    }
+
+    [E2EFact]
     public async Task Logowanie_ZAdresemPowrotuNaObcaStrone_ZostajeWAplikacji()
     {
         var page = await fx.NewPageAsync();
@@ -956,18 +1044,18 @@ public class UserScenariosE2ETests(E2EFixture fx)
         await Expect(members.Locator("[data-testid=members]")).ToContainTextAsync(accountantEmail);
         await E2EFixture.ScreenshotAsync(owner, "37-uzytkownicy-firmy");
         var mail = Assert.Single(await WaitForMailAsync(accountantEmail)); // e-mail z tym samym linkiem
-        Assert.Contains(new Uri(link).Query, mail.Body);
+        // Token we fragmencie (#) - przeglądarka nie wysyła go do serwera, nie trafia do logów (SEC-9)
+        Assert.StartsWith("#token=", new Uri(link).Fragment);
+        Assert.Contains(new Uri(link).Fragment, mail.Body);
 
-        // Księgowa zakłada konto na zapraszany adres i otwiera link
+        // Księgowa zakłada konto na zapraszany adres (z potwierdzeniem adresu) i otwiera link
         var accountant = await fx.NewPageAsync();
-        await accountant.GotoAsync("/register");
-        await accountant.FillAsync("#email", accountantEmail);
-        await accountant.FillAsync("#password", "Haslo123!");
-        await accountant.FillAsync("#password2", "Haslo123!");
-        await accountant.ClickAsync("button[type=submit]");
-        await accountant.WaitForURLAsync(new Regex("/firma$"));
-        await accountant.GotoAsync(new Uri(link).PathAndQuery);
+        await RegisterAsync(accountant, accountantEmail);
+        var requests = new List<string>();
+        accountant.Request += (_, r) => requests.Add(r.Url);
+        await accountant.GotoAsync(new Uri(link).PathAndQuery + new Uri(link).Fragment);
         await Expect(accountant.Locator("[data-testid=invitation]")).ToContainTextAsync("Pracownia Testowa E2E");
+        Assert.DoesNotContain(requests, url => url.Contains(new Uri(link).Fragment[7..])); // token nie trafia do serwera w adresie
         await accountant.ClickAsync("button:has-text('Przyjmij zaproszenie')");
         await Expect(accountant.Locator("h1")).ToHaveTextAsync("Pulpit");
 

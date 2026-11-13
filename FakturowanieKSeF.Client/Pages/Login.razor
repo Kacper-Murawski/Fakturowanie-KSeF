@@ -15,7 +15,19 @@
 
         @if (error is not null)
         {
-            <div class="alert alert-danger" role="alert">@error</div>
+            <div class="alert alert-danger" role="alert">
+                @error
+                @if (emailNotConfirmed)
+                {
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@busy" @onclick="ResendAsync">Wyślij link ponownie</button>
+                    </div>
+                }
+            </div>
+        }
+        @if (resent)
+        {
+            <div class="alert alert-success small" role="status">Jeśli konto wymaga potwierdzenia, wysłaliśmy nowy link - sprawdź skrzynkę.</div>
         }
 
         @if (!twoFactor)
@@ -29,6 +41,7 @@
             <label class="form-label" for="password">Hasło</label>
             <InputText id="password" type="password" class="form-control" @bind-Value="model.Password" autocomplete="current-password" />
             <ValidationMessage For="() => model.Password" />
+            <div class="text-end mt-1"><a class="small" href="nie-pamietam-hasla">Nie pamiętasz hasła?</a></div>
         </div>
         }
         else
@@ -72,6 +85,15 @@
     private bool twoFactor;
     private bool useRecovery;
     private string? code;
+    private bool emailNotConfirmed;
+    private bool resent;
+
+    private async Task ResendAsync()
+    {
+        busy = true;
+        resent = await Auth.ResendConfirmationAsync(model.Email);
+        busy = false;
+    }
 
     private async Task LoginAsync()
     {
@@ -87,6 +109,8 @@
         busy = false;
         error = result.Error;
         twoFactor = result.RequiresTwoFactor;
+        emailNotConfirmed = result.EmailNotConfirmed;
+        resent = false;
 
         if (result.Succeeded)
         {

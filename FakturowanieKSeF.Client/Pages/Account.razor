@@ -11,6 +11,45 @@
     </div>
 </div>
 
+<section class="surface form-card form-narrow mb-3" data-testid="change-email">
+    <div>
+        <div class="step-head"><span class="step-num"><Icon Name="mail" Size="17" /></span><h2>Adres e-mail</h2></div>
+        <p class="small text-muted">
+            Na nowy adres wyślemy link potwierdzający - zmiana nastąpi po jego kliknięciu (link ważny 24 godziny).
+            Na obecny adres wyślemy powiadomienie. Zmiana wymaga hasła@(status?.Enabled == true ? " i kodu z aplikacji" : "").
+        </p>
+        @if (emailRequested)
+        {
+            <div class="alert alert-success small" role="status" data-testid="email-change-sent">
+                Jeśli adres jest dostępny, wysłaliśmy na niego link potwierdzający. Sprawdź skrzynkę nowego adresu.
+            </div>
+        }
+        <ProblemAlert Problem="emailProblem" />
+        <div class="mb-2" style="max-width: 22rem">
+            <label class="form-label small" for="new-email">Nowy adres e-mail</label>
+            <input id="new-email" type="email" class="form-control @EmailInvalid("NewEmail")" autocomplete="email" maxlength="254"
+                   @bind="newEmail" @bind:event="oninput" />
+            <div class="invalid-feedback">@EmailError("NewEmail")</div>
+        </div>
+        <div class="mb-2" style="max-width: 16rem">
+            <label class="form-label small" for="email-password">Hasło</label>
+            <input id="email-password" type="password" class="form-control @EmailInvalid("Password")" autocomplete="current-password"
+                   maxlength="200" @bind="emailPassword" @bind:event="oninput" />
+            <div class="invalid-feedback">@EmailError("Password")</div>
+        </div>
+        @if (status?.Enabled == true)
+        {
+            <div class="mb-2" style="max-width: 16rem">
+                <label class="form-label small" for="email-code">Kod z aplikacji</label>
+                <input id="email-code" class="form-control @EmailInvalid("Code")" inputmode="numeric" autocomplete="one-time-code"
+                       maxlength="7" @bind="emailCode" @bind:event="oninput" />
+                <div class="invalid-feedback">@EmailError("Code")</div>
+            </div>
+        }
+        <button type="button" class="btn btn-outline-primary btn-sm" disabled="@busy" @onclick="ChangeEmailAsync">Zmień adres</button>
+    </div>
+</section>
+
 <section class="surface form-card form-narrow" data-testid="two-factor">
     <div>
         <div class="step-head"><span class="step-num"><Icon Name="shield" Size="17" /></span><h2>Logowanie dwuskładnikowe</h2></div>
@@ -113,6 +152,30 @@
         problem?.Errors.FirstOrDefault(e => string.Equals(e.Key, field, StringComparison.OrdinalIgnoreCase)).Value?.FirstOrDefault();
 
     private string Invalid(string field) => FieldError(field) is null ? "" : "is-invalid";
+
+    private string? newEmail;
+    private string? emailPassword;
+    private string? emailCode;
+    private ApiProblem? emailProblem;
+    private bool emailRequested;
+
+    private string? EmailError(string field) =>
+        emailProblem?.Errors.FirstOrDefault(e => string.Equals(e.Key, field, StringComparison.OrdinalIgnoreCase)).Value?.FirstOrDefault();
+
+    private string EmailInvalid(string field) => EmailError(field) is null ? "" : "is-invalid";
+
+    private async Task ChangeEmailAsync()
+    {
+        busy = true;
+        emailRequested = false;
+        var result = await Api.PostAsync<bool>("api/account/email",
+            new ChangeEmailRequest { NewEmail = newEmail?.Trim() ?? "", Password = emailPassword ?? "", Code = emailCode });
+        emailProblem = result.Problem;
+        emailRequested = result.Problem is null;
+        emailPassword = null;
+        emailCode = null;
+        busy = false;
+    }
 
     private async Task LoadAsync()
     {

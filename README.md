@@ -46,6 +46,8 @@ dotnet run --project FakturowanieKSeF.Api                  # aplikacja + API
 
 Aplikacja: http://localhost:5085, dokumentacja API (Swagger): http://localhost:5085/swagger.
 Wiadomości e-mail wysyłane przez aplikację (lokalnie nie trafiają do odbiorców): http://localhost:8025 (Mailpit).
+Nowe konto trzeba potwierdzić linkiem z wiadomości - lokalnie znajdziesz ją w Mailpicie (tak samo link do resetu hasła).
+Konta demonstracyjne i konta założone przed tą zmianą są już potwierdzone.
 
 Jeśli `dotnet ef database update` zgłasza `relation "..." already exists`, baza zawiera tabele ze starszej wersji
 projektu. Wyczyść ją (usuwa dane testowe): `docker compose down -v`, `docker compose up -d`, ponownie `dotnet ef database update`.

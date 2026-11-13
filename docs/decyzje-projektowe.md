@@ -1244,3 +1244,37 @@ całej grupy `/api/auth` zamiast jego zawężenia; wyłączenie tokenów Bearer;
 adresu bezwzględnego, które przeglądarka akceptuje. Zawężenie limitu usuwa blokowanie się użytkowników za wspólnym
 adresem (biuro, NAT) bez osłabienia ochrony logowania, a para „adres + e-mail” ogranicza zgadywanie hasła jednego konta.
 
+## D53. Potwierdzanie adresu e-mail, reset hasła, bezpieczna zmiana adresu i limity poczty (obszar 01 przeglądu)
+
+**Kontekst:** przegląd kodu (SEC-4, SEC-5, SEC-9, SEC-10) wykazał, że: konta zakłada się bez potwierdzenia adresu,
+więc limity „na firmę/na użytkownika” łatwo obejść wieloma kontami; dzienny limit poczty był liczony „sprawdź, potem
+zapisz” (równoległe żądania go przekraczały); „nie pamiętam hasła” odpowiadało „OK”, ale nic nie wysyłało (brak
+odzyskania konta); wbudowana zmiana adresu e-mail nie wymagała hasła; token zaproszenia w adresie trafiał do logów proxy.
+
+**Decyzja (wybór autora spośród przedstawionych wariantów):**
+- **Potwierdzenie adresu wymagane do logowania** (`SignIn.RequireConfirmedEmail`). Link (24 h) po rejestracji, ponowna
+  wysyłka z ekranu rejestracji i logowania. Konta istniejące przed zmianą migracja oznacza jako potwierdzone; konta
+  demonstracyjne (D49) są tworzone jako potwierdzone.
+- **Reset hasła** przez e-mail: link ważny 1 h (osobny dostawca tokenów), jednorazowy (zmiana hasła zmienia znacznik
+  bezpieczeństwa). Odpowiedzi neutralne - nie zdradzają, czy konto istnieje. 2FA po resecie zostaje włączone.
+- **Zmiana adresu e-mail** tylko przez `POST /api/account/email`: hasło (+ kod 2FA, gdy włączone; pomyłki liczone do
+  blokady konta - D52), link potwierdzający na nowy adres (24 h), powiadomienie na dotychczasowy. Wbudowana zmiana
+  (`POST manage/info` z `newEmail`) zablokowana. Odpowiedź zawsze 202 - także dla zajętego adresu.
+- **Linki z kodami** (potwierdzenie, reset, zaproszenie) mają kod we **fragmencie** adresu (`#…`), którego przeglądarka
+  nie wysyła do serwera - kody nie trafiają do logów proxy. Podgląd zaproszenia: `POST` z tokenem w treści.
+- **Limity poczty:** wiadomości do adresów podanych przez użytkowników (faktura, przypomnienie, zaproszenie) - limit
+  firmy (100/dobę) i limit całej aplikacji (1000/dobę), liczone w tabeli `EmailQuotas` atomowo jednym poleceniem SQL
+  (`INSERT … ON CONFLICT DO UPDATE … WHERE Count < limit`); doba = dzień kalendarzowy czasu polskiego. Wiadomości
+  systemowe konta - osobna pula (5 na adres na godzinę), więc wysyłka faktur nie zablokuje resetu hasła.
+- Wiadomości systemowe idą przez tę samą kolejkę (D36) - mają puste `CompanyId`.
+
+**Alternatywy:** potwierdzenie wymagane tylko do wysyłki e-maili (logowanie bez potwierdzenia); brak potwierdzenia
+i same limity; blokada endpointów resetu hasła (reset tylko przez administratora); blokada zmiany adresu; filtr logów
+proxy zamiast tokenów we fragmencie; blokada doradcza (`pg_advisory_xact_lock`) zamiast tabeli liczników; limit
+na użytkownika zamiast limitu całej aplikacji; komunikaty wprost („nie ma konta z tym adresem”).
+
+**Uzasadnienie:** potwierdzony adres zamyka naraz kilka ścieżek nadużyć (masowe konta-wydmuszki, spam, wyczerpywanie
+limitów wykazu VAT) i jest warunkiem bezpiecznego resetu hasła. Atomowy licznik w bazie usuwa wyścig bez blokowania
+całych transakcji. Neutralne odpowiedzi i fragment adresu nie pogarszają wygody, a nie ujawniają kont ani kodów.
+Ograniczenie: osoba rejestrująca się z zaproszenia musi po potwierdzeniu adresu otworzyć link zaproszenia ponownie.
+

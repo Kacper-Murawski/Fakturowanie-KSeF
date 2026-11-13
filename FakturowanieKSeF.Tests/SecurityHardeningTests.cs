@@ -138,7 +138,7 @@ public class TwoFactorRateLimitTests(TwoFactorRateLimitFactory factory) : IClass
     {
         var client = factory.CreateClient();
         var email = $"limit2fa_{Guid.NewGuid():N}@example.com";
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, password = "Haslo123!" })).EnsureSuccessStatusCode();
+        await factory.RegisterConfirmedAsync(client, email);
         var token = (await (await client.PostAsJsonAsync("/api/auth/login", new { email, password = "Haslo123!" }))
             .Content.ReadFromJsonAsync<LoginResponse>())!.AccessToken;
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -181,7 +181,7 @@ public class ApiRateLimitTests(ApiRateLimitFactory factory) : IClassFixture<ApiR
     {
         var client = factory.CreateClient();
         var email = $"limit_{Guid.NewGuid():N}@example.com";
-        (await client.PostAsJsonAsync("/api/auth/register", new { email, password = "Haslo123!" })).EnsureSuccessStatusCode();
+        await factory.RegisterConfirmedAsync(client, email);
         var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = "Haslo123!" });
         var token = (await login.Content.ReadFromJsonAsync<LoginResponse>())!.AccessToken;
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);

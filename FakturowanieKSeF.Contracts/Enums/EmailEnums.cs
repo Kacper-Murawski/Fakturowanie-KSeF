@@ -12,7 +12,15 @@ public enum EmailKind
     /// <summary>Powiadomienie użytkownika o przygotowanych fakturach cyklicznych.</summary>
     RecurringInvoices,
     /// <summary>Zaproszenie do firmy (D46).</summary>
-    Invitation
+    Invitation,
+    /// <summary>Wiadomość systemowa: link potwierdzający adres e-mail nowego konta (D53).</summary>
+    AccountConfirmation,
+    /// <summary>Wiadomość systemowa: link do ustawienia nowego hasła (D53).</summary>
+    PasswordReset,
+    /// <summary>Wiadomość systemowa: link potwierdzający nowy adres e-mail konta (D53).</summary>
+    EmailChange,
+    /// <summary>Wiadomość systemowa: powiadomienie na dotychczasowy adres o prośbie o zmianę adresu (D53).</summary>
+    EmailChangeNotice
 }
 
 /// <summary>Stan wiadomości w kolejce wysyłki.</summary>

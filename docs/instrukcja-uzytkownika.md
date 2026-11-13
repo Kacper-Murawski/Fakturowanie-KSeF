@@ -19,8 +19,19 @@ otwiera się przyciskiem ☰ w lewym górnym rogu.
 ## 1. Konto
 
 **Rejestracja.** Wybierz „Zarejestruj się”, podaj e-mail i hasło. Hasło musi mieć co najmniej 8 znaków,
-w tym wielką i małą literę, cyfrę oraz znak specjalny. Po rejestracji zostaniesz zalogowany i przeniesiony
-do danych firmy.
+w tym wielką i małą literę, cyfrę oraz znak specjalny. Po rejestracji aplikacja wyśle na podany adres link
+potwierdzający (ważny 24 godziny) - kliknij go, a potem zaloguj się i uzupełnij dane firmy. Bez potwierdzenia adresu
+logowanie nie jest możliwe; na stronie logowania możesz wysłać link ponownie.
+
+**Nie pamiętasz hasła?** Wybierz ten link na stronie logowania i podaj adres konta. Jeśli konto istnieje, dostaniesz
+link do ustawienia nowego hasła (ważny 1 godzinę, działa raz). Logowanie dwuskładnikowe pozostaje włączone, a inne
+sesje zostają wylogowane.
+
+**Zmiana adresu e-mail.** Na stronie **Bezpieczeństwo konta** podaj nowy adres i hasło (oraz kod z aplikacji, jeśli
+masz włączone logowanie dwuskładnikowe). Na nowy adres przyjdzie link potwierdzający, a na dotychczasowy -
+powiadomienie. Adres zmieni się dopiero po kliknięciu linku; od tej chwili logujesz się nowym adresem.
+
+![Potwierdzenie adresu po rejestracji](zrzuty/38-potwierdz-adres.png)
 
 ![Logowanie](zrzuty/00-logowanie.png)
 
@@ -308,7 +319,8 @@ Na stronie **Moja firma** w sekcji **Użytkownicy firmy** właściciel zaprasza 
 - **pracownik** - wystawia i wysyła faktury do KSeF, prowadzi kontrahentów i katalog; nie zmienia ustawień firmy.
 
 Zaproszona osoba dostaje e-mail z linkiem ważnym 7 dni. Po otwarciu linku zakłada konto (lub loguje się) **na ten sam
-adres e-mail** i wybiera **Przyjmij zaproszenie**. Jeśli poczta nie jest skonfigurowana, właściciel widzi link
+adres e-mail** i wybiera **Przyjmij zaproszenie**. Nowe konto trzeba najpierw potwierdzić linkiem z osobnej wiadomości -
+po zalogowaniu otwórz ponownie link z zaproszenia. Jeśli poczta nie jest skonfigurowana, właściciel widzi link
 i może go przekazać sam. Właściciel może zmienić rolę lub odebrać dostęp. Osoba z dostępem do kilku firm (np. biuro
 rachunkowe) przełącza je listą w górnym pasku.
 

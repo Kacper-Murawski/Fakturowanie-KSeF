@@ -29,10 +29,19 @@ builder.Services.AddIdentityApiEndpoints<ApplicationUser>(options =>
         // Blokada konta po 5 nieudanych próbach logowania na 15 minut (ochrona przed zgadywaniem haseł)
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        // Logowanie tylko z potwierdzonym adresem e-mail (link wysyłany przy rejestracji) - utrudnia zakładanie kont
+        // na cudze lub nieistniejące adresy (spam, wyczerpywanie limitów - SEC-4, SEC-5) i pozwala odzyskać hasło (D53)
+        options.SignIn.RequireConfirmedEmail = true;
+        // Reset hasła osobnym dostawcą tokenów - link ważny 1 h (pozostałe linki 24 h)
+        options.Tokens.PasswordResetTokenProvider = FakturowanieKSeF.Api.Services.Email.PasswordResetTokenProvider.Name;
     })
+    .AddTokenProvider<FakturowanieKSeF.Api.Services.Email.PasswordResetTokenProvider>(FakturowanieKSeF.Api.Services.Email.PasswordResetTokenProvider.Name)
     .AddEntityFrameworkStores<AppDbContext>()
     .AddErrorDescriber<PolishIdentityErrorDescriber>();
 builder.Services.AddAuthorization();
+// Linki potwierdzenia adresu i zmiany adresu ważne 24 h (D53)
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = FakturowanieKSeF.Api.Services.Email.AccountEmails.ConfirmationValidity);
 
 // Zmiana hasła, włączenie/wyłączenie 2FA i zmiana adresu e-mail zmieniają znacznik bezpieczeństwa konta (security stamp).
 // Sesje (ciasteczka) są z nim porównywane co minutę, a tokeny odświeżania przy każdym odświeżeniu - po takiej zmianie
@@ -98,6 +107,8 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<EmailWorkSignal>();
 builder.Services.AddScoped<EmailOutbox>();
+// Wiadomości Identity (potwierdzenie adresu, reset hasła) przez kolejkę poczty aplikacji (D53)
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, AccountEmails>();
 builder.Services.AddHostedService<EmailWorker>();
 builder.Services.AddScoped<PaymentReminders>();
 builder.Services.AddScoped<ReceivedInvoiceNotifier>();
@@ -245,6 +256,36 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Wbudowana zmiana adresu e-mail (POST manage/info z „newEmail”) nie wymaga hasła - zastępuje ją /api/account/email (D53)
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsPost(context.Request.Method) && context.Request.Path.StartsWithSegments("/api/auth/manage/info"))
+    {
+        context.Request.EnableBuffering();
+        try
+        {
+            using var json = await System.Text.Json.JsonDocument.ParseAsync(context.Request.Body);
+            if (json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && json.RootElement.TryGetProperty("newEmail", out var newEmail)
+                && newEmail.ValueKind == System.Text.Json.JsonValueKind.String && !string.IsNullOrWhiteSpace(newEmail.GetString()))
+            {
+                await Results.Problem(title: "Adres e-mail zmienisz na stronie konta (wymaga hasła).",
+                    detail: "Użyj POST /api/account/email.", statusCode: StatusCodes.Status400BadRequest).ExecuteAsync(context);
+                return;
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // niepoprawny JSON - odrzuci go endpoint Identity
+        }
+        finally
+        {
+            context.Request.Body.Position = 0;
+        }
+    }
+    await next();
+});
+
 app.UseAuthentication();
 app.UseLoginRateLimit(); // logowanie: limit na parę „adres IP + e-mail” (D52)
 app.UseRateLimiter();
@@ -272,6 +313,7 @@ api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
 api.MapDashboardEndpoints();
 api.MapAccountEndpoints();
+api.MapEmailChangeEndpoint();
 api.MapMemberEndpoints();
 api.MapExchangeRateEndpoints();
 api.MapExportEndpoints();
