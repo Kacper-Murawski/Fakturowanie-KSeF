@@ -329,7 +329,7 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("CompanyId")
+                    b.Property<int?>("CompanyId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
@@ -377,6 +377,23 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.HasIndex("Status", "NextAttemptAt");
 
                     b.ToTable("EmailMessages");
+                });
+
+            modelBuilder.Entity("FakturowanieKSeF.Models.EmailQuota", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Key", "Day");
+
+                    b.ToTable("EmailQuotas");
                 });
 
             modelBuilder.Entity("FakturowanieKSeF.Models.Invoice", b =>
@@ -1191,8 +1208,7 @@ namespace FakturowanieKSeF.Api.Data.Migrations
                     b.HasOne("FakturowanieKSeF.Models.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("FakturowanieKSeF.Models.Invoice", "Invoice")
                         .WithMany()

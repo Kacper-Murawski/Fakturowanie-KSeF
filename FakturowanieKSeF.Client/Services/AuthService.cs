@@ -41,7 +41,7 @@ public sealed class AuthService(HttpClient http) : AuthenticationStateProvider
     }
 
     /// <summary>Wynik logowania: sukces, wymagany drugi składnik (kod z aplikacji) albo błąd z komunikatem.</summary>
-    public sealed record LoginResult(bool Succeeded, bool RequiresTwoFactor = false, string? Error = null);
+    public sealed record LoginResult(bool Succeeded, bool RequiresTwoFactor = false, string? Error = null, bool EmailNotConfirmed = false);
 
     /// <summary>
     /// Logowanie. Przy włączonym 2FA pierwsza próba (samo hasło) zwraca <see cref="LoginResult.RequiresTwoFactor"/>;
@@ -64,6 +64,9 @@ public sealed class AuthService(HttpClient http) : AuthenticationStateProvider
             return problem.Detail switch
             {
                 "LockedOut" => new(false, Error: "Konto zostało tymczasowo zablokowane po kilku nieudanych próbach. Spróbuj za 15 minut."),
+                // Poprawne hasło, ale adres e-mail nie został jeszcze potwierdzony (D53)
+                "NotAllowed" => new(false, Error: "Najpierw potwierdź adres e-mail - kliknij link z wiadomości wysłanej po rejestracji.",
+                    EmailNotConfirmed: true),
                 "RequiresTwoFactor" when twoFactorCode is null && recoveryCode is null => new(false, RequiresTwoFactor: true),
                 // Błędny drugi składnik: Identity zwraca „Failed” - zostajemy na kroku kodu
                 _ when twoFactorCode is not null || recoveryCode is not null =>
@@ -88,6 +91,37 @@ public sealed class AuthService(HttpClient http) : AuthenticationStateProvider
         var problem = await ApiClient.ReadProblemAsync(response);
         var errors = problem.Errors.SelectMany(e => e.Value).Distinct().ToList();
         return errors.Count > 0 ? errors : [problem.Title];
+    }
+
+    /// <summary>Ponowna wysyłka linku potwierdzającego adres (odpowiedź zawsze neutralna - nie zdradza, czy konto istnieje).</summary>
+    public async Task<bool> ResendConfirmationAsync(string email) =>
+        (await http.PostAsJsonAsync("api/auth/resendConfirmationEmail", new { email })).IsSuccessStatusCode;
+
+    /// <summary>„Nie pamiętam hasła” - link wysyłany tylko na potwierdzony adres istniejącego konta; odpowiedź zawsze ta sama.</summary>
+    public async Task<bool> ForgotPasswordAsync(string email) =>
+        (await http.PostAsJsonAsync("api/auth/forgotPassword", new { email })).IsSuccessStatusCode;
+
+    /// <summary>Nowe hasło z kodem z wiadomości; zwraca listę błędów (pustą przy sukcesie).</summary>
+    public async Task<IReadOnlyList<string>> ResetPasswordAsync(string email, string code, string newPassword)
+    {
+        var response = await http.PostAsJsonAsync("api/auth/resetPassword", new { email, resetCode = code, newPassword });
+        if (response.IsSuccessStatusCode) return [];
+
+        var problem = await ApiClient.ReadProblemAsync(response);
+        if (problem.Errors.ContainsKey("InvalidToken"))
+            return ["Link do zmiany hasła wygasł albo został już użyty. Poproś o nowy."];
+        var errors = problem.Errors.SelectMany(e => e.Value).Distinct().ToList();
+        return errors.Count > 0 ? errors : [problem.Title];
+    }
+
+    /// <summary>Potwierdzenie adresu (lub zmiany adresu) kodem z linku w wiadomości.</summary>
+    public async Task<bool> ConfirmEmailAsync(string userId, string code, string? changedEmail)
+    {
+        var url = $"api/auth/confirmEmail?userId={Uri.EscapeDataString(userId)}&code={Uri.EscapeDataString(code)}";
+        if (!string.IsNullOrEmpty(changedEmail)) url += $"&changedEmail={Uri.EscapeDataString(changedEmail)}";
+        // Bez odświeżania stanu logowania: przebudowałoby stronę i ponowiło potwierdzenie (kod jest jednorazowy).
+        // Po zmianie adresu dotychczasowe sesje wygasają same (zmiana znacznika bezpieczeństwa konta - D52).
+        return (await http.GetAsync(url)).IsSuccessStatusCode;
     }
 
     public async Task LogoutAsync()

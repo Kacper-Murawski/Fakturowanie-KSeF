@@ -19,6 +19,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
+    public DbSet<EmailQuota> EmailQuotas => Set<EmailQuota>();
     public DbSet<RecurringInvoice> RecurringInvoices => Set<RecurringInvoice>();
     public DbSet<CompanyMember> CompanyMembers => Set<CompanyMember>();
     public DbSet<CompanyInvitation> CompanyInvitations => Set<CompanyInvitation>();
@@ -83,6 +84,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
             e.HasQueryFilter(p => !p.IsDeleted);
         });
 
+        // ---------------- EmailQuota (atomowe liczniki dziennych limitów poczty) ----------------
+        builder.Entity<EmailQuota>(e =>
+        {
+            e.HasKey(q => new { q.Key, q.Day });
+            e.Property(q => q.Key).HasMaxLength(100);
+        });
+
         // ---------------- EmailMessage (kolejka wysyłki e-mail) ----------------
         builder.Entity<EmailMessage>(e =>
         {
@@ -94,7 +102,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IDataProtectionK
 
             e.HasOne(m => m.Company).WithMany().HasForeignKey(m => m.CompanyId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(m => m.Invoice).WithMany().HasForeignKey(m => m.InvoiceId).OnDelete(DeleteBehavior.Restrict);
-            e.HasQueryFilter(m => !m.Company.IsDeleted); // zgodnie z filtrem firmy (firm się nie usuwa)
+            // Zgodnie z filtrem firmy (firm się nie usuwa); wiadomości systemowe konta nie mają firmy (D53)
+            e.HasQueryFilter(m => m.CompanyId == null || !m.Company!.IsDeleted);
         });
 
         // ---------------- RecurringInvoice (faktury cykliczne) ----------------

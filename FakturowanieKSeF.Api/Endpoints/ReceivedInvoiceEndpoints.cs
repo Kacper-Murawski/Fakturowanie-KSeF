@@ -97,7 +97,7 @@ public static class ReceivedInvoiceEndpoints
             .WithSummary("Szczegóły faktury otrzymanej (treść odczytana z XML)");
 
         group.MapPost("/{id:int}/bank-account-check", async (int id, CurrentCompany current, AppDbContext db,
-                VatRegistryLookup lookup, CancellationToken ct) =>
+                VatRegistryLookup lookup, HttpContext http, CancellationToken ct) =>
             {
                 if (await current.FindAsync(ct) is not { } company) return ApiErrors.CompanyRequired();
 
@@ -117,7 +117,7 @@ public static class ReceivedInvoiceEndpoints
 
                 try
                 {
-                    var check = await lookup.CheckAccountAsync(r.SellerNip, account, current.UserId, ct);
+                    var check = await lookup.CheckAccountAsync(r.SellerNip, account, current.UserId, RateLimits.ClientIp(http), ct);
                     if (check is null)
                         return ApiErrors.Conflict("Wykaz podatników VAT obejmuje wyłącznie rachunki prowadzone w Polsce (numer NRB, 26 cyfr).");
 

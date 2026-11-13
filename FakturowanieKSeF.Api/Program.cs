@@ -29,10 +29,36 @@ builder.Services.AddIdentityApiEndpoints<ApplicationUser>(options =>
         // Blokada konta po 5 nieudanych próbach logowania na 15 minut (ochrona przed zgadywaniem haseł)
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        // Logowanie tylko z potwierdzonym adresem e-mail (link wysyłany przy rejestracji) - utrudnia zakładanie kont
+        // na cudze lub nieistniejące adresy (spam, wyczerpywanie limitów - SEC-4, SEC-5) i pozwala odzyskać hasło (D53)
+        options.SignIn.RequireConfirmedEmail = true;
+        // Reset hasła osobnym dostawcą tokenów - link ważny 1 h (pozostałe linki 24 h)
+        options.Tokens.PasswordResetTokenProvider = FakturowanieKSeF.Api.Services.Email.PasswordResetTokenProvider.Name;
     })
+    .AddTokenProvider<FakturowanieKSeF.Api.Services.Email.PasswordResetTokenProvider>(FakturowanieKSeF.Api.Services.Email.PasswordResetTokenProvider.Name)
     .AddEntityFrameworkStores<AppDbContext>()
     .AddErrorDescriber<PolishIdentityErrorDescriber>();
 builder.Services.AddAuthorization();
+// Linki potwierdzenia adresu i zmiany adresu ważne 24 h (D53)
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = FakturowanieKSeF.Api.Services.Email.AccountEmails.ConfirmationValidity);
+
+// Zmiana hasła, włączenie/wyłączenie 2FA i zmiana adresu e-mail zmieniają znacznik bezpieczeństwa konta (security stamp).
+// Sesje (ciasteczka) są z nim porównywane co minutę, a tokeny odświeżania przy każdym odświeżeniu - po takiej zmianie
+// wszystkie inne sesje i tokeny konta przestają działać (D52). Token dostępu Bearer żyje krótko (15 min), bo nie jest
+// sprawdzany ze znacznikiem przy każdym żądaniu.
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(1));
+builder.Services.Configure<Microsoft.AspNetCore.Authentication.BearerToken.BearerTokenOptions>(IdentityConstants.BearerScheme,
+    options => options.BearerTokenExpiration = TimeSpan.FromMinutes(15));
+
+// HSTS: przeglądarka przez rok łączy się z domeną aplikacji wyłącznie przez HTTPS (bez subdomen - ich HTTPS nie zależy
+// od aplikacji). Domyślne 30 dni zostawiało okno na przechwycenie pierwszego żądania HTTP po dłuższej przerwie (SEC-11).
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+    options.IncludeSubDomains = false;
+    options.Preload = false;
+});
 
 // Przeglądarka loguje się ciasteczkiem (/api/auth/login?useCookies=true): HttpOnly - niedostępne dla JavaScriptu
 // (ochrona sesji przed XSS), SameSite=Strict - niewysyłane z innych witryn (ochrona przed CSRF).
@@ -81,6 +107,8 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<EmailWorkSignal>();
 builder.Services.AddScoped<EmailOutbox>();
+// Wiadomości Identity (potwierdzenie adresu, reset hasła) przez kolejkę poczty aplikacji (D53)
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, AccountEmails>();
 builder.Services.AddHostedService<EmailWorker>();
 builder.Services.AddScoped<PaymentReminders>();
 builder.Services.AddScoped<ReceivedInvoiceNotifier>();
@@ -104,7 +132,13 @@ builder.Services.AddHttpClient<FakturowanieKSeF.Api.Integrations.Nbp.INbpClient,
     http.BaseAddress = new Uri(FakturowanieKSeF.Api.Integrations.Nbp.NbpClient.BaseAddress);
     http.Timeout = TimeSpan.FromSeconds(15);
 });
-builder.Services.AddSingleton<FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup>();
+// Kursy w osobnej pamięci podręcznej z limitem liczby wpisów - nie rośnie bez końca (SEC-6, D54)
+builder.Services.AddSingleton(services => new FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup(
+    services.GetRequiredService<FakturowanieKSeF.Api.Integrations.Nbp.INbpClient>(),
+    new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions
+    {
+        SizeLimit = FakturowanieKSeF.Api.Integrations.Nbp.ExchangeRateLookup.CacheSizeLimit
+    })));
 builder.Services.AddScoped<VatRegistryLookup>();
 
 // Klucze szyfrujące (tokeny KSeF, ciasteczka sesji) trwale w bazie - przetrwają restart i wdrożenie nowej wersji
@@ -138,7 +172,8 @@ builder.Services.AddValidation();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiErrors.ExceptionHandler>();
 
-// Limity liczby żądań: logowanie/rejestracja na adres IP, całe API na użytkownika (D47)
+// Limity liczby żądań: wrażliwe operacje logowania na adres IP i parę IP + e-mail, kody 2FA na użytkownika,
+// całe API na użytkownika (D47, D52)
 builder.Services.AddApiRateLimits();
 
 // 5. Kontrola stanu aplikacji (m.in. dostępność bazy danych) - używana przy wdrożeniu
@@ -227,7 +262,38 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Wbudowana zmiana adresu e-mail (POST manage/info z „newEmail”) nie wymaga hasła - zastępuje ją /api/account/email (D53)
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsPost(context.Request.Method) && context.Request.Path.StartsWithSegments("/api/auth/manage/info"))
+    {
+        context.Request.EnableBuffering();
+        try
+        {
+            using var json = await System.Text.Json.JsonDocument.ParseAsync(context.Request.Body);
+            if (json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && json.RootElement.TryGetProperty("newEmail", out var newEmail)
+                && newEmail.ValueKind == System.Text.Json.JsonValueKind.String && !string.IsNullOrWhiteSpace(newEmail.GetString()))
+            {
+                await Results.Problem(title: "Adres e-mail zmienisz na stronie konta (wymaga hasła).",
+                    detail: "Użyj POST /api/account/email.", statusCode: StatusCodes.Status400BadRequest).ExecuteAsync(context);
+                return;
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // niepoprawny JSON - odrzuci go endpoint Identity
+        }
+        finally
+        {
+            context.Request.Body.Position = 0;
+        }
+    }
+    await next();
+});
+
 app.UseAuthentication();
+app.UseLoginRateLimit(); // logowanie: limit na parę „adres IP + e-mail” (D52)
 app.UseRateLimiter();
 app.UseAuthorization();
 
@@ -253,6 +319,7 @@ api.MapVatRegistryEndpoints();
 api.MapPaymentEndpoints();
 api.MapDashboardEndpoints();
 api.MapAccountEndpoints();
+api.MapEmailChangeEndpoint();
 api.MapMemberEndpoints();
 api.MapExchangeRateEndpoints();
 api.MapExportEndpoints();

@@ -43,6 +43,18 @@ public sealed class EmailOptions
     /// <summary>Ochrona przed użyciem aplikacji do rozsyłania spamu: wiadomości do kontrahentów na firmę na dobę.</summary>
     public int DailyLimitPerCompany { get; set; } = 100;
 
+    /// <summary>
+    /// Limit całej aplikacji na dobę dla wiadomości na adresy podane przez użytkowników (faktura, przypomnienie,
+    /// zaproszenie) - chroni serwer poczty przed zablokowaniem, nawet gdy ktoś założy wiele firm (D53, SEC-4).
+    /// </summary>
+    public int GlobalDailyLimit { get; set; } = 1000;
+
+    /// <summary>
+    /// Wiadomości systemowe konta (potwierdzenie adresu, reset hasła, zmiana adresu) na adres na godzinę - osobna pula,
+    /// niezależna od limitów firm: wysyłka faktur nie zablokuje resetu hasła (D53).
+    /// </summary>
+    public int SystemPerAddressPerHour { get; set; } = 5;
+
     public bool IsConfigured => !string.IsNullOrWhiteSpace(SmtpHost);
 }
 

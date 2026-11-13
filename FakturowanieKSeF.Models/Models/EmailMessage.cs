@@ -11,9 +11,12 @@ public class EmailMessage
 {
     public int Id { get; set; }
 
-    /// <summary>Firma, w imieniu której wysłano wiadomość - izolacja danych i dzienny limit wysyłek.</summary>
-    public int CompanyId { get; set; }
-    public Company Company { get; set; } = null!;
+    /// <summary>
+    /// Firma, w imieniu której wysłano wiadomość - izolacja danych i dzienny limit wysyłek.
+    /// Brak dla wiadomości systemowych konta (potwierdzenie adresu, reset hasła, zmiana adresu - D53).
+    /// </summary>
+    public int? CompanyId { get; set; }
+    public Company? Company { get; set; }
 
     public EmailKind Kind { get; set; }
 

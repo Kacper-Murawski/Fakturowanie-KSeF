@@ -1,15 +1,21 @@
+using System.Collections.Concurrent;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace FakturowanieKSeF.Api.Infrastructure;
 
 /// <summary>
-/// Limity liczby żądań (D47). Uzupełniają blokadę konta po 5 nieudanych logowaniach (D3), która chroni pojedyncze konto,
+/// Limity liczby żądań (D47, D52). Uzupełniają blokadę konta po 5 nieudanych próbach (D3), która chroni pojedyncze konto,
 /// o ochronę przed atakami z jednego adresu na wiele kont (credential stuffing), masową rejestracją i zgadywaniem
-/// tokenów zaproszeń:
+/// tokenów zaproszeń oraz kodów 2FA:
 /// <list type="bullet">
-/// <item>„auth” - logowanie, rejestracja, odświeżanie tokenu, przyjmowanie zaproszeń: limit na adres IP na minutę,</item>
+/// <item>„auth” - wrażliwe operacje bez sesji (logowanie, rejestracja, odświeżanie tokenu, reset hasła, zaproszenia,
+///   zmiana hasła): limit na adres IP na minutę. Sprawdzenie sesji (<c>GET manage/info</c>) i wylogowanie NIE zużywają
+///   tej puli - inaczej osoby za wspólnym adresem (biuro, NAT) blokowałyby sobie logowanie odświeżaniem strony (SEC-3),</item>
+/// <item>logowanie - dodatkowo limit na parę „adres IP + e-mail” (<see cref="LoginLimiter"/>),</item>
+/// <item>„2fa” - operacje wymagające kodu 2FA na zalogowanym koncie: limit na użytkownika (SEC-1),</item>
 /// <item>globalny - wszystkie żądania API: limit na użytkownika (zalogowany) lub adres IP na minutę.</item>
 /// </list>
 /// Za odwrotnym proxy adres IP klienta pochodzi z nagłówka X-Forwarded-For (UseForwardedHeaders).
@@ -17,28 +23,42 @@ namespace FakturowanieKSeF.Api.Infrastructure;
 public static class RateLimits
 {
     public const string Auth = "auth";
+    public const string TwoFactor = "2fa";
+
+    /// <summary>Ścieżki pod <c>/api/auth</c>, które NIE podlegają limitowi „auth” (zużywa je zwykłe używanie aplikacji).</summary>
+    private static bool IsSessionCheck(HttpRequest request) =>
+        request.Path.StartsWithSegments("/api/auth/logout")
+        || (HttpMethods.IsGet(request.Method) && request.Path.StartsWithSegments("/api/auth/manage/info"));
 
     /// <summary>Ustawienia czytane przy żądaniu (a nie przy starcie) - testy mogą je nadpisać.</summary>
-    private static (bool Enabled, int Auth, int Api) Settings(HttpContext http)
+    private static (bool Enabled, int Auth, int Api, int TwoFactor) Settings(HttpContext http)
     {
         var c = http.RequestServices.GetRequiredService<IConfiguration>();
-        return (c.GetValue("RateLimiting:Enabled", true), c.GetValue("RateLimiting:AuthPerMinute", 10), c.GetValue("RateLimiting:ApiPerMinute", 600));
+        return (c.GetValue("RateLimiting:Enabled", true), c.GetValue("RateLimiting:AuthPerMinute", 30),
+            c.GetValue("RateLimiting:ApiPerMinute", 600), c.GetValue("RateLimiting:TwoFactorPerMinute", 5));
     }
 
-    public static IServiceCollection AddApiRateLimits(this IServiceCollection services) =>
-        services.AddRateLimiter(options =>
+    public static IServiceCollection AddApiRateLimits(this IServiceCollection services)
+    {
+        services.AddSingleton<LoginLimiter>();
+        services.AddSingleton<KsefTokenLimiter>();
+        return services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (context, ct) =>
             {
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
                     context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
-                await Results.Problem(title: "Zbyt wiele żądań. Spróbuj ponownie za chwilę.", statusCode: StatusCodes.Status429TooManyRequests)
-                    .ExecuteAsync(context.HttpContext);
+                await TooManyRequests().ExecuteAsync(context.HttpContext);
             };
 
-            options.AddPolicy(Auth, http => Settings(http) is { Enabled: true } s
+            options.AddPolicy(Auth, http => Settings(http) is { Enabled: true } s && !IsSessionCheck(http.Request)
                 ? RateLimitPartition.GetFixedWindowLimiter($"auth:{ClientIp(http)}", _ => Window(s.Auth))
+                : RateLimitPartition.GetNoLimiter("off"));
+
+            options.AddPolicy(TwoFactor, http => Settings(http) is { Enabled: true } s
+                ? RateLimitPartition.GetFixedWindowLimiter(
+                    $"2fa:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? ClientIp(http)}", _ => Window(s.TwoFactor))
                 : RateLimitPartition.GetNoLimiter("off"));
 
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
@@ -48,11 +68,127 @@ public static class RateLimits
                         http.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } user ? $"user:{user}" : $"ip:{ClientIp(http)}",
                         _ => Window(s.Api)));
         });
+    }
+
+    /// <summary>Limit logowań na parę „adres IP + e-mail” - działa przed wbudowanym <c>/api/auth/login</c>.</summary>
+    public static IApplicationBuilder UseLoginRateLimit(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
+        {
+            if (HttpMethods.IsPost(context.Request.Method) && context.Request.Path.StartsWithSegments("/api/auth/login")
+                && Settings(context).Enabled)
+            {
+                var email = await ReadEmailAsync(context.Request);
+                var limiter = context.RequestServices.GetRequiredService<LoginLimiter>();
+                using var lease = limiter.Acquire($"{ClientIp(context)}|{email}");
+                if (!lease.IsAcquired)
+                {
+                    if (lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                        context.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+                    await TooManyRequests().ExecuteAsync(context);
+                    return;
+                }
+            }
+            await next();
+        });
+
+    /// <summary>E-mail z treści żądania logowania (treść jest buforowana - endpoint Identity odczyta ją ponownie).</summary>
+    private static async Task<string> ReadEmailAsync(HttpRequest request)
+    {
+        request.EnableBuffering();
+        try
+        {
+            using var json = await JsonDocument.ParseAsync(request.Body);
+            return json.RootElement.ValueKind == JsonValueKind.Object
+                   && json.RootElement.TryGetProperty("email", out var e) && e.ValueKind == JsonValueKind.String
+                ? e.GetString()!.Trim().ToLowerInvariant()
+                : "";
+        }
+        catch (JsonException)
+        {
+            return "";
+        }
+        finally
+        {
+            request.Body.Position = 0;
+        }
+    }
+
+    private static IResult TooManyRequests() =>
+        Results.Problem(title: "Zbyt wiele żądań. Spróbuj ponownie za chwilę.", statusCode: StatusCodes.Status429TooManyRequests);
 
     private static FixedWindowRateLimiterOptions Window(int permits) => new()
     {
         PermitLimit = permits, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
     };
 
-    private static string ClientIp(HttpContext http) => http.Connection.RemoteIpAddress?.ToString() ?? "nieznany";
+    public static string ClientIp(HttpContext http) => http.Connection.RemoteIpAddress?.ToString() ?? "nieznany";
+}
+
+/// <summary>
+/// Liczniki logowań na parę „adres IP + e-mail” (domyślnie 10 na minutę, <c>RateLimiting:LoginPerMinute</c>).
+/// Ogranicza zgadywanie haseł jednego konta z jednego adresu niezależnie od wyższego limitu na sam adres IP.
+/// </summary>
+public sealed class LoginLimiter(IConfiguration configuration) : IDisposable
+{
+    private readonly ConcurrentDictionary<int, PartitionedRateLimiter<string>> _limiters = new();
+
+    public RateLimitLease Acquire(string key)
+    {
+        // Limit czytany przy żądaniu (testy mogą go zmienić); osobny limiter dla każdej wartości limitu
+        var permits = configuration.GetValue("RateLimiting:LoginPerMinute", 10);
+        var limiter = _limiters.GetOrAdd(permits, p => PartitionedRateLimiter.Create<string, string>(k =>
+            RateLimitPartition.GetFixedWindowLimiter(k, _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = p, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
+            })));
+        return limiter.AttemptAcquire(key);
+    }
+
+    public void Dispose()
+    {
+        foreach (var limiter in _limiters.Values) limiter.Dispose();
+    }
+}
+
+/// <summary>
+/// Limit prób zapisu i wygenerowania tokenu KSeF na firmę (domyślnie 5 na 10 minut, <c>RateLimiting:KsefTokenPer10Minutes</c>).
+/// Każda próba to pełne uwierzytelnienie w KSeF (kilka zapytań z adresu serwera) - bez limitu jedna firma mogłaby
+/// wyczerpać limity API KSeF całej aplikacji (SEC-7, D54).
+/// </summary>
+public sealed class KsefTokenLimiter(IConfiguration configuration) : IDisposable
+{
+    private readonly ConcurrentDictionary<int, PartitionedRateLimiter<int>> _limiters = new();
+
+    /// <summary>Zwraca <c>null</c>, gdy próba jest dozwolona, albo odpowiedź 429 z czasem do kolejnej próby.</summary>
+    public IResult? TryAcquire(int companyId)
+    {
+        if (!configuration.GetValue("RateLimiting:Enabled", true)) return null;
+
+        var permits = configuration.GetValue("RateLimiting:KsefTokenPer10Minutes", 5);
+        var limiter = _limiters.GetOrAdd(permits, p => PartitionedRateLimiter.Create<int, int>(id =>
+            RateLimitPartition.GetSlidingWindowLimiter(id, _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = p, Window = TimeSpan.FromMinutes(10), SegmentsPerWindow = 10, QueueLimit = 0, AutoReplenishment = true
+            })));
+        using var lease = limiter.AttemptAcquire(companyId);
+        if (lease.IsAcquired) return null;
+
+        var retryAfter = lease.TryGetMetadata(MetadataName.RetryAfter, out var r) ? (int)r.TotalSeconds : 60;
+        return new RetryAfterProblem(retryAfter,
+            "Zbyt wiele prób weryfikacji tokenu KSeF. Odczekaj kilka minut i spróbuj ponownie.");
+    }
+
+    public void Dispose()
+    {
+        foreach (var limiter in _limiters.Values) limiter.Dispose();
+    }
+
+    private sealed class RetryAfterProblem(int seconds, string title) : IResult
+    {
+        public Task ExecuteAsync(HttpContext http)
+        {
+            http.Response.Headers.RetryAfter = Math.Max(1, seconds).ToString();
+            return Results.Problem(title: title, statusCode: StatusCodes.Status429TooManyRequests).ExecuteAsync(http);
+        }
+    }
 }

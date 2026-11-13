@@ -5,7 +5,19 @@ deweloperskim: `/swagger`. Błędy zwracane są w formacie ProblemDetails (RFC 9
 
 ## Uwierzytelnianie
 
-ASP.NET Core Identity (`/api/auth/*`): `register`, `login`, `refresh`, `manage/info`, `logout`.
+ASP.NET Core Identity (`/api/auth/*`): `register`, `login`, `refresh`, `manage/info`, `logout`, `confirmEmail`,
+`resendConfirmationEmail`, `forgotPassword`, `resetPassword`.
+
+- **Potwierdzenie adresu (D53):** `register` wysyła link potwierdzający; do czasu jego kliknięcia `login` zwraca 401
+  z `detail: NotAllowed`. Link prowadzi do strony klienta `/potwierdz-email#userId=…&code=…` (kod we fragmencie adresu),
+  która wywołuje `GET /api/auth/confirmEmail?userId=…&code=…`. Link ważny 24 h. `resendConfirmationEmail` (`email`)
+  wysyła go ponownie - odpowiedź zawsze 200, niezależnie od tego, czy konto istnieje.
+- **Reset hasła:** `forgotPassword` (`email`) - zawsze 200; link `/reset-hasla#email=…&code=…` (ważny 1 h, jednorazowy)
+  wychodzi tylko na potwierdzony adres istniejącego konta. `resetPassword` (`email`, `resetCode`, `newPassword`)
+  ustawia hasło; 2FA pozostaje włączone, pozostałe sesje i tokeny konta przestają działać.
+- **Zmiana adresu** wyłącznie przez `POST /api/account/email` (poniżej); wbudowane `POST manage/info` z `newEmail`
+  zwraca 400.
+- Wiadomości systemowe konta: najwyżej 5 na adres na godzinę (kolejne pomijane bez zmiany odpowiedzi).
 
 - **Przeglądarka (aplikacja Blazor):** `POST /api/auth/login?useCookies=true` ustawia ciasteczko sesji `ksef.auth`
   (HttpOnly, SameSite=Strict, ważne 8 h z przedłużaniem przy aktywności); `POST /api/auth/logout` je usuwa.
@@ -46,7 +58,9 @@ po polsku.
 | GET | `/api/invoices/{id}/upo` | UPO faktury przyjętej przez KSeF (404, jeśli jeszcze niedostępne) |
 | GET | `/api/company/ksef` | Stan integracji z KSeF (czy token jest skonfigurowany; sam token nigdy nie jest zwracany) |
 | PUT | `/api/company/ksef/token` | Zapis tokenu KSeF po weryfikacji w KSeF (400, jeśli KSeF go odrzuci) |
-| POST | `/api/company/ksef/test-token` | Wygenerowanie tokenu w testowym KSeF dla NIP firmy (502 przy błędzie KSeF) |
+| POST | `/api/company/ksef/test-token` | Wygenerowanie tokenu w testowym KSeF dla NIP firmy (502 przy błędzie KSeF - ogólny opis, szczegóły tylko w logu serwera) |
+
+Zapis i wygenerowanie tokenu: łącznie najwyżej 5 prób na firmę w ciągu 10 minut - potem **429** z `Retry-After` (D54).
 | DELETE | `/api/company/ksef/token` | Usunięcie tokenu |
 | GET | `/api/received-invoices?q=&payment=&from=&to=&page=&pageSize=` | Lista faktur otrzymanych (z lokalnej bazy), filtr rozliczenia jak wyżej |
 | GET | `/api/received-invoices/{id}` | Faktura otrzymana z treścią odczytaną z XML |
@@ -64,15 +78,20 @@ po polsku.
 | GET | `/api/account/2fa` | Stan logowania dwuskładnikowego: włączone, liczba pozostałych kodów odzyskiwania (D41) |
 | POST | `/api/account/2fa/setup` | Nowy klucz aplikacji uwierzytelniającej: klucz, URI `otpauth://`, kod QR (PNG, Base64); 409 - 2FA już włączone |
 | POST | `/api/account/2fa/enable` | Włączenie po potwierdzeniu kodem (`code`); zwraca 10 kodów odzyskiwania; 400 - zły kod |
-| POST | `/api/account/2fa/disable` | Wyłączenie - wymaga kodu z aplikacji lub kodu odzyskiwania |
-| POST | `/api/account/2fa/recovery-codes` | Nowe kody odzyskiwania - wymaga kodu z aplikacji |
-| GET | `/api/exchange-rates/{currency}?date=` | Kurs średni NBP z ostatniego dnia roboczego przed datą (dniem sprzedaży) - podgląd w formularzu; 502 - API NBP niedostępne (D43) |
+| POST | `/api/account/2fa/disable` | Wyłączenie - wymaga hasła (`password`) oraz kodu z aplikacji lub kodu odzyskiwania (`code`) |
+| POST | `/api/account/2fa/recovery-codes` | Nowe kody odzyskiwania - wymaga hasła (`password`) i kodu z aplikacji (`code`) |
+
+Operacje `enable`, `disable` i `recovery-codes`: błędny kod lub hasło zwiększa licznik blokady konta (ten sam co przy
+logowaniu); po 5 błędach konto jest zablokowane na 15 minut - odpowiedź **429** z `Retry-After`, także dla poprawnego
+kodu. Dodatkowo limit 5 żądań na minutę na użytkownika (D52).
+| GET | `/api/exchange-rates/{currency}?date=` | Kurs średni NBP z ostatniego dnia roboczego przed datą (dniem sprzedaży) - podgląd w formularzu; 400 - data spoza zakresu 02.01.2002 … jutro (D54); 502 - API NBP niedostępne (D43) |
 | GET | `/api/account/companies` | Firmy dostępne dla użytkownika (własna i z zaproszeń) z rolą i znacznikiem bieżącej (D46) |
 | POST | `/api/account/active-company` | Wybór bieżącej firmy (`companyId`) - tylko spośród dostępnych (404); ustawia ciasteczko HttpOnly `ksef.company`. Inni klienci API mogą wysyłać nagłówek `X-Company-Id` |
-| GET | `/api/account/invitations/{token}` | Podgląd zaproszenia (firma, rola, adres, ważność) |
+| POST | `/api/account/email` | Zmiana adresu e-mail konta (`newEmail`, `password`, `code` - kod 2FA, gdy włączone): link potwierdzający na nowy adres (24 h), powiadomienie na dotychczasowy; zmiana po kliknięciu linku. Zawsze **202** (także gdy adres jest zajęty - wtedy nic nie wysyła); 400 - złe hasło lub kod (liczone do blokady konta), 429 - konto zablokowane lub limit 5/min (D53) |
+| POST | `/api/account/invitations/preview` | Podgląd zaproszenia (`token` w treści - nie w adresie, SEC-9): firma, rola, adres, ważność |
 | POST | `/api/account/invitations/accept` | Przyjęcie zaproszenia (`token`); 403 - konto z innym adresem niż zaproszenie, 404 - token nieważny, wygasły, odwołany lub użyty |
 | GET | `/api/company/members` | Właściciel: użytkownicy firmy i oczekujące zaproszenia |
-| POST | `/api/company/members/invitations` | Właściciel: zaproszenie (`email`, `role`: `Employee` / `Accountant`) - e-mail z linkiem ważnym 7 dni; zwraca link |
+| POST | `/api/company/members/invitations` | Właściciel: zaproszenie (`email`, `role`: `Employee` / `Accountant`) - e-mail z linkiem `/zaproszenie#token=…` ważnym 7 dni (token we fragmencie - nie trafia do logów serwera); zwraca link |
 | DELETE | `/api/company/members/invitations/{id}` | Właściciel: odwołanie zaproszenia |
 | PUT | `/api/company/members/{id}` | Właściciel: zmiana roli |
 | DELETE | `/api/company/members/{id}` | Właściciel: odebranie dostępu |

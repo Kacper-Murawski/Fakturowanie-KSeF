@@ -61,7 +61,8 @@ public static class MemberEndpoints
 
                 // Adres aplikacji z konfiguracji (produkcyjnie), w developmencie - z żądania
                 var appUrl = (configuration["App:PublicUrl"] ?? $"{http.Request.Scheme}://{http.Request.Host}").TrimEnd('/');
-                var link = $"{appUrl}/zaproszenie?token={token}";
+                // Token we fragmencie (po #): przeglądarka nie wysyła go do serwera, więc nie trafia do logów proxy (SEC-9)
+                var link = $"{appUrl}/zaproszenie#token={token}";
 
                 var emailSent = false;
                 if (outbox.IsConfigured)
@@ -155,9 +156,10 @@ public static class MemberEndpoints
             })
             .WithSummary("Wybór firmy, w której pracuje użytkownik (tylko spośród dostępnych)");
 
-        account.MapGet("/invitations/{token}", async (string token, CurrentCompany current, AppDbContext db, TimeProvider time, CancellationToken ct) =>
+        // Token w treści żądania POST, nie w adresie - adresy trafiają do logów serwera i proxy (SEC-9)
+        account.MapPost("/invitations/preview", async (AcceptInvitationRequest request, AppDbContext db, TimeProvider time, CancellationToken ct) =>
             {
-                var invitation = await FindValidAsync(db, token, time, ct);
+                var invitation = await FindValidAsync(db, request.Token, time, ct);
                 return invitation is null
                     ? ApiErrors.NotFound("zaproszenie (wygasło, zostało odwołane lub już przyjęte)")
                     : Results.Ok(new InvitationPreviewDto(invitation.Company.Name, invitation.Company.Nip, invitation.Role, invitation.Email, invitation.ExpiresAt));

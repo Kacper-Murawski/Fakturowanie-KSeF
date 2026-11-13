@@ -146,7 +146,7 @@ public class EmailApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
             var afterFirst = (await client.GetFromJsonAsync<List<EmailMessageDto>>($"/api/invoices/{invoice.Id}/emails"))!.Single();
             Assert.Equal(EmailStatus.Pending, afterFirst.Status);
             Assert.Equal(1, afterFirst.Attempts);
-            Assert.Contains("SMTP", afterFirst.LastError);
+            Assert.Equal("Brak połączenia z serwerem poczty. Wysyłka zostanie ponowiona.", afterFirst.LastError);
 
             // Kolejna próba dopiero po odstępie - natychmiastowy przebieg nie wysyła ponownie
             using (var scope = factory.Services.CreateScope())
@@ -178,6 +178,29 @@ public class EmailApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task BladWysylki_NieUjawniaSzczegolowSerweraPoczty()
+    {
+        var client = await factory.CreateClientWithKsefAsync();
+        var invoice = await factory.AcceptedInvoiceAsync(client);
+        (await client.PostAsJsonAsync($"/api/invoices/{invoice.Id}/email", new SendInvoiceEmailRequest { To = NewAddress() })).EnsureSuccessStatusCode();
+
+        // Typowe komunikaty serwera: odrzucone logowanie z nazwą konta i adres wewnętrzny serwera (SEC-8)
+        factory.Email.Failure = new MailKit.Security.AuthenticationException("535 5.7.8 Authentication failed for user faktury@smtp.wewn.local:587");
+        try
+        {
+            await factory.ProcessEmailsAsync();
+            var json = await client.GetStringAsync($"/api/invoices/{invoice.Id}/emails");
+            Assert.DoesNotContain("smtp.wewn.local", json);
+            Assert.DoesNotContain("535", json);
+            Assert.Contains("Serwer poczty odrzucił logowanie aplikacji", json);
+        }
+        finally
+        {
+            factory.Email.Failure = null;
+        }
+    }
+
+    [Fact]
     public async Task DziennyLimitFirmy_ChroniPrzedRozsylaniemSpamu()
     {
         var client = await factory.CreateClientWithKsefAsync();
@@ -187,11 +210,11 @@ public class EmailApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var companyId = (await db.Invoices.SingleAsync(i => i.Id == invoice.Id)).CompanyId;
-            db.EmailMessages.AddRange(Enumerable.Range(0, 100).Select(_ => new EmailMessage
+            // Licznik dnia firmy wyczerpany (100 wiadomości dziś)
+            db.EmailQuotas.Add(new EmailQuota
             {
-                CompanyId = companyId, Kind = EmailKind.Invoice, To = "x@example.com", Subject = "s", Body = "b",
-                Status = EmailStatus.Sent, CreatedAt = DateTime.UtcNow.AddHours(-1), NextAttemptAt = DateTime.UtcNow
-            }));
+                Key = $"company:{companyId}", Day = FakturowanieKSeF.Api.Infrastructure.PolishDate.Today(TimeProvider.System), Count = 100
+            });
             await db.SaveChangesAsync();
         }
 

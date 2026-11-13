@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -213,13 +217,41 @@ public class VatRegistryLimitTests(VatRegistryLimitTests.LowLimitFactory factory
             new("VatWhiteList:DailyLimit", "5"),
             new("VatWhiteList:DailyLimitPerUser", "3")
         ];
+
+        /// <summary>Adres IP klienta z nagłówka testowego - symulacja użytkowników z różnych komputerów.</summary>
+        protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+        {
+            base.ConfigureWebHost(builder);
+            builder.ConfigureServices(services => services.AddSingleton<Microsoft.AspNetCore.Hosting.IStartupFilter, TestClientIp>());
+        }
+
+        private sealed class TestClientIp : Microsoft.AspNetCore.Hosting.IStartupFilter
+        {
+            public Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> Configure(Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> next) => app =>
+            {
+                app.Use(async (context, nextMiddleware) =>
+                {
+                    if (context.Request.Headers.TryGetValue("X-Test-Client-Ip", out var ip))
+                        context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse(ip.ToString());
+                    await nextMiddleware();
+                });
+                next(app);
+            };
+        }
+    }
+
+    private async Task<HttpClient> UserFromAsync(string ip)
+    {
+        var client = await factory.CreateLoggedInClientAsync();
+        client.DefaultRequestHeaders.Add("X-Test-Client-Ip", ip);
+        return client;
     }
 
     [Fact]
     public async Task Limity_NaUzytkownika_IDlaCalejAplikacji_OrazAwariaMF()
     {
         // Awaria MF: 502 z komunikatem (zapytanie wlicza się do limitu - dotarło do MF)
-        var userA = await factory.CreateLoggedInClientAsync();
+        var userA = await UserFromAsync("10.0.0.1");
         factory.VatWhiteList.Fail = true;
         var failed = await userA.GetAsync($"/api/vat-registry/{TestUsers.RandomNip()}");
         Assert.Equal(HttpStatusCode.BadGateway, failed.StatusCode);
@@ -236,12 +268,33 @@ public class VatRegistryLimitTests(VatRegistryLimitTests.LowLimitFactory factory
         // Wynik z pamięci podręcznej nie zużywa limitu - nadal dostępny
         Assert.Equal(HttpStatusCode.OK, (await userA.GetAsync("/api/vat-registry/1234563218")).StatusCode);
 
-        // Użytkownik B: własny limit, ale wspólny limit aplikacji (5) wyczerpuje się po 2 zapytaniach
-        var userB = await factory.CreateLoggedInClientAsync();
+        // Użytkownik B (inny komputer): własny limit, ale wspólny limit aplikacji (5) wyczerpuje się po 2 zapytaniach
+        var userB = await UserFromAsync("10.0.0.2");
         for (var i = 0; i < 2; i++)
             Assert.NotEqual(HttpStatusCode.TooManyRequests, (await userB.GetAsync($"/api/vat-registry/{TestUsers.RandomNip()}")).StatusCode);
         var appLimited = await userB.GetAsync($"/api/vat-registry/{TestUsers.RandomNip()}");
         Assert.Equal(HttpStatusCode.TooManyRequests, appLimited.StatusCode);
         Assert.Contains("limit zapytań aplikacji", await appLimited.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public void LimitNaAdresIp_KilkaKontZJednegoKomputeraDzieliPule()
+    {
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["VatWhiteList:DailyLimit"] = "90", ["VatWhiteList:DailyLimitPerUser"] = "2" })
+            .Build();
+        var limiter = new FakturowanieKSeF.Api.Integrations.VatWhiteList.VatRegistryLimiter(config);
+        var today = new DateOnly(2026, 11, 13);
+
+        // Nowe konto z tego samego adresu nie dostaje nowej puli (SEC-5)
+        limiter.Acquire("Search", "konto-1", "10.0.0.9", today);
+        limiter.Acquire("Search", "konto-2", "10.0.0.9", today);
+        var ex = Assert.Throws<FakturowanieKSeF.Api.Integrations.VatWhiteList.VatRegistryLimitException>(
+            () => limiter.Acquire("Search", "konto-3", "10.0.0.9", today));
+        Assert.Contains("dzienny limit", ex.Message);
+
+        // Inny adres - osobna pula; następny dzień - liczniki od zera
+        limiter.Acquire("Search", "konto-3", "10.0.0.10", today);
+        limiter.Acquire("Search", "konto-4", "10.0.0.9", today.AddDays(1));
     }
 }

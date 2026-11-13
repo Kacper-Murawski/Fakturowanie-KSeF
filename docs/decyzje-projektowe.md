@@ -1213,3 +1213,93 @@ i ponawiała wysyłkę do 10 razy.
 a po pierwszej wymianie dokumentów była niemożliwa. Ostateczny błąd KSeF powinien od razu dawać użytkownikowi
 wskazówkę, co zrobić.
 
+## D52. Poprawki bezpieczeństwa logowania po przeglądzie kodu (obszar 01): 2FA, przekierowanie, limity, sesje, HSTS
+
+**Kontekst:** przegląd kodu (`docs/przeglad-kodu/wyniki/01-bezpieczenstwo.md`) wykazał, że przy operacjach 2FA
+kod można zgadywać bez limitu (SEC-1, potwierdzone testem), `returnUrl` przepuszcza adresy obcych stron (SEC-2),
+limit logowań na adres IP zużywa samo odświeżanie strony (SEC-3), a HSTS ma domyślne 30 dni (SEC-11).
+
+**Decyzja (wybór autora spośród przedstawionych wariantów):**
+- **2FA:** każdy błędny kod lub hasło przy włączaniu, wyłączaniu 2FA i generowaniu kodów odzyskiwania zwiększa
+  licznik blokady konta - tej samej co przy logowaniu (5 prób → 15 minut, potem 429 także dla poprawnego kodu);
+  dodatkowo limit 5 żądań/min na użytkownika. Wyłączenie 2FA i nowe kody odzyskiwania wymagają **hasła i kodu**.
+- **returnUrl:** tylko ścieżka wewnątrz aplikacji (względna wobec adresu bazowego, biała lista znaków: bez ukośnika
+  na początku, dwukropka, odwrotnego ukośnika, spacji i znaków sterujących); inaczej strona główna. Funkcja
+  `ReturnUrl.Sanitize` w `Contracts` - testowalna jednostkowo.
+- **Limity logowania:** limit „auth” (30/min na adres IP) tylko dla operacji wrażliwych: logowanie, rejestracja,
+  odświeżanie tokenu, reset hasła, zmiana hasła (`POST manage/info`), zaproszenia. Sprawdzenie sesji (`GET manage/info`)
+  i wylogowanie - tylko limit ogólny API na użytkownika. Logowanie dodatkowo 10/min na parę „adres IP + e-mail”.
+- **Sesje i tokeny (D18 bez zmian):** logowanie tokenem Bearer zostaje. Zmiana hasła i włączenie/wyłączenie 2FA
+  zmieniają znacznik bezpieczeństwa konta: ciasteczka są z nim porównywane co minutę (zamiast domyślnych 30),
+  tokeny odświeżania przy każdym odświeżeniu, a token dostępu Bearer żyje 15 minut (zamiast godziny).
+- **HSTS:** 365 dni, bez subdomen i bez listy preload (subdomeny domeny nie muszą mieć HTTPS; preload trudno wycofać).
+- **Kontrola stanu kontenera:** `AllowedHosts` produkcyjnie = domena i `localhost` (HEALTHCHECK pyta z `Host: localhost`).
+
+**Alternatywy:** sam limit żądań bez blokady konta (wolniejsze, ale nieograniczone zgadywanie); blokada bez wymogu hasła;
+biała lista stron dla `returnUrl` lub jego usunięcie (utrata powrotu do linku zaproszenia); podniesienie limitu
+całej grupy `/api/auth` zamiast jego zawężenia; wyłączenie tokenów Bearer; HSTS z subdomenami lub preload.
+
+**Uzasadnienie:** blokada konta i wymóg hasła razem sprawiają, że sama przejęta sesja nie wystarczy do zdjęcia 2FA
+(zgodnie z założeniem D41). Biała lista znaków `returnUrl` jest prostsza i pewniejsza niż wykrywanie wszystkich form
+adresu bezwzględnego, które przeglądarka akceptuje. Zawężenie limitu usuwa blokowanie się użytkowników za wspólnym
+adresem (biuro, NAT) bez osłabienia ochrony logowania, a para „adres + e-mail” ogranicza zgadywanie hasła jednego konta.
+
+## D53. Potwierdzanie adresu e-mail, reset hasła, bezpieczna zmiana adresu i limity poczty (obszar 01 przeglądu)
+
+**Kontekst:** przegląd kodu (SEC-4, SEC-5, SEC-9, SEC-10) wykazał, że: konta zakłada się bez potwierdzenia adresu,
+więc limity „na firmę/na użytkownika” łatwo obejść wieloma kontami; dzienny limit poczty był liczony „sprawdź, potem
+zapisz” (równoległe żądania go przekraczały); „nie pamiętam hasła” odpowiadało „OK”, ale nic nie wysyłało (brak
+odzyskania konta); wbudowana zmiana adresu e-mail nie wymagała hasła; token zaproszenia w adresie trafiał do logów proxy.
+
+**Decyzja (wybór autora spośród przedstawionych wariantów):**
+- **Potwierdzenie adresu wymagane do logowania** (`SignIn.RequireConfirmedEmail`). Link (24 h) po rejestracji, ponowna
+  wysyłka z ekranu rejestracji i logowania. Konta istniejące przed zmianą migracja oznacza jako potwierdzone; konta
+  demonstracyjne (D49) są tworzone jako potwierdzone.
+- **Reset hasła** przez e-mail: link ważny 1 h (osobny dostawca tokenów), jednorazowy (zmiana hasła zmienia znacznik
+  bezpieczeństwa). Odpowiedzi neutralne - nie zdradzają, czy konto istnieje. 2FA po resecie zostaje włączone.
+- **Zmiana adresu e-mail** tylko przez `POST /api/account/email`: hasło (+ kod 2FA, gdy włączone; pomyłki liczone do
+  blokady konta - D52), link potwierdzający na nowy adres (24 h), powiadomienie na dotychczasowy. Wbudowana zmiana
+  (`POST manage/info` z `newEmail`) zablokowana. Odpowiedź zawsze 202 - także dla zajętego adresu.
+- **Linki z kodami** (potwierdzenie, reset, zaproszenie) mają kod we **fragmencie** adresu (`#…`), którego przeglądarka
+  nie wysyła do serwera - kody nie trafiają do logów proxy. Podgląd zaproszenia: `POST` z tokenem w treści.
+- **Limity poczty:** wiadomości do adresów podanych przez użytkowników (faktura, przypomnienie, zaproszenie) - limit
+  firmy (100/dobę) i limit całej aplikacji (1000/dobę), liczone w tabeli `EmailQuotas` atomowo jednym poleceniem SQL
+  (`INSERT … ON CONFLICT DO UPDATE … WHERE Count < limit`); doba = dzień kalendarzowy czasu polskiego. Wiadomości
+  systemowe konta - osobna pula (5 na adres na godzinę), więc wysyłka faktur nie zablokuje resetu hasła.
+- Wiadomości systemowe idą przez tę samą kolejkę (D36) - mają puste `CompanyId`.
+
+**Alternatywy:** potwierdzenie wymagane tylko do wysyłki e-maili (logowanie bez potwierdzenia); brak potwierdzenia
+i same limity; blokada endpointów resetu hasła (reset tylko przez administratora); blokada zmiany adresu; filtr logów
+proxy zamiast tokenów we fragmencie; blokada doradcza (`pg_advisory_xact_lock`) zamiast tabeli liczników; limit
+na użytkownika zamiast limitu całej aplikacji; komunikaty wprost („nie ma konta z tym adresem”).
+
+**Uzasadnienie:** potwierdzony adres zamyka naraz kilka ścieżek nadużyć (masowe konta-wydmuszki, spam, wyczerpywanie
+limitów wykazu VAT) i jest warunkiem bezpiecznego resetu hasła. Atomowy licznik w bazie usuwa wyścig bez blokowania
+całych transakcji. Neutralne odpowiedzi i fragment adresu nie pogarszają wygody, a nie ujawniają kont ani kodów.
+Ograniczenie: osoba rejestrująca się z zaproszenia musi po potwierdzeniu adresu otworzyć link zaproszenia ponownie.
+
+## D54. Limity zapytań do usług zewnętrznych i ogólne komunikaty błędów (obszar 01 przeglądu)
+
+**Kontekst:** przegląd kodu wykazał, że: kilka świeżych kont mogło wyczerpać wspólny dzienny limit wykazu VAT (SEC-5);
+podgląd kursu NBP przyjmował dowolną datę - nieograniczone zapytania do NBP, rosnąca pamięć podręczna i błąd 500 dla
+skrajnych dat (SEC-6); zapis i wygenerowanie tokenu KSeF nie miały limitu, a każda próba to kilka zapytań do KSeF
+z adresu serwera (SEC-7); użytkownik widział surowe komunikaty serwera poczty i sieci (SEC-8).
+
+**Decyzja (wybór autora spośród przedstawionych wariantów):**
+- **Wykaz VAT:** dzienny limit na użytkownika obowiązuje także na adres IP klienta (te same wartości: 20 wyszukiwań,
+  200 sprawdzeń rachunków) - kilka kont z jednego komputera dzieli pulę. Razem z potwierdzaniem adresu e-mail (D53).
+- **Kurs NBP:** podgląd tylko dla dat od 02.01.2002 (pierwsza tabela A w API NBP) do jutra, inaczej 400. Brak kursu
+  zapamiętywany na 15 minut; kursy w osobnej pamięci podręcznej z limitem 10 000 wpisów; data sprzed tabel nie
+  powoduje zapytania do NBP.
+- **Token KSeF:** zapis i wygenerowanie tokenu - łącznie 5 prób na firmę w oknie 10 minut (okno przesuwne), potem 429
+  z `Retry-After`.
+- **Komunikaty błędów:** historia wiadomości e-mail i błąd generowania tokenu pokazują ogólny opis zależny od rodzaju
+  błędu (odrzucone logowanie, odrzucona wiadomość, brak połączenia); pełny wyjątek tylko w logu serwera.
+
+**Alternatywy:** limit wykazu na firmę lub rezerwa puli dla kont starszych niż doba; zakres dat kursu „ostatnie 5 lat”
+albo decyzja razem z poprawką FAK-3; limit tokenu 1/min lub 10/godz.; komunikat ogólny z kodem SMTP.
+
+**Uzasadnienie:** limity chronią wspólne zasoby (limity MF i KSeF liczone dla adresu serwera, pamięć aplikacji) przed
+jednym użytkownikiem, nie utrudniając normalnej pracy. Szczegóły infrastruktury są potrzebne administratorowi (log),
+a nie użytkownikowi - ich ujawnienie ułatwia rozpoznanie środowiska.
+
